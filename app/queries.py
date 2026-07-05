@@ -482,3 +482,37 @@ def load_editable_settings(db: Session) -> list[dict]:
             value = row.value.get("v")
         out.append({**spec, "current": value})
     return out
+
+
+
+# --- Player notes -------------------------------------------------------
+def get_character_ids_with_notes(db: Session) -> set[int]:
+    """Return the set of character_ids that have at least one staff note.
+    Used to render the 📝 badge on Roster and Dashboard for staff users."""
+    from .models import PlayerNote
+    rows = db.scalars(select(PlayerNote.character_id).distinct()).all()
+    return set(rows)
+
+
+
+# --- Burns --------------------------------------------------------------
+def get_character_ids_burned_this_season(db: Session, season_id: int) -> dict[int, int]:
+    """Return {character_id: burn_count} for the given season.
+    Used to render the 🔥 badge on Roster."""
+    from .models import Burn
+    from sqlalchemy import func as _f
+    rows = db.execute(
+        select(Burn.character_id, _f.count(Burn.id))
+        .where(Burn.season_id == season_id)
+        .group_by(Burn.character_id)
+    ).all()
+    return {char_id: count for char_id, count in rows}
+
+
+def get_burns_for_character(db: Session, character_id: int, season_id: int | None = None) -> list:
+    """Return burns for a character, optionally filtered by season."""
+    from .models import Burn
+    stmt = select(Burn).where(Burn.character_id == character_id)
+    if season_id is not None:
+        stmt = stmt.where(Burn.season_id == season_id)
+    return list(db.scalars(stmt.order_by(Burn.burn_date.desc(), Burn.recorded_at.desc())).all())

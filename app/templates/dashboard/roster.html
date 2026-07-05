@@ -4,6 +4,16 @@
 {% set is_staff = user and user.role in ['staff', 'owner'] %}
 
 {% block head_extra %}
+  <style>
+    /* Prevent iOS/Android from turning the numeric ID into a phone link */
+    .col-id, .id-copy, .ref, .no-tap-detect {
+      -webkit-touch-callout: none;
+      -webkit-user-select: text;
+      user-select: text;
+      pointer-events: auto;
+    }
+  </style>
+
 <style>
   /* ------------------------------------------------------------------
      Filters bar — refined inputs, restrained buttons.
@@ -275,7 +285,24 @@
           {% for row in rows %}
           <tr data-rank="{{ loop.index }}">
             <td class="col-pin col-pin-1 font-mono text-muted text-xs">{{ loop.index }}</td>
-            <td class="col-pin col-pin-2 text-primary">{{ row.name }}</td>
+            <td class="col-pin col-pin-2">
+              <a href="/player/{{ row.character_id }}" class="text-primary hover:text-cyan-300 transition-colors">{{ row.name }}</a>
+              {% if is_staff and row.character_id in ids_with_notes %}
+                <a href="/player/{{ row.character_id }}#notes"
+                   title="This player has staff notes"
+                   class="ml-1 inline-block align-middle text-gold hover:text-cyan-300 transition-colors"
+                   style="font-size: 0.85em; text-decoration: none;"
+                   onclick="event.stopPropagation();">📝</a>
+              {% endif %}
+              {% set burn_n = burns_count_by_char.get(row.character_id, 0) %}
+              {% if burn_n > 0 %}
+                <a href="/player/{{ row.character_id }}#burns"
+                   title="{{ burn_n }} burn{{ 's' if burn_n > 1 else '' }} this season"
+                   class="ml-1 inline-block align-middle hover:text-cyan-300 transition-colors"
+                   style="font-size: 0.85em; text-decoration: none; color: #FCA5A5;"
+                   onclick="event.stopPropagation();">🔥{% if burn_n > 1 %}<span style="font-family: var(--font-mono); font-size: 0.85em; margin-left: 1px;">×{{ burn_n }}</span>{% endif %}</a>
+              {% endif %}
+            </td>
             <td class="col-pin col-pin-3 col-id font-mono"
                 data-character-id="{{ row.character_id }}"
                 title="Click to copy · paste into in-game search">{{ row.character_id }}</td>
@@ -363,28 +390,17 @@
 
     // Click-to-copy on ID cells — does not trigger row selection.
     const idCells = table.querySelectorAll('td.col-id');
-    idCells.forEach((cell) => {
-      cell.addEventListener('click', async (event) => {
+    idCells.forEach(function (cell) {
+      cell.style.userSelect = 'all';
+      cell.style.webkitUserSelect = 'all';
+      cell.addEventListener('click', function (event) {
         event.stopPropagation();
-        const id = cell.dataset.characterId;
+        var id = cell.dataset.characterId;
         if (!id) return;
-        try {
-          if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(id);
-          } else {
-            const ta = document.createElement('textarea');
-            ta.value = id;
-            ta.style.position = 'fixed';
-            ta.style.opacity = '0';
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-          }
+        var ok = window.evCopy(id);
+        if (ok) {
           cell.classList.add('is-copied');
-          setTimeout(() => cell.classList.remove('is-copied'), 700);
-        } catch (err) {
-          console.error('Copy failed', err);
+          setTimeout(function () { cell.classList.remove('is-copied'); }, 700);
         }
       });
     });

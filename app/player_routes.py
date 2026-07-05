@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .auth import get_db, require_user, require_staff
-from .models import Member, PlayerNote, Score, Season, Stat, User
+from .models import Burn, Member, PlayerNote, Score, Season, Stat, User
 
 router = APIRouter(tags=["player"])
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -93,6 +93,16 @@ async def player_profile(
             .order_by(PlayerNote.created_at.desc())
         ).all())
 
+    active_season = db.scalar(select(Season).where(Season.is_active == True))
+    burns_current_season = []
+    if active_season is not None:
+        burns_current_season = list(db.scalars(
+            select(Burn)
+            .where(Burn.character_id == character_id)
+            .where(Burn.season_id == active_season.id)
+            .order_by(Burn.burn_date.desc(), Burn.recorded_at.desc())
+        ).all())
+
     return templates.TemplateResponse(
         request=request,
         name="player/profile.html",
@@ -106,6 +116,8 @@ async def player_profile(
             "history": history,
             "latest_stat": latest_stat,
             "notes": notes,
+            "active_season": active_season,
+            "burns_current_season": burns_current_season,
         },
     )
 
@@ -150,3 +162,61 @@ async def delete_note(
         db.delete(note)
         db.commit()
     return RedirectResponse(url=f"/player/{character_id}#notes", status_code=303)
+
+
+
+@router.post("/player/{character_id}/burns")
+async def add_burn(
+    character_id: int,
+    power_before: str = Form(""),
+    power_after: str = Form(""),
+    target: str = Form(""),
+    notes: str = Form(""),
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    member = db.get(Member, character_id)
+    if member is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    active_season = db.scalar(select(Season).where(Season.is_active == True))
+    if active_season is None:
+        return RedirectResponse(url=f"/player/{character_id}#burns", status_code=303)
+
+    def _to_int(v: str) -> int | None:
+        v = v.strip()
+        if not v:
+            return None
+        try:
+            return int(v.replace(" ", "").replace(",", ""))
+        except ValueError:
+            return None
+
+    burn = Burn(
+        character_id=character_id,
+        season_id=active_season.id,
+        burn_date=datetime.utcnow().date(),
+        power_before=_to_int(power_before),
+        power_after=_to_int(power_after),
+        target=(target.strip()[:64] or None),
+        notes=(notes.strip()[:2000] or None),
+        recorded_by=user.username,
+        recorded_at=datetime.utcnow(),
+    )
+    db.add(burn)
+    db.commit()
+    return RedirectResponse(url=f"/player/{character_id}#burns", status_code=303)
+
+
+@router.post("/player/{character_id}/burns/{burn_id}/delete")
+async def delete_burn(
+    character_id: int,
+    burn_id: int,
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    burn = db.get(Burn, burn_id)
+    if burn is not None and burn.character_id == character_id:
+        db.delete(burn)
+        db.commit()
+    return RedirectResponse(url=f"/player/{character_id}#burns", status_code=303)

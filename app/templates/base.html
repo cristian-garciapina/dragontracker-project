@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+  <meta name="x-apple-disable-message-reformatting" content="" />
   <meta name="description" content="Eternal Vanguard alliance — Call of Dragons Kingdom 193." />
   <title>{% block title %}Eternal Vanguard{% endblock %}</title>
 
-  <!-- Tailwind via CDN — no build step for the MVP. Switch to CLI in v2 if asset weight matters. -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Cormorant (display) + Inter (body) + JetBrains Mono (data/numbers) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -64,7 +64,6 @@
     .bg-elevated { background-color: var(--color-bg-elevated); }
     .border-edge { border-color: var(--color-border); }
 
-    /* Grade palette — shared across dashboard, roster, farms. S is the only glow. */
     [data-grade="s"] { color: #F0EEEC; text-shadow: 0 0 10px rgba(240, 238, 236, 0.55); }
     [data-grade="a"] { color: #FFD700; }
     [data-grade="b"] { color: #C8C8C8; }
@@ -106,6 +105,168 @@
       box-shadow: 0 0 10px rgba(221, 184, 114, 0.5);
     }
 
+    /* --- Top nav layout ------------------------------------------------ */
+    /* Nav switches to hamburger at xl (1280px) instead of lg to avoid
+       overflow when many links + username + logout are present. */
+    .nav-links { display: none; }
+    .nav-session { display: none; }
+    .nav-burger { display: inline-flex; }
+    @media (min-width: 1280px) {
+      .nav-links { display: flex; }
+      .nav-session { display: flex; }
+      .nav-burger { display: none; }
+    }
+    .nav-link {
+      color: var(--color-text-secondary);
+      font-size: 0.875rem;
+      padding: 0.375rem 0;
+      transition: color 180ms ease;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--color-cyan); }
+    .nav-cta {
+      color: var(--color-gold);
+      border-bottom: 1px dashed rgba(221, 184, 114, 0.4);
+      padding-bottom: 2px;
+    }
+    .nav-cta:hover { color: var(--color-cyan); border-bottom-color: var(--color-cyan); }
+
+    /* --- Mobile drawer -------------------------------------------------- */
+    .drawer-backdrop {
+      position: fixed; inset: 0; z-index: 40;
+      background: rgba(6, 9, 18, 0.7);
+      backdrop-filter: blur(6px);
+      opacity: 0; pointer-events: none;
+      transition: opacity 220ms ease;
+    }
+    .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
+      width: min(88vw, 320px);
+      background: var(--color-bg-card);
+      border-left: 1px solid var(--color-border);
+      transform: translateX(100%);
+      transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 1.25rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .drawer-header .wordmark {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      letter-spacing: 0.02em;
+    }
+    .drawer-close {
+      padding: 0.4rem;
+      border: 1px solid var(--color-border);
+      border-radius: 3px;
+      color: var(--color-text-secondary);
+      background: transparent;
+      cursor: pointer;
+      transition: color 180ms ease, border-color 180ms ease;
+    }
+    .drawer-close:hover { color: var(--color-cyan); border-color: var(--color-ring); }
+
+    .drawer-section-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      padding: 1rem 1.25rem 0.5rem;
+    }
+
+    .drawer-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1.25rem;
+      color: var(--color-text-primary);
+      font-size: 0.95rem;
+      border-left: 2px solid transparent;
+      transition: background-color 180ms ease, border-left-color 180ms ease, color 180ms ease;
+    }
+    .drawer-item:hover, .drawer-item:focus-visible {
+      background-color: rgba(34, 211, 238, 0.05);
+      border-left-color: var(--color-cyan);
+      color: var(--color-cyan);
+      outline: none;
+    }
+    .drawer-item.cta {
+      color: var(--color-gold);
+    }
+    .drawer-item.cta:hover {
+      background-color: rgba(221, 184, 114, 0.06);
+      border-left-color: var(--color-gold);
+    }
+    .drawer-item .chev {
+      opacity: 0.4;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .drawer-item:hover .chev { opacity: 1; transform: translateX(2px); }
+
+    .drawer-user {
+      margin-top: auto;
+      padding: 1.25rem;
+      border-top: 1px solid var(--color-border);
+      background: rgba(15, 21, 36, 0.6);
+    }
+    .drawer-user .user-line {
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+      margin-bottom: 0.15rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .drawer-user .user-name {
+      font-size: 1rem;
+      color: var(--color-text-primary);
+      margin-bottom: 0.75rem;
+    }
+    .drawer-user .role-badge {
+      display: inline-block;
+      margin-left: 0.4rem;
+      padding: 1px 6px;
+      font-size: 0.62rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      border-radius: 2px;
+      border: 1px solid;
+    }
+    .drawer-user .role-owner  { color: var(--color-violet); border-color: rgba(167, 139, 250, 0.4); }
+    .drawer-user .role-staff  { color: var(--color-gold); border-color: rgba(221, 184, 114, 0.4); }
+    .drawer-user .role-member { color: var(--color-text-secondary); border-color: var(--color-border); }
+
+    .drawer-btn {
+      display: block; width: 100%;
+      padding: 0.6rem 1rem;
+      background: transparent;
+      border: 1px solid var(--color-border);
+      color: var(--color-text-secondary);
+      border-radius: 3px;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+      text-align: center;
+    }
+    .drawer-btn:hover {
+      color: var(--color-cyan);
+      border-color: var(--color-cyan);
+      background: rgba(34, 211, 238, 0.05);
+    }
+    .drawer-btn.login {
+      color: var(--color-cyan);
+      border-color: rgba(34, 211, 238, 0.4);
+    }
+    .drawer-btn.login:hover { background: rgba(34, 211, 238, 0.1); }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -115,39 +276,92 @@
   </style>
 
   {% block head_extra %}{% endblock %}
+
+  <script>
+    // Cross-platform clipboard copy. Must be called SYNCHRONOUSLY
+    // inside a user gesture (click/tap) for iOS Safari to allow it.
+    // Returns true on success, false on failure.
+    window.evCopy = function (text) {
+      if (text == null) return false;
+      text = String(text);
+
+      // Strategy 1: synchronous execCommand — works on iOS Safari,
+      // desktop Chrome/FF/Edge, Android. Must be in the same tick.
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.contentEditable = 'true';
+      ta.readOnly = false;
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '0';
+      ta.style.width = '2em';
+      ta.style.height = '2em';
+      ta.style.padding = '0';
+      ta.style.border = 'none';
+      ta.style.outline = 'none';
+      ta.style.boxShadow = 'none';
+      ta.style.background = 'transparent';
+      ta.style.fontSize = '16px';
+      document.body.appendChild(ta);
+      try {
+        var range = document.createRange();
+        range.selectNodeContents(ta);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        ta.setSelectionRange(0, text.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) return true;
+      } catch (e) {
+        try { document.body.removeChild(ta); } catch (_) {}
+      }
+
+      // Strategy 2: async Clipboard API (fire-and-forget fallback).
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).catch(function () {});
+        return true; // optimistic — API is async but usually works
+      }
+      return false;
+    };
+  </script>
 </head>
 
 <body class="antialiased">
   <div class="starfield" aria-hidden="true"></div>
 
   <header class="relative z-10 border-b border-edge" data-component="topbar">
-    <nav class="max-w-7xl mx-auto flex items-center justify-between px-6 py-5">
+    <nav class="max-w-7xl mx-auto flex items-center justify-between gap-6 px-6 py-5">
       <a href="/" class="font-display text-xl tracking-wider whitespace-nowrap" data-nav="wordmark">
         Eternal <span class="text-gold">Vanguard</span>
       </a>
 
-      <ul class="hidden lg:flex items-center gap-6 text-sm" data-nav="primary">
-        <li><a href="/" class="hover:text-cyan-300 transition-colors">Home</a></li>
-        <li><a href="/apply/status" class="hover:text-cyan-300 transition-colors">Track application</a></li>
+      {# ------------- Desktop nav (>= 1280px) ------------- #}
+      <ul class="nav-links items-center gap-6" data-nav="primary">
+        <li><a href="/" class="nav-link">Home</a></li>
+        {% if not user %}
+          <li><a href="/apply/status" class="nav-link nav-cta">Track application</a></li>
+        {% endif %}
         {% if user %}
-          <li><a href="/dashboard" class="hover:text-cyan-300 transition-colors">Dashboard</a></li>
-          <li><a href="/roster" class="hover:text-cyan-300 transition-colors">Roster</a></li>
-          <li><a href="/farms" class="hover:text-cyan-300 transition-colors">Farms</a></li>
-          <li><a href="/profile" class="hover:text-cyan-300 transition-colors">Profile</a></li>
+          <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+          <li><a href="/roster" class="nav-link">Roster</a></li>
+          <li><a href="/farms" class="nav-link">Farms</a></li>
+          <li><a href="/profile" class="nav-link">Profile</a></li>
           {% if user.role in ['staff', 'owner'] %}
-          <li><a href="/staff/applications" class="hover:text-cyan-300 transition-colors">Apps</a></li>
-          <li><a href="/staff/registrations" class="hover:text-cyan-300 transition-colors">Pending</a></li>
-          <li><a href="/staff/users" class="hover:text-cyan-300 transition-colors">Users</a></li>
-          <li><a href="/staff/seasons" class="hover:text-cyan-300 transition-colors">Seasons</a></li>
-          <li><a href="/staff/settings" class="hover:text-cyan-300 transition-colors">Settings</a></li>
+          <li><a href="/staff/applications" class="nav-link">Apps</a></li>
+          <li><a href="/staff/registrations" class="nav-link">Pending</a></li>
+          <li><a href="/staff/users" class="nav-link">Users</a></li>
+          <li><a href="/staff/seasons" class="nav-link">Seasons</a></li>
+          <li><a href="/staff/settings" class="nav-link">Settings</a></li>
           {% endif %}
         {% endif %}
       </ul>
 
-      <div class="hidden lg:flex items-center gap-3" data-nav="session">
+      <div class="nav-session items-center gap-3" data-nav="session">
         {% if user %}
-          <span class="text-sm text-secondary hidden sm:inline">
-            Logged in as <span class="text-primary font-medium" data-field="username">{{ user.username }}</span>
+          <span class="text-sm text-secondary whitespace-nowrap">
+            <span class="text-muted text-xs uppercase tracking-wider mr-1">Logged in as</span>
+            <span class="text-primary font-medium" data-field="username">{{ user.username }}</span>
             {% if user.role == 'owner' %}
               <span class="ml-1 text-xs uppercase tracking-wider text-violet-400" data-field="role-badge">owner</span>
             {% elif user.role == 'staff' %}
@@ -156,81 +370,97 @@
           </span>
           <form method="post" action="/logout" class="inline">
             <button type="submit"
-                    class="text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors"
+                    class="text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors whitespace-nowrap"
                     data-action="logout">
               Log out
             </button>
           </form>
         {% else %}
           <a href="/login"
-             class="text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors"
+             class="text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors whitespace-nowrap"
              data-action="login">
             Log in
           </a>
         {% endif %}
       </div>
-    
-      <!-- Hamburger (visible below lg) -->
+
+      {# ------------- Hamburger (below 1280px) ------------- #}
       <button type="button"
-              class="lg:hidden inline-flex items-center justify-center p-2 border border-edge rounded"
+              class="nav-burger items-center justify-center p-2 border border-edge rounded"
               data-action="open-menu"
-              aria-label="Open menu">
+              aria-label="Open menu"
+              aria-controls="mobile-drawer">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-             fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+             fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <line x1="3" y1="6" x2="21" y2="6"></line>
           <line x1="3" y1="12" x2="21" y2="12"></line>
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
     </nav>
+  </header>
 
-    <!-- Mobile drawer -->
-    <div class="lg:hidden hidden" data-component="mobile-drawer">
-      <div class="border-t border-edge px-6 py-4 bg-card ml-auto max-w-xs">
-        <ul class="flex flex-col gap-2 text-sm" data-nav="mobile-primary">
-          <li><a href="/" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Home</a></li>
-          <li><a href="/apply/status" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Track application</a></li>
-          {% if user %}
-            <li><a href="/dashboard" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Dashboard</a></li>
-            <li><a href="/roster" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Roster</a></li>
-            <li><a href="/farms" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Farms</a></li>
-            <li><a href="/profile" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Profile</a></li>
-            {% if user.role in ['staff', 'owner'] %}
-              <li><a href="/staff/registrations" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Pending</a></li>
-              <li><a href="/staff/users" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Users</a></li>
-              <li><a href="/staff/seasons" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Seasons</a></li>
-              <li><a href="/staff/settings" class="block px-2 py-2 hover:text-cyan-300 transition-colors">Settings</a></li>
-            {% endif %}
-          {% endif %}
-        </ul>
+  {# ------------- Mobile drawer + backdrop (rendered once) ------------- #}
+  <div class="drawer-backdrop" data-action="close-menu" aria-hidden="true"></div>
 
-        <div class="mt-4 pt-4 border-t border-edge">
-          {% if user %}
-            <p class="text-sm text-secondary mb-3">
-              Logged in as <span class="text-primary font-medium">{{ user.username }}</span>
-              {% if user.role == 'owner' %}
-                <span class="ml-1 text-xs uppercase tracking-wider text-violet-400">owner</span>
-              {% elif user.role == 'staff' %}
-                <span class="ml-1 text-xs uppercase tracking-wider text-gold">staff</span>
-              {% endif %}
-            </p>
-            <form method="post" action="/logout">
-              <button type="submit"
-                      class="w-full text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors">
-                Log out
-              </button>
-            </form>
-          {% else %}
-            <a href="/login"
-               class="block text-center text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors">
-              Log in
-            </a>
-          {% endif %}
-        </div>
-      </div>
+  <aside class="drawer" id="mobile-drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Main menu">
+    <div class="drawer-header">
+      <span class="wordmark">Eternal <span class="text-gold">Vanguard</span></span>
+      <button type="button" class="drawer-close" data-action="close-menu" aria-label="Close menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
 
-  </header>
+    <nav class="flex flex-col" aria-label="Mobile primary">
+      <p class="drawer-section-label">Navigate</p>
+      <a href="/" class="drawer-item"><span>Home</span><span class="chev">›</span></a>
+      {% if not user %}
+        <a href="/apply/status" class="drawer-item cta"><span>Track application</span><span class="chev">›</span></a>
+      {% endif %}
+      {% if user %}
+        <a href="/dashboard" class="drawer-item"><span>Dashboard</span><span class="chev">›</span></a>
+        <a href="/roster" class="drawer-item"><span>Roster</span><span class="chev">›</span></a>
+        <a href="/farms" class="drawer-item"><span>Farms</span><span class="chev">›</span></a>
+        <a href="/profile" class="drawer-item"><span>Profile</span><span class="chev">›</span></a>
+
+        {% if user.role in ['staff', 'owner'] %}
+        <p class="drawer-section-label">Staff</p>
+        <a href="/staff/applications" class="drawer-item"><span>Applications</span><span class="chev">›</span></a>
+        <a href="/staff/registrations" class="drawer-item"><span>Pending users</span><span class="chev">›</span></a>
+        <a href="/staff/users" class="drawer-item"><span>Users</span><span class="chev">›</span></a>
+        <a href="/staff/seasons" class="drawer-item"><span>Seasons</span><span class="chev">›</span></a>
+        <a href="/staff/settings" class="drawer-item"><span>Settings</span><span class="chev">›</span></a>
+        {% endif %}
+      {% endif %}
+    </nav>
+
+    <div class="drawer-user">
+      {% if user %}
+        <p class="user-line">Signed in</p>
+        <p class="user-name">
+          {{ user.username }}
+          {% if user.role == 'owner' %}
+            <span class="role-badge role-owner">owner</span>
+          {% elif user.role == 'staff' %}
+            <span class="role-badge role-staff">staff</span>
+          {% else %}
+            <span class="role-badge role-member">member</span>
+          {% endif %}
+        </p>
+        <form method="post" action="/logout">
+          <button type="submit" class="drawer-btn">Log out</button>
+        </form>
+      {% else %}
+        <p class="user-line">Members</p>
+        <p class="user-name text-secondary text-sm">Log in to access the dashboard.</p>
+        <a href="/login" class="drawer-btn login">Log in</a>
+      {% endif %}
+    </div>
+  </aside>
 
   <main class="relative z-10">
     {% block content %}{% endblock %}
@@ -245,11 +475,36 @@
 
   <script>
     (function () {
-      const btn = document.querySelector('[data-action="open-menu"]');
-      const drawer = document.querySelector('[data-component="mobile-drawer"]');
-      if (!btn || !drawer) return;
-      btn.addEventListener('click', () => {
-        drawer.classList.toggle('hidden');
+      var openBtn   = document.querySelector('[data-action="open-menu"]');
+      var drawer    = document.getElementById('mobile-drawer');
+      var backdrop  = document.querySelector('.drawer-backdrop');
+      if (!openBtn || !drawer || !backdrop) return;
+
+      function openDrawer() {
+        drawer.classList.add('open');
+        backdrop.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        backdrop.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeDrawer() {
+        drawer.classList.remove('open');
+        backdrop.classList.remove('open');
+        drawer.setAttribute('aria-hidden', 'true');
+        backdrop.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+      }
+
+      openBtn.addEventListener('click', openDrawer);
+      document.querySelectorAll('[data-action="close-menu"]').forEach(function (el) {
+        el.addEventListener('click', closeDrawer);
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
+      });
+      // Close drawer on nav-link tap so mobile users don't stay stuck on the same view.
+      drawer.querySelectorAll('a.drawer-item').forEach(function (a) {
+        a.addEventListener('click', closeDrawer);
       });
     })();
   </script>

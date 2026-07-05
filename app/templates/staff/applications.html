@@ -1,78 +1,57 @@
 {% extends "base.html" %}
 {% block title %}Applications · Eternal Vanguard
-<div id="delete-modal" role="dialog" aria-modal="true" aria-hidden="true"
-     style="display:none; position:fixed; inset:0; z-index:80; background:rgba(6,9,18,0.75); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;">
-  <div style="background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:4px; max-width:26rem; width:100%; padding:1.5rem;">
-    <p style="font-family:var(--font-mono); font-size:0.7rem; letter-spacing:0.2em; text-transform:uppercase; color:#FCA5A5; margin-bottom:0.5rem;">Confirm deletion</p>
-    <h2 style="font-family:var(--font-display); font-size:1.4rem; color:var(--color-text-primary); margin-bottom:0.75rem; letter-spacing:0.01em;">Delete this application?</h2>
-    <p id="delete-modal-body" style="color:var(--color-text-secondary); font-size:0.9rem; line-height:1.55; margin-bottom:1.25rem;"></p>
-    <div style="display:flex; gap:0.6rem; justify-content:flex-end;">
-      <button type="button" id="delete-modal-cancel"
-              style="padding:0.55rem 1rem; border:1px solid var(--color-border); background:transparent; color:var(--color-text-secondary); border-radius:3px; font-size:0.8rem; letter-spacing:0.06em; text-transform:uppercase; cursor:pointer;">
-        Cancel
-      </button>
-      <button type="button" id="delete-modal-confirm"
-              style="padding:0.55rem 1rem; border:1px solid rgba(252,165,165,0.6); background:rgba(252,165,165,0.08); color:#FCA5A5; border-radius:3px; font-size:0.8rem; letter-spacing:0.06em; text-transform:uppercase; cursor:pointer;">
-        Delete permanently
-      </button>
+
+
+
+<dialog id="app-delete-dialog" style="border: 1px solid var(--color-border); background: var(--color-bg-card); border-radius: 4px; max-width: 26rem; width: 90vw; padding: 0; color: var(--color-text-primary);">
+  <div style="padding: 1.5rem;">
+    <p style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: #FCA5A5; margin: 0 0 0.5rem;">Confirm deletion</p>
+    <h2 style="font-family: var(--font-display); font-size: 1.4rem; margin: 0 0 0.75rem;">Delete this application?</h2>
+    <p id="app-delete-body" style="color: var(--color-text-secondary); font-size: 0.9rem; line-height: 1.55; margin: 0 0 1.25rem;"></p>
+    <div style="display: flex; gap: 0.6rem; justify-content: flex-end;">
+      <button type="button" id="app-delete-cancel"
+              style="padding: 0.55rem 1rem; border: 1px solid var(--color-border); background: transparent; color: var(--color-text-secondary); border-radius: 3px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;">Cancel</button>
+      <button type="submit" id="app-delete-confirm" form=""
+              style="padding: 0.55rem 1rem; border: 1px solid rgba(252,165,165,0.6); background: rgba(252,165,165,0.08); color: #FCA5A5; border-radius: 3px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;">Delete permanently</button>
     </div>
   </div>
-</div>
-
+</dialog>
 <script>
   (function () {
-    var modal = document.getElementById('delete-modal');
-    var body = document.getElementById('delete-modal-body');
-    var cancel = document.getElementById('delete-modal-cancel');
-    var confirmBtn = document.getElementById('delete-modal-confirm');
-    var pendingForm = null;
+    var dlg = document.getElementById('app-delete-dialog');
+    if (!dlg) return;
+    var body = document.getElementById('app-delete-body');
+    var cancel = document.getElementById('app-delete-cancel');
+    var confirmBtn = document.getElementById('app-delete-confirm');
 
-    function openModal(form) {
-      pendingForm = form;
-      var ref = form.dataset.ref || form.dataset.appId || '?';
-      var name = form.dataset.name || '';
-      var status = form.dataset.status || '';
+    function openDialog(btn) {
+      confirmBtn.setAttribute('form', 'app-delete-form-' + btn.dataset.appDeleteTrigger);
+      var ref = btn.dataset.ref || '?';
+      var name = btn.dataset.name || '';
+      var status = btn.dataset.status || '';
       var msg = 'Reference ' + ref;
       if (name) msg += ' (' + name + ')';
       msg += ' will be permanently removed.';
       if (status === 'rejected') {
-        msg += '\n\nRejected apps normally stay as history. This will also remove the candidate\'s public status page.';
+        msg += ' Rejected apps normally stay as history — this also removes the candidate public status page.';
       }
       body.textContent = msg;
-      modal.style.display = 'flex';
-      modal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
+      if (typeof dlg.showModal === 'function') { dlg.showModal(); }
+      else { dlg.setAttribute('open', 'open'); }
     }
-
-    function closeModal() {
-      modal.style.display = 'none';
-      modal.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
-      pendingForm = null;
+    function closeDialog() {
+      if (typeof dlg.close === 'function') { dlg.close(); }
+      else { dlg.removeAttribute('open'); }
     }
-
-    cancel.addEventListener('click', closeModal);
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal) closeModal();
+    cancel.addEventListener('click', closeDialog);
+    dlg.addEventListener('click', function (e) {
+      var rect = dlg.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        closeDialog();
+      }
     });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
-    });
-
-    confirmBtn.addEventListener('click', function () {
-      if (!pendingForm) return closeModal();
-      var form = pendingForm;
-      pendingForm = null;
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
-      form.submit();
-    });
-
-    document.querySelectorAll('form[data-confirm-delete]').forEach(function (form) {
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        openModal(form);
-      });
+    document.querySelectorAll('[data-app-delete-trigger]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openDialog(btn); });
     });
   })();
 </script>
@@ -232,14 +211,18 @@
 
               {# Delete — allowed on all statuses; confirmation is the safety net #}
               <div class="flex flex-wrap items-center gap-2 pt-1">
-                <form method="post" action="/staff/applications/{{ app.id }}/delete"
-                      data-ref="{{ app.reference or app.id }}" data-name="{{ app.in_game_name }}" data-status="{{ app.status }}"
-                      data-confirm-delete="1" >
-                  <button type="submit"
-                          class="text-xs px-3 py-1.5 border border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 rounded-sm tracking-wider uppercase transition-colors">
-                    Delete
-                  </button>
-                </form>
+                <form id="app-delete-form-{{ app.id }}"
+                      method="post"
+                      action="/staff/applications/{{ app.id }}/delete"
+                      style="display: contents;"></form>
+                <button type="button"
+                        data-app-delete-trigger="{{ app.id }}"
+                        data-ref="{{ app.reference or app.id }}"
+                        data-name="{{ app.in_game_name }}"
+                        data-status="{{ app.status }}"
+                        class="text-xs px-3 py-1.5 border border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 rounded-sm tracking-wider uppercase transition-colors cursor-pointer">
+                  Delete
+                </button>
                 <span class="text-[0.7rem] text-muted italic">
                   {% if app.status == 'rejected' %}Rejected apps carry candidate-facing history — deleting removes their status page.
                   {% else %}Prefer Reject over Delete when you want to keep a record.

@@ -314,7 +314,16 @@
             {% for row in top_performers %}
             <tr data-rank="{{ loop.index }}" class="border-t border-edge hover:bg-elevated/40 transition-colors">
               <td class="px-4 py-3 font-mono text-muted">{{ "%02d"|format(loop.index) }}</td>
-              <td class="px-4 py-3 text-primary">{{ row.name }}</td>
+              <td class="px-4 py-3">
+                <a href="/player/{{ row.character_id }}" class="text-primary hover:text-cyan-300 transition-colors">{{ row.name }}</a>
+                {% set is_staff_dash = user and user.role in ['staff', 'owner'] %}
+                {% if is_staff_dash and row.character_id in ids_with_notes %}
+                  <a href="/player/{{ row.character_id }}#notes"
+                     title="This player has staff notes"
+                     class="ml-1 inline-block align-middle text-gold hover:text-cyan-300 transition-colors"
+                     style="font-size: 0.85em; text-decoration: none;">📝</a>
+                {% endif %}
+              </td>
               <td class="px-4 py-3 text-center font-mono font-semibold" data-grade="{{ row.grade|lower }}">{{ row.grade }}</td>
               <td class="px-4 py-3 text-right font-mono text-cyan">{{ "%.1f"|format(row.mp_ratio) }}%</td>
               <td class="px-4 py-3 text-right font-mono">{{ row.merits_total_short }}</td>

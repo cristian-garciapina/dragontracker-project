@@ -90,17 +90,21 @@
     </div>
 
     <script>
-      (function () {
-        const el = document.getElementById('ref-value');
+      document.addEventListener('DOMContentLoaded', function () {
+        var el = document.getElementById('ref-value');
         if (!el) return;
-        el.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(el.dataset.copy);
+        el.style.userSelect = 'all';
+        el.style.webkitUserSelect = 'all';
+        el.addEventListener('click', function () {
+          var ok = window.evCopy(el.dataset.copy || el.textContent.trim());
+          if (ok) {
             el.classList.add('flash');
-            setTimeout(() => el.classList.remove('flash'), 700);
-          } catch (e) { /* ignore */ }
+            setTimeout(function () { el.classList.remove('flash'); }, 700);
+          } else {
+            alert('Copy failed. Please long-press to select and copy:\n\n' + (el.dataset.copy || ''));
+          }
         });
-      })();
+      });
     </script>
 
   {% else %}

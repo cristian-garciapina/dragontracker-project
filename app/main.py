@@ -180,6 +180,7 @@ async def dashboard_overview(
     stats = queries.get_dashboard_stats(db, season.id, snapshot.id)
     stats["count_missing"] = queries.get_missing_count(db, season, snapshot.id)
 
+    is_staff_dash = user.role in ("staff", "owner")
     context.update(
         {
             "snapshot": snapshot,
@@ -187,6 +188,7 @@ async def dashboard_overview(
             "distribution": queries.get_grade_distribution(db, season.id, snapshot.id),
             "top_performers": queries.get_top_grade_s(db, season.id, snapshot.id),
             "has_scores": True,
+            "ids_with_notes": queries.get_character_ids_with_notes(db) if is_staff_dash else set(),
         }
     )
 
@@ -216,6 +218,8 @@ async def roster(
         "snapshot": None,
         "rows": [],
         "total_count": 0,
+        "ids_with_notes": set(),
+        "burns_count_by_char": {},
         "filtered_count": 0,
         "filters": {
             "q": q,
@@ -253,6 +257,9 @@ async def roster(
         order=order,
     )
     context["filtered_count"] = len(context["rows"])
+    is_staff_roster = user.role in ("staff", "owner")
+    context["ids_with_notes"] = queries.get_character_ids_with_notes(db) if is_staff_roster else set()
+    context["burns_count_by_char"] = queries.get_character_ids_burned_this_season(db, season.id)
 
     return templates.TemplateResponse(
         request=request, name="dashboard/roster.html", context=context

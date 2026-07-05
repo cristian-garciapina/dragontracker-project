@@ -3,101 +3,53 @@
 
 {% block head_extra %}
 <style>
-  .hero-eyebrow {
-    font-size: 0.75rem;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-  }
-  .hero-title {
-    font-family: var(--font-display);
-    font-weight: 500;
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
-    line-height: 1.05;
-    letter-spacing: 0.01em;
-    color: var(--color-text-primary);
-  }
-  .hero-title .accent {
-    color: var(--color-gold);
-    font-style: italic;
-    font-weight: 500;
-  }
-  .hero-tag {
-    color: var(--color-text-secondary);
-    font-size: 1.0625rem;
-    line-height: 1.6;
-    max-width: 38rem;
-  }
-  .cta-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0.875rem 1.5rem;
-    border: 1px solid rgba(34, 211, 238, 0.5);
-    color: var(--color-cyan);
-    border-radius: 2px;
-    font-size: 0.875rem;
-    letter-spacing: 0.06em;
-    transition: border-color 180ms ease, background-color 180ms ease;
-  }
-  .cta-primary:hover {
-    border-color: var(--color-cyan);
-    background-color: rgba(34, 211, 238, 0.08);
-  }
-  .cta-primary .arrow { transition: transform 180ms ease; }
-  .cta-primary:hover .arrow { transform: translateX(3px); }
-  .cta-secondary {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.875rem 1.5rem;
+  .hero-eyebrow { font-size: 0.75rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--color-text-muted); font-family: var(--font-mono); }
+  .hero-title { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.5rem, 6vw, 4.5rem); line-height: 1.05; letter-spacing: 0.01em; color: var(--color-text-primary); }
+  .hero-title .accent { color: var(--color-gold); font-style: italic; font-weight: 500; }
+  .hero-tag { color: var(--color-text-secondary); font-size: 1.0625rem; line-height: 1.6; max-width: 38rem; }
+
+  /* --- Two-path CTA panel --- */
+  .path-grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .path-grid { grid-template-columns: 1fr 1fr; } }
+  .path-card {
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 1.5rem 1.5rem 1.25rem;
     border: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
-    border-radius: 2px;
-    font-size: 0.875rem;
-    letter-spacing: 0.06em;
-    transition: border-color 180ms ease, color 180ms ease;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.015);
+    transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
+    min-height: 220px;
   }
-  .cta-secondary:hover {
-    border-color: var(--color-ring);
-    color: var(--color-text-primary);
-  }
+  .path-card:hover { border-color: var(--color-ring); background: rgba(255,255,255,0.03); }
+  .path-card .kicker { font-size: 0.68rem; letter-spacing: 0.22em; text-transform: uppercase; font-family: var(--font-mono); color: var(--color-text-muted); margin-bottom: 0.5rem; }
+  .path-card h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.5rem; color: var(--color-text-primary); margin-bottom: 0.5rem; letter-spacing: 0.01em; }
+  .path-card p { color: var(--color-text-secondary); font-size: 0.9rem; line-height: 1.55; margin-bottom: 1.25rem; }
+  .path-card .who { font-size: 0.72rem; color: var(--color-text-muted); margin-bottom: 0.75rem; font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
 
-  .pillar {
-    border-left: 2px solid var(--color-border);
-    padding-left: 1.25rem;
-    transition: border-color 200ms ease;
-  }
+  .path-card.primary { border-color: rgba(34, 211, 238, 0.35); }
+  .path-card.primary:hover { border-color: var(--color-cyan); background: rgba(34, 211, 238, 0.05); }
+  .path-card.secondary:hover { border-color: var(--color-gold); background: rgba(212, 175, 55, 0.04); }
+
+  .cta-inline { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.25rem; border: 1px solid var(--color-border); color: var(--color-text-primary); border-radius: 2px; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; transition: border-color 180ms ease, background-color 180ms ease; align-self: flex-start; }
+  .cta-inline .arrow { transition: transform 180ms ease; }
+  .cta-inline:hover .arrow { transform: translateX(3px); }
+  .path-card.primary .cta-inline { border-color: rgba(34, 211, 238, 0.6); color: var(--color-cyan); }
+  .path-card.primary .cta-inline:hover { background-color: rgba(34, 211, 238, 0.1); border-color: var(--color-cyan); }
+  .path-card.secondary .cta-inline { border-color: rgba(212, 175, 55, 0.5); color: var(--color-gold); }
+  .path-card.secondary .cta-inline:hover { background-color: rgba(212, 175, 55, 0.08); border-color: var(--color-gold); }
+
+  .members-strip { margin-top: 1.25rem; padding: 0.9rem 1.25rem; border: 1px dashed var(--color-border); border-radius: 3px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .members-strip .lbl { font-size: 0.78rem; color: var(--color-text-secondary); font-family: var(--font-mono); letter-spacing: 0.05em; }
+  .members-strip a { font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-secondary); }
+  .members-strip a:hover { color: var(--color-cyan); }
+
+  .pillar { border-left: 2px solid var(--color-border); padding-left: 1.25rem; transition: border-color 200ms ease; }
   .pillar:hover { border-left-color: var(--color-gold); }
-  .pillar h3 {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 500;
-    color: var(--color-text-primary);
-    margin-bottom: 0.625rem;
-    letter-spacing: 0.01em;
-  }
-  .pillar p {
-    color: var(--color-text-secondary);
-    font-size: 0.9375rem;
-    line-height: 1.55;
-  }
+  .pillar h3 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; color: var(--color-text-primary); margin-bottom: 0.625rem; letter-spacing: 0.01em; }
+  .pillar p { color: var(--color-text-secondary); font-size: 0.9375rem; line-height: 1.55; }
 
-  .quote-block {
-    border-top: 1px solid var(--color-border);
-    border-bottom: 1px solid var(--color-border);
-    padding: 2.5rem 0;
-    text-align: center;
-  }
-  .quote-block p {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
-    color: var(--color-text-secondary);
-    line-height: 1.45;
-    max-width: 42rem;
-    margin: 0 auto;
-  }
+  .quote-block { border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: 2.5rem 0; text-align: center; }
+  .quote-block p { font-family: var(--font-display); font-style: italic; font-size: clamp(1.25rem, 2.5vw, 1.75rem); color: var(--color-text-secondary); line-height: 1.45; max-width: 42rem; margin: 0 auto; }
   .quote-block p .gold-word { color: var(--color-gold); font-style: normal; }
 </style>
 {% endblock %}
@@ -106,50 +58,81 @@
 <div class="max-w-5xl mx-auto px-6">
 
   {# ============================================================ HERO #}
-  <section data-section="hero" class="pt-16 pb-24">
-    <p class="hero-eyebrow mb-6">Eternal Vanguard · Kingdom {{ kingdom }}</p>
+  <section data-section="hero" class="pt-16 pb-12">
+    <p class="hero-eyebrow mb-6">Eternal Vanguard · Kingdom {{ kingdom or 193 }}</p>
     <h1 class="hero-title mb-6">
       An alliance built on <span class="accent">accountability</span>.
     </h1>
-    <p class="hero-tag mb-10">
+    <p class="hero-tag mb-2">
       We measure every member's contribution against a transparent standard.
       No favorites, no hidden criteria — just the numbers, reviewed every season.
-      If that sounds like the kind of group you want around you, we'd like to hear from you.
     </p>
-    <div class="flex flex-wrap items-center gap-4">
-      <a href="/apply" class="cta-primary">
-        Apply to join <span class="arrow">→</span>
-      </a>
-      {% if not user %}
-        <a href="/login" class="cta-secondary">Members log in</a>
-      {% else %}
-        <a href="/dashboard" class="cta-secondary">Open dashboard</a>
-      {% endif %}
+  </section>
+
+  {# ================================================ TWO-PATH DECISION #}
+  <section data-section="paths" class="pb-6">
+    <p class="text-xs tracking-[0.22em] uppercase text-muted font-mono mb-4">Choose your path</p>
+    <div class="path-grid">
+
+      <div class="path-card primary">
+        <div>
+          <p class="kicker">Path 1 · In-game</p>
+          <p class="who">For players outside Eternal Vanguard</p>
+          <h2>Apply to join the alliance</h2>
+          <p>
+            You play Call of Dragons on Kingdom {{ kingdom or 193 }} (or want to migrate)
+            and want to join Eternal Vanguard in-game. Staff reviews every application
+            and gets back to you on Discord.
+          </p>
+        </div>
+        <a href="/apply" class="cta-inline">Apply to join <span class="arrow">→</span></a>
+      </div>
+
+      <div class="path-card secondary">
+        <div>
+          <p class="kicker">Path 2 · This website</p>
+          <p class="who">For existing Eternal Vanguard members</p>
+          <h2>Create your site account</h2>
+          <p>
+            You are <strong>already</strong> a member of Eternal Vanguard in-game and want
+            access to the alliance dashboard on this website (roster, scores, seasons).
+            An officer will approve your account after signup.
+          </p>
+        </div>
+        <a href="/signup" class="cta-inline">Create account <span class="arrow">→</span></a>
+      </div>
+
     </div>
+
+    {% if not user %}
+    <div class="members-strip">
+      <span class="lbl">Already have a site account?</span>
+      <a href="/login">Members log in →</a>
+    </div>
+    {% else %}
+    <div class="members-strip">
+      <span class="lbl">Signed in as {{ user.username }}</span>
+      <a href="/dashboard">Open dashboard →</a>
+    </div>
+    {% endif %}
   </section>
 
   {# ===================================================== THREE PILLARS #}
-  <section data-section="pillars" class="grid md:grid-cols-3 gap-10 pb-24">
+  <section data-section="pillars" class="grid md:grid-cols-3 gap-10 py-16">
     <div class="pillar">
       <h3>Transparent</h3>
-      <p>
-        Every member's grade is computed from the same formula, with thresholds
-        published internally. You always know where you stand and why.
-      </p>
+      <p>Every member's grade is computed from the same formula, with thresholds
+        published internally. You always know where you stand and why.</p>
     </div>
     <div class="pillar">
       <h3>Active</h3>
-      <p>
-        We expect daily presence and consistent effort. Silent accounts don't
-        last a season here, and we say so up front rather than at expulsion.
-      </p>
+      <p>We expect daily presence and consistent effort. Silent accounts don't
+        last a season here, and we say so up front rather than at expulsion.</p>
     </div>
     <div class="pillar">
       <h3>Respectful</h3>
-      <p>
-        Discord, in-game, in-events — we hold ourselves to the same standard
-        of conduct. Drama isn't a strategy, and we don't recruit for it.
-      </p>
+      <p>Discord, in-game, in-events — we hold ourselves to the same standard
+        of conduct. Drama isn't a strategy, and we don't recruit for it.</p>
     </div>
   </section>
 
@@ -159,17 +142,6 @@
       "We don't grow by adding bodies.<br>
       We grow by keeping the <span class="gold-word">right</span> ones."
     </p>
-  </section>
-
-  {# ============================================================== CTA #}
-  <section data-section="cta-final" class="pb-24 text-center">
-    <p class="text-secondary text-sm mb-6 max-w-xl mx-auto">
-      Applications are reviewed by staff. We'll get back to you on Discord
-      once we've had time to look at your profile.
-    </p>
-    <a href="/apply" class="cta-primary">
-      Submit your application <span class="arrow">→</span>
-    </a>
   </section>
 
 </div>

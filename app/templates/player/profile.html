@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}{{ member.current_name }} · Player · Eternal Vanguard{% endblock %}
+
+{% block head_extra %}
+<style>
+  .id-copy {
+    cursor: pointer;
+    transition: background-color 220ms ease, color 220ms ease;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px dashed var(--color-border);
+  }
+  .id-copy:hover { color: var(--color-cyan); border-color: var(--color-ring); }
+  .id-copy.flash { background-color: rgba(34, 211, 238, 0.18); color: var(--color-cyan); }
+
+  .kpi-card {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-card);
+    padding: 1.25rem 1.25rem 1rem;
+    border-radius: 3px;
+    position: relative;
+  }
+  .kpi-card::before {
+    content: "";
+    position: absolute; left: 0; top: 0.6rem; bottom: 0.6rem;
+    width: 2px; background: var(--color-cyan);
+  }
+  .kpi-card.gold::before { background: var(--color-gold); }
+  .kpi-card .lbl { font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-text-muted); font-family: var(--font-mono); }
+  .kpi-card .val { font-family: var(--font-mono); font-size: 1.75rem; color: var(--color-text-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .kpi-card .sub { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 0.25rem; }
+  .delta-up   { color: #86EFAC; }
+  .delta-down { color: #FCA5A5; }
+
+  .season-row td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--color-border); }
+  .season-row.current { background: rgba(34, 211, 238, 0.04); }
+
+  .status-pill { font-size: 0.7rem; padding: 2px 8px; border-radius: 2px; font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid; display: inline-block; }
+  .status-KEEP  { color: #86EFAC; border-color: rgba(134, 239, 172, 0.4); }
+  .status-WATCH { color: var(--color-gold); border-color: rgba(221, 184, 114, 0.4); }
+  .status-EXPEL { color: #FCA5A5; border-color: rgba(252, 165, 165, 0.4); }
+  .status-FARM  { color: var(--color-text-muted); border-color: var(--color-border); }
+
+  .note-card { border: 1px solid var(--color-border); background: var(--color-bg-card); border-left: 2px solid var(--color-gold); padding: 0.9rem 1.1rem; border-radius: 2px; }
+  .note-card .meta { font-size: 0.72rem; color: var(--color-text-muted); font-family: var(--font-mono); }
+
+  .staff-only-badge { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-gold); border: 1px solid rgba(221, 184, 114, 0.35); padding: 1px 6px; border-radius: 2px; margin-left: 0.5rem; vertical-align: middle; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-6 py-10" data-page="player-profile">
+
+  {# ============================================================ HEADER #}
+  <section data-section="identity" class="mb-8">
+    <p class="text-xs tracking-[0.22em] uppercase text-muted font-mono mb-3">
+      Player profile
+    </p>
+    <h1 class="font-display text-4xl leading-tight mb-2">
+      {{ member.current_name }}
+    </h1>
+    <p class="text-secondary text-sm flex items-center gap-3 flex-wrap">
+      <span>
+        ID
+        <span class="id-copy font-mono text-primary" data-copy="{{ member.character_id }}">{{ member.character_id }}</span>
+      </span>
+      <span class="text-muted">·</span>
+      <span>Troop tier: <span class="text-primary font-mono">{{ member.troop_tier }}</span></span>
+      {% if member.in_alliance %}
+        <span class="text-muted">·</span>
+        <span class="text-gold text-xs uppercase tracking-wider">In alliance</span>
+      {% endif %}
+    </p>
+    <p class="text-xs text-muted mt-1 font-mono">
+      First seen {{ member.first_seen_at.strftime('%Y-%m-%d') }} · Last seen {{ member.last_seen_at.strftime('%Y-%m-%d') }}
+    </p>
+  </section>
+
+  {# ============================================================ KPI #}
+  {% if current %}
+  <section data-section="kpi" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+
+    <div class="kpi-card">
+      <p class="lbl mb-1">Current M/P%</p>
+      <p class="val" data-grade="{{ current.grade|lower }}">{{ '%.2f'|format(current.mp_ratio) }}%</p>
+      <p class="sub">Grade <strong data-grade="{{ current.grade|lower }}">{{ current.grade }}</strong>
+        · Season <span class="text-secondary">{{ current.season_name }}</span></p>
+    </div>
+
+    <div class="kpi-card">
+      <p class="lbl mb-1">Previous M/P%</p>
+      {% if previous %}
+        <p class="val" data-grade="{{ previous.grade|lower }}">{{ '%.2f'|format(previous.mp_ratio) }}%</p>
+        <p class="sub">Grade <strong data-grade="{{ previous.grade|lower }}">{{ previous.grade }}</strong>
+          · <span class="text-secondary">{{ previous.season_name }}</span></p>
+      {% else %}
+        <p class="val text-muted">—</p>
+        <p class="sub">No previous season yet</p>
+      {% endif %}
+    </div>
+
+    <div class="kpi-card gold">
+      <p class="lbl mb-1">Delta</p>
+      {% if delta is not none %}
+        <p class="val {% if delta >= 0 %}delta-up{% else %}delta-down{% endif %}">
+          {% if delta >= 0 %}+{% endif %}{{ '%.2f'|format(delta) }}
+        </p>
+        <p class="sub">Change vs previous season</p>
+      {% else %}
+        <p class="val text-muted">—</p>
+        <p class="sub">Needs 2 seasons of data</p>
+      {% endif %}
+    </div>
+
+  </section>
+
+  {% if is_staff %}
+  <section data-section="staff-status" class="mb-10">
+    <p class="text-xs tracking-[0.22em] uppercase text-muted font-mono mb-3">
+      Status <span class="staff-only-badge">Staff only</span>
+    </p>
+    <span class="status-pill status-{{ current.status }}">{{ current.status }}</span>
+    {% if current.is_farm_account %}
+      <span class="status-pill status-FARM ml-2">Farm account</span>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% endif %}
+
+  {# ================================================= SEASON HISTORY #}
+  <section data-section="history" class="mb-12">
+    <h2 class="font-display text-2xl mb-4">Season history</h2>
+
+    {% if history %}
+    <div class="border border-edge bg-card rounded-sm overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-elevated">
+          <tr class="text-xs uppercase tracking-wider text-muted">
+            <th class="text-left px-4 py-3">Season</th>
+            <th class="text-left px-4 py-3">Start</th>
+            <th class="text-right px-4 py-3">M/P%</th>
+            <th class="text-center px-4 py-3">Grade</th>
+            {% if is_staff %}<th class="text-center px-4 py-3">Status</th>{% endif %}
+            <th class="text-right px-4 py-3">Merits</th>
+            <th class="text-right px-4 py-3">Power (end)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in history %}
+          <tr class="season-row {% if loop.first %}current{% endif %}">
+            <td>
+              <span class="text-primary">{{ h.season_name }}</span>
+              {% if h.season_active %}
+                <span class="text-[0.65rem] uppercase tracking-wider text-cyan ml-1">Active</span>
+              {% endif %}
+            </td>
+            <td class="text-muted font-mono text-xs">{{ h.season_start }}</td>
+            <td class="text-right font-mono" data-grade="{{ h.grade|lower }}">{{ '%.2f'|format(h.mp_ratio) }}%</td>
+            <td class="text-center font-display text-lg" data-grade="{{ h.grade|lower }}">{{ h.grade }}</td>
+            {% if is_staff %}
+            <td class="text-center"><span class="status-pill status-{{ h.status }}">{{ h.status }}</span></td>
+            {% endif %}
+            <td class="text-right font-mono text-secondary">{{ '{:,}'.format(h.merits_cumulative).replace(',', ' ') }}</td>
+            <td class="text-right font-mono text-secondary">{{ '{:,}'.format(h.end_power).replace(',', ' ') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-sm italic">No scored season yet for this player.</p>
+    {% endif %}
+  </section>
+
+  {# ================================================ NOTES (STAFF) #}
+  {% if is_staff %}
+  <section data-section="notes" id="notes" class="mb-16">
+    <div class="flex items-center gap-2 mb-4">
+      <h2 class="font-display text-2xl">Notes</h2>
+      <span class="staff-only-badge">Staff only</span>
+    </div>
+    <p class="text-xs text-muted mb-4">
+      Internal traceability. Never shown to non-staff members.
+      Each note is stamped with author and date.
+    </p>
+
+    <form method="post" action="/player/{{ member.character_id }}/notes" class="mb-6 space-y-2">
+      <label for="note-body" class="block text-xs uppercase tracking-wider text-muted font-mono">Add a note</label>
+      <textarea id="note-body" name="body" required minlength="1" maxlength="4000" rows="3"
+                placeholder="Observed behavior, warning issued, promotion pending, absence context…"
+                class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary text-sm resize-y"></textarea>
+      <div class="flex justify-end">
+        <button type="submit"
+                class="text-xs px-4 py-2 border border-gold text-gold hover:bg-amber-900/20 rounded-sm tracking-wider uppercase transition-colors"
+                style="border-color: rgba(221,184,114,0.5); color: var(--color-gold);">
+          Add note
+        </button>
+      </div>
+    </form>
+
+    {% if notes %}
+    <div class="space-y-3">
+      {% for note in notes %}
+      <div class="note-card">
+        <p class="text-sm text-primary whitespace-pre-wrap leading-relaxed">{{ note.body }}</p>
+        <div class="mt-2 flex items-center justify-between">
+          <p class="meta">
+            {{ note.created_by }} · {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}
+          </p>
+          <form method="post" action="/player/{{ member.character_id }}/notes/{{ note.id }}/delete"
+                onsubmit="return confirm('Delete this note permanently?');">
+            <button type="submit"
+                    class="text-xs text-muted hover:text-red-400 transition-colors uppercase tracking-wider">
+              Delete
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted text-sm italic">No notes yet.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <div class="pt-4 border-t border-edge">
+    <a href="/roster" class="text-sm text-secondary hover:text-cyan-300">← Back to roster</a>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    document.querySelectorAll('.id-copy').forEach(el => {
+      el.addEventListener('click', async () => {
+        const v = el.dataset.copy;
+        try {
+          await navigator.clipboard.writeText(v);
+          el.classList.add('flash');
+          setTimeout(() => el.classList.remove('flash'), 700);
+        } catch (e) { /* ignore */ }
+      });
+    });
+  })();
+</script>
+{% endblock %}

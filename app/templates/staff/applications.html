@@ -1,15 +1,113 @@
 {% extends "base.html" %}
-{% block title %}Applications · Eternal Vanguard{% endblock %}
+{% block title %}Applications · Eternal Vanguard
+<div id="delete-modal" role="dialog" aria-modal="true" aria-hidden="true"
+     style="display:none; position:fixed; inset:0; z-index:80; background:rgba(6,9,18,0.75); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;">
+  <div style="background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:4px; max-width:26rem; width:100%; padding:1.5rem;">
+    <p style="font-family:var(--font-mono); font-size:0.7rem; letter-spacing:0.2em; text-transform:uppercase; color:#FCA5A5; margin-bottom:0.5rem;">Confirm deletion</p>
+    <h2 style="font-family:var(--font-display); font-size:1.4rem; color:var(--color-text-primary); margin-bottom:0.75rem; letter-spacing:0.01em;">Delete this application?</h2>
+    <p id="delete-modal-body" style="color:var(--color-text-secondary); font-size:0.9rem; line-height:1.55; margin-bottom:1.25rem;"></p>
+    <div style="display:flex; gap:0.6rem; justify-content:flex-end;">
+      <button type="button" id="delete-modal-cancel"
+              style="padding:0.55rem 1rem; border:1px solid var(--color-border); background:transparent; color:var(--color-text-secondary); border-radius:3px; font-size:0.8rem; letter-spacing:0.06em; text-transform:uppercase; cursor:pointer;">
+        Cancel
+      </button>
+      <button type="button" id="delete-modal-confirm"
+              style="padding:0.55rem 1rem; border:1px solid rgba(252,165,165,0.6); background:rgba(252,165,165,0.08); color:#FCA5A5; border-radius:3px; font-size:0.8rem; letter-spacing:0.06em; text-transform:uppercase; cursor:pointer;">
+        Delete permanently
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var modal = document.getElementById('delete-modal');
+    var body = document.getElementById('delete-modal-body');
+    var cancel = document.getElementById('delete-modal-cancel');
+    var confirmBtn = document.getElementById('delete-modal-confirm');
+    var pendingForm = null;
+
+    function openModal(form) {
+      pendingForm = form;
+      var ref = form.dataset.ref || form.dataset.appId || '?';
+      var name = form.dataset.name || '';
+      var status = form.dataset.status || '';
+      var msg = 'Reference ' + ref;
+      if (name) msg += ' (' + name + ')';
+      msg += ' will be permanently removed.';
+      if (status === 'rejected') {
+        msg += '\n\nRejected apps normally stay as history. This will also remove the candidate\'s public status page.';
+      }
+      body.textContent = msg;
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      pendingForm = null;
+    }
+
+    cancel.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+    });
+
+    confirmBtn.addEventListener('click', function () {
+      if (!pendingForm) return closeModal();
+      var form = pendingForm;
+      pendingForm = null;
+      modal.style.display = 'none';
+      document.body.style.overflow = '';
+      form.submit();
+    });
+
+    document.querySelectorAll('form[data-confirm-delete]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        openModal(form);
+      });
+    });
+  })();
+</script>
+
+{% endblock %}
+
+{% block head_extra %}
+<style>
+  .reject-panel { display: none; margin-top: 0.75rem; padding: 1rem; border: 1px dashed rgba(252, 165, 165, 0.4); border-radius: 3px; background: rgba(252, 165, 165, 0.03); }
+  .reject-panel.open { display: block; }
+  .reject-panel .lbl { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: #FCA5A5; margin-bottom: 0.4rem; }
+  .reject-panel .counter { font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-muted); text-align: right; margin-top: 0.25rem; }
+  .ref-tag { font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-text-muted); letter-spacing: 0.08em; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-6xl mx-auto px-6 py-12" data-page="staff-applications">
 
   <section data-section="hero" class="mb-8">
     <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ kingdom }}</p>
     <h1 class="font-display text-4xl mb-2">Applications</h1>
-    <p class="text-secondary text-sm">
-      Recruitment applications submitted via the public form.
-    </p>
+    <p class="text-secondary text-sm">Recruitment applications submitted via the public form.</p>
   </section>
+
+  {% if request.query_params.get('err') == 'protected' %}
+    <div role="alert" class="mb-6 p-3 border border-amber-700 bg-amber-900/20 text-amber-200 text-sm rounded-sm">
+      Rejected applications are kept as a trolling trail. They can't be deleted.
+    </div>
+  {% endif %}
+  {% if request.query_params.get('err') == 'reason_required' %}
+    <div role="alert" class="mb-6 p-3 border border-red-700 bg-red-900/20 text-red-200 text-sm rounded-sm">
+      Reject requires a public reason (shown to the candidate).
+    </div>
+  {% endif %}
 
   <section data-section="filters" class="mb-6 flex flex-wrap gap-2">
     {% set tabs = [('', 'All'), ('new', 'New'), ('reviewing', 'Reviewing'), ('accepted', 'Accepted'), ('rejected', 'Rejected')] %}
@@ -34,13 +132,14 @@
   {% else %}
     <div class="space-y-3">
       {% for app in apps %}
-        <details class="border border-edge bg-card rounded-sm">
+        <details class="border border-edge bg-card rounded-sm" id="app-{{ app.id }}">
           <summary class="cursor-pointer px-4 py-3 flex flex-wrap items-center gap-3 list-none">
             <div class="flex-1 min-w-[200px]">
               <p class="text-primary font-medium">{{ app.in_game_name }}</p>
               <p class="text-xs text-muted font-mono">
                 ID {{ app.player_id }} · Server {{ app.server }}
                 {% if app.current_alliance %} · from <span class="text-secondary">{{ app.current_alliance }}</span>{% endif %}
+                {% if app.reference %} · <span class="ref-tag">{{ app.reference }}</span>{% endif %}
               </p>
             </div>
             <div class="flex items-center gap-2">
@@ -66,9 +165,15 @@
               <p class="text-xs text-muted uppercase tracking-wider mb-1">Motivation</p>
               <p class="text-sm text-secondary whitespace-pre-wrap leading-relaxed">{{ app.motivation }}</p>
             </div>
+            {% if app.public_reason %}
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wider mb-1">Public reason (candidate-facing)</p>
+              <p class="text-sm text-secondary whitespace-pre-wrap">{{ app.public_reason }}</p>
+            </div>
+            {% endif %}
             {% if app.notes %}
             <div>
-              <p class="text-xs text-muted uppercase tracking-wider mb-1">Staff notes</p>
+              <p class="text-xs text-muted uppercase tracking-wider mb-1">Internal notes</p>
               <p class="text-sm text-secondary whitespace-pre-wrap">{{ app.notes }}</p>
             </div>
             {% endif %}
@@ -79,26 +184,69 @@
               </p>
             {% endif %}
 
-            <form method="post" action="/staff/applications/{{ app.id }}/status" class="space-y-3 pt-2 border-t border-edge">
-              <div>
-                <label for="notes-{{ app.id }}" class="block text-xs text-muted uppercase tracking-wider mb-1">Update notes</label>
-                <textarea id="notes-{{ app.id }}" name="notes" rows="2"
-                          class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary text-sm"
-                          placeholder="Optional note (overwrites previous)…"></textarea>
+            <div class="pt-2 border-t border-edge space-y-3">
+              {# Non-reject actions #}
+              <form method="post" action="/staff/applications/{{ app.id }}/status" class="space-y-3">
+                <div>
+                  <label for="notes-{{ app.id }}" class="block text-xs text-muted uppercase tracking-wider mb-1">Internal notes</label>
+                  <textarea id="notes-{{ app.id }}" name="notes" rows="2"
+                            class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary text-sm"
+                            placeholder="Optional internal note (staff-only, overwrites previous)…"></textarea>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button type="submit" name="new_status" value="reviewing"
+                          class="text-xs px-3 py-1.5 border border-amber-700 text-gold hover:bg-amber-900/20 rounded-sm tracking-wider uppercase transition-colors">Mark reviewing</button>
+                  <button type="submit" name="new_status" value="accepted"
+                          class="text-xs px-3 py-1.5 border border-green-700 text-green-300 hover:bg-green-900/20 rounded-sm tracking-wider uppercase transition-colors">Accept</button>
+                  <button type="submit" name="new_status" value="new"
+                          class="text-xs px-3 py-1.5 border border-cyan-700 text-cyan-300 hover:bg-cyan-900/20 rounded-sm tracking-wider uppercase transition-colors">Reopen</button>
+                </div>
+              </form>
+
+              {# Reject workflow: toggle panel with mandatory public_reason #}
+              {% if app.status != 'rejected' %}
+              <div class="pt-1">
+                <button type="button"
+                        onclick="this.nextElementSibling.classList.toggle('open')"
+                        class="text-xs px-3 py-1.5 border border-red-700 text-red-300 hover:bg-red-900/20 rounded-sm tracking-wider uppercase transition-colors">
+                  Reject with reason…
+                </button>
+                <div class="reject-panel">
+                  <form method="post" action="/staff/applications/{{ app.id }}/reject">
+                    <label for="reason-{{ app.id }}" class="lbl">Public reason (shown to candidate)</label>
+                    <textarea id="reason-{{ app.id }}" name="public_reason" required minlength="1" maxlength="500" rows="3"
+                              oninput="document.getElementById('cnt-{{ app.id }}').textContent = this.value.length + '/500'"
+                              class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary text-sm"
+                              placeholder="Kept it short and factual. E.g. 'Kingdom mismatch — you need to migrate first.'"></textarea>
+                    <p class="counter"><span id="cnt-{{ app.id }}">0/500</span></p>
+                    <div class="mt-2 flex justify-end">
+                      <button type="submit"
+                              class="text-xs px-4 py-2 border border-red-700 text-red-300 hover:bg-red-900/30 rounded-sm tracking-wider uppercase transition-colors">
+                        Confirm reject
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
-              <div class="flex flex-wrap gap-2">
-                {% for value, label, color in [('reviewing', 'Mark reviewing', 'gold'), ('accepted', 'Accept', 'green'), ('rejected', 'Reject', 'red'), ('new', 'Reopen', 'cyan')] %}
-                  <button type="submit" name="new_status" value="{{ value }}"
-                          class="text-xs px-3 py-1.5 border rounded-sm tracking-wider uppercase transition-colors
-                                 {% if color == 'green' %}border-green-700 text-green-300 hover:bg-green-900/20{% endif %}
-                                 {% if color == 'red' %}border-red-700 text-red-300 hover:bg-red-900/20{% endif %}
-                                 {% if color == 'gold' %}border-amber-700 text-gold hover:bg-amber-900/20{% endif %}
-                                 {% if color == 'cyan' %}border-cyan-700 text-cyan-300 hover:bg-cyan-900/20{% endif %}">
-                    {{ label }}
+              {% endif %}
+
+              {# Delete — allowed on all statuses; confirmation is the safety net #}
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <form method="post" action="/staff/applications/{{ app.id }}/delete"
+                      data-ref="{{ app.reference or app.id }}" data-name="{{ app.in_game_name }}" data-status="{{ app.status }}"
+                      data-confirm-delete="1" >
+                  <button type="submit"
+                          class="text-xs px-3 py-1.5 border border-red-900 bg-red-950/40 text-red-400 hover:bg-red-900/40 rounded-sm tracking-wider uppercase transition-colors">
+                    Delete
                   </button>
-                {% endfor %}
+                </form>
+                <span class="text-[0.7rem] text-muted italic">
+                  {% if app.status == 'rejected' %}Rejected apps carry candidate-facing history — deleting removes their status page.
+                  {% else %}Prefer Reject over Delete when you want to keep a record.
+                  {% endif %}
+                </span>
               </div>
-            </form>
+            </div>
           </div>
         </details>
       {% endfor %}

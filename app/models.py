@@ -452,8 +452,36 @@ class Application(Base):
     reviewed_by: Mapped[Optional[str]] = mapped_column(String(64))
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    reference: Mapped[Optional[str]] = mapped_column(String(20), unique=True)
+    public_reason: Mapped[Optional[str]] = mapped_column(Text)
+    status_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     __table_args__ = (
         Index("ix_app_status", "status"),
         Index("ix_app_created", "created_at"),
+    )
+
+
+
+class PlayerNote(Base):
+    """Staff-only traceability note attached to a member.
+
+    Multiple notes per member. Never shown to non-staff users.
+    Table already exists in DB (created via SQL); this model matches
+    that schema exactly.
+    """
+
+    __tablename__ = "player_notes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    character_id: Mapped[int] = mapped_column(
+        ForeignKey("members.character_id"), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_player_notes_char", "character_id"),
+        Index("ix_player_notes_created", "created_at"),
     )

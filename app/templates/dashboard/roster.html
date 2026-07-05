@@ -115,7 +115,7 @@
   .roster-grid tbody tr:hover td { background-color: rgba(24, 34, 57, 0.45); }
   .roster-grid tbody tr:hover td.col-pin { background-color: #131A2D; }
 
-  /* Sticky leading columns: # + Player */
+  /* Sticky leading columns: # + Player + ID */
   .roster-grid th.col-pin,
   .roster-grid td.col-pin {
     position: sticky;
@@ -123,14 +123,34 @@
     background-color: var(--color-bg-card);
   }
   .roster-grid thead th.col-pin { z-index: 15; background-color: var(--color-bg-elevated); }
-  .roster-grid .col-pin-1 { left: 0; min-width: 2.5rem; }
-  .roster-grid .col-pin-2 { left: 2.5rem; box-shadow: 1px 0 0 var(--color-border); }
+  .roster-grid .col-pin-1 { left: 0; min-width: 2.5rem; width: 2.5rem; }
+  .roster-grid .col-pin-2 { left: 2.5rem; min-width: 11rem; width: 11rem; }
+  .roster-grid .col-pin-3 {
+    left: 13.5rem;
+    min-width: 7rem;
+    width: 7rem;
+    box-shadow: 1px 0 0 var(--color-border);
+  }
+
+  /* ID cell — copy-on-click affordance */
+  .roster-grid td.col-id {
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    cursor: copy;
+    transition: color 150ms ease, background-color 200ms ease;
+  }
+  .roster-grid td.col-id:hover { color: var(--color-cyan); }
+  .roster-grid td.col-id.is-copied {
+    color: var(--color-cyan) !important;
+    background-color: rgba(34, 211, 238, 0.14) !important;
+  }
 
   /* Selected row — cyan tint that survives the sticky columns. */
   .roster-grid tbody tr.is-selected td { background-color: rgba(34, 211, 238, 0.06); }
   .roster-grid tbody tr.is-selected td.col-pin { background-color: #14253A; }
   .roster-grid tbody tr.is-selected td.col-pin-1 { box-shadow: inset 2px 0 0 var(--color-cyan); }
-  .roster-grid tbody tr.is-selected td.col-pin-2 { box-shadow: 1px 0 0 var(--color-cyan); }
+  .roster-grid tbody tr.is-selected td.col-pin-3 { box-shadow: 1px 0 0 var(--color-cyan); }
 </style>
 {% endblock %}
 
@@ -167,7 +187,7 @@
     <form method="get" action="/roster" class="flex flex-wrap items-end gap-3">
       <div class="flex-1 min-w-[220px]">
         <label for="q" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Search</label>
-        <input id="q" name="q" type="text" value="{{ filters.q }}" placeholder="Operator name"
+        <input id="q" name="q" type="text" value="{{ filters.q }}" placeholder="Operator name or ID"
                class="field-input w-full">
       </div>
 
@@ -222,6 +242,7 @@
           <tr>
             <th class="col-pin col-pin-1 text-left">#</th>
             <th class="col-pin col-pin-2 text-left" data-col="name">{{ sort_link('name', 'Player') }}</th>
+            <th class="col-pin col-pin-3 text-left" data-col="character_id">ID</th>
             <th class="text-center" data-col="grade">{{ sort_link('grade', 'Grade') }}</th>
 
             {% if is_staff %}
@@ -255,6 +276,9 @@
           <tr data-rank="{{ loop.index }}">
             <td class="col-pin col-pin-1 font-mono text-muted text-xs">{{ loop.index }}</td>
             <td class="col-pin col-pin-2 text-primary">{{ row.name }}</td>
+            <td class="col-pin col-pin-3 col-id font-mono"
+                data-character-id="{{ row.character_id }}"
+                title="Click to copy · paste into in-game search">{{ row.character_id }}</td>
             <td class="text-center font-mono font-semibold" data-grade="{{ row.grade|lower }}">{{ row.grade }}</td>
 
             {% if is_staff %}
@@ -335,6 +359,34 @@
 
     document.addEventListener('click', () => {
       rows.forEach((r) => r.classList.remove('is-selected'));
+    });
+
+    // Click-to-copy on ID cells — does not trigger row selection.
+    const idCells = table.querySelectorAll('td.col-id');
+    idCells.forEach((cell) => {
+      cell.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        const id = cell.dataset.characterId;
+        if (!id) return;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(id);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = id;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          cell.classList.add('is-copied');
+          setTimeout(() => cell.classList.remove('is-copied'), 700);
+        } catch (err) {
+          console.error('Copy failed', err);
+        }
+      });
     });
   })();
 </script>

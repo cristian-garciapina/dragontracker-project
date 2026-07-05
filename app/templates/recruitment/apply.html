@@ -1,31 +1,107 @@
 {% extends "base.html" %}
 {% block title %}Apply to join · Eternal Vanguard{% endblock %}
 
+{% block head_extra %}
+<style>
+  .warn-box {
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: rgba(212, 175, 55, 0.06);
+    border-left: 3px solid var(--color-gold);
+    border-radius: 3px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+  .warn-box .warn-title { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-gold); margin-bottom: 0.5rem; }
+  .warn-box p { color: var(--color-text-secondary); font-size: 0.88rem; line-height: 1.55; margin: 0; }
+  .warn-box a { color: var(--color-cyan); text-decoration: underline; text-underline-offset: 3px; }
+  .warn-box a:hover { color: var(--color-text-primary); }
+
+  .ref-box {
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    background: rgba(34, 211, 238, 0.06);
+    border-radius: 3px;
+    padding: 1.5rem 1.5rem 1.25rem;
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+  .ref-box .lbl { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 0.5rem; }
+  .ref-box .ref {
+    font-family: var(--font-mono);
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
+    color: var(--color-cyan);
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.75rem;
+    cursor: pointer;
+    border-radius: 3px;
+    display: inline-block;
+    transition: background-color 220ms ease;
+  }
+  .ref-box .ref:hover { background-color: rgba(34, 211, 238, 0.08); }
+  .ref-box .ref.flash { background-color: rgba(34, 211, 238, 0.22); }
+  .ref-box .hint { color: var(--color-text-secondary); font-size: 0.82rem; margin-top: 0.75rem; line-height: 1.55; }
+  .ref-box .hint a { color: var(--color-text-primary); text-decoration: underline; text-underline-offset: 3px; }
+  .ref-box .hint a:hover { color: var(--color-cyan); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-2xl mx-auto px-6 py-16" data-page="apply">
 
-  <section data-section="hero" class="mb-10">
+  <section data-section="hero" class="mb-6">
     <p class="text-xs tracking-[0.2em] uppercase text-muted mb-3 font-mono">
       Eternal Vanguard · Kingdom {{ kingdom or 193 }}
     </p>
     <h1 class="font-display text-4xl tracking-wide leading-tight mb-3">
-      Apply to join
+      Apply to join the alliance
     </h1>
     <p class="text-secondary text-sm leading-relaxed">
-      Tell us who you are. Applications are reviewed by staff, usually within
-      a few days. We'll reach out on Discord once we've had a look.
+      This is the in-game recruitment form. Applications are reviewed by staff,
+      usually within a few days.
     </p>
   </section>
 
+  {% if not submitted %}
+  <div class="warn-box" role="note">
+    <p class="warn-title">Wrong form?</p>
+    <p>
+      This form is for players <strong>outside Eternal Vanguard</strong> who want to
+      join the alliance in-game. If you are <strong>already a member</strong> and
+      just want to create an account on this website, go to
+      <a href="/signup">Sign up</a> instead.
+    </p>
+  </div>
+  {% endif %}
+
   {% if submitted %}
     <div class="border border-edge bg-card rounded-sm p-8 text-center">
-      <p class="font-display text-2xl text-primary mb-2">Application received</p>
-      <p class="text-secondary text-sm mb-6">
-        Thanks for reaching out. Staff will review your application and contact
-        you on Discord. In the meantime, you can return to the home page.
-      </p>
+      <p class="font-display text-2xl text-primary mb-1">Application received</p>
+      <p class="text-secondary text-sm">Keep the reference below to follow your application.</p>
+
+      <div class="ref-box">
+        <p class="lbl">Your reference</p>
+        <span class="ref" data-copy="{{ reference }}" id="ref-value">{{ reference }}</span>
+        <p class="hint">
+          Bookmark this link: <a href="/apply/status/{{ reference }}">/apply/status/{{ reference }}</a><br>
+          You can come back any time to see the status of your application.
+        </p>
+      </div>
+
       <a href="/" class="text-cyan-400 hover:text-cyan-300 text-sm">← Back to home</a>
     </div>
+
+    <script>
+      (function () {
+        const el = document.getElementById('ref-value');
+        if (!el) return;
+        el.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(el.dataset.copy);
+            el.classList.add('flash');
+            setTimeout(() => el.classList.remove('flash'), 700);
+          } catch (e) { /* ignore */ }
+        });
+      })();
+    </script>
 
   {% else %}
 
@@ -38,9 +114,7 @@
     <form method="post" action="/apply" class="space-y-5">
 
       <div>
-        <label for="in_game_name" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">
-          In-game name
-        </label>
+        <label for="in_game_name" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">In-game name</label>
         <input id="in_game_name" name="in_game_name" type="text" required maxlength="64"
                value="{{ form.in_game_name }}"
                class="w-full px-3 py-2 bg-card border border-edge rounded-sm text-primary">
@@ -48,17 +122,13 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label for="player_id" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">
-            Player ID
-          </label>
+          <label for="player_id" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">Player ID</label>
           <input id="player_id" name="player_id" type="text" inputmode="numeric" required
                  value="{{ form.player_id }}"
                  class="w-full px-3 py-2 bg-card border border-edge rounded-sm text-primary font-mono">
         </div>
         <div>
-          <label for="server" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">
-            Server
-          </label>
+          <label for="server" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">Server (kingdom)</label>
           <input id="server" name="server" type="text" inputmode="numeric" required
                  value="{{ form.server }}"
                  class="w-full px-3 py-2 bg-card border border-edge rounded-sm text-primary font-mono">
@@ -66,18 +136,14 @@
       </div>
 
       <div>
-        <label for="current_alliance" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">
-          Current alliance (optional)
-        </label>
+        <label for="current_alliance" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">Current alliance (optional)</label>
         <input id="current_alliance" name="current_alliance" type="text" maxlength="64"
                value="{{ form.current_alliance }}"
                class="w-full px-3 py-2 bg-card border border-edge rounded-sm text-primary">
       </div>
 
       <div>
-        <label for="discord_handle" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">
-          Discord handle (optional)
-        </label>
+        <label for="discord_handle" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">Discord handle (optional)</label>
         <input id="discord_handle" name="discord_handle" type="text" maxlength="64"
                value="{{ form.discord_handle }}"
                placeholder="username or username#1234"
@@ -85,13 +151,11 @@
       </div>
 
       <div>
-        <label for="motivation" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">
-          A few words about yourself
-        </label>
+        <label for="motivation" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">A few words about yourself</label>
         <textarea id="motivation" name="motivation" required minlength="20" rows="5"
                   placeholder="Why Eternal Vanguard, what you bring, where you're at in the game…"
                   class="w-full px-3 py-2 bg-card border border-edge rounded-sm text-primary resize-y">{{ form.motivation }}</textarea>
-        <p class="text-xs text-muted mt-1">20 characters minimum. Keep it real, no need to oversell.</p>
+        <p class="text-xs text-muted mt-1">20 characters minimum.</p>
       </div>
 
       <div class="pt-2">
@@ -99,11 +163,16 @@
                 class="px-5 py-2.5 border border-cyan-500/50 text-cyan-300 hover:border-cyan-400 hover:bg-cyan-900/20 transition-colors rounded-sm text-sm tracking-wider">
           Submit application
         </button>
-        <a href="/" class="ml-3 text-sm text-secondary hover:text-cyan-300">
-          ← Back to home
-        </a>
+        <a href="/" class="ml-3 text-sm text-secondary hover:text-cyan-300">← Back to home</a>
       </div>
     </form>
+
+    <div class="mt-8 pt-6 border-t border-edge text-center">
+      <p class="text-xs text-muted mb-1 font-mono uppercase tracking-wider">Already applied?</p>
+      <p class="text-sm text-secondary">
+        Enter your reference in the URL: <span class="font-mono text-primary">/apply/status/EV-…</span>
+      </p>
+    </div>
 
   {% endif %}
 

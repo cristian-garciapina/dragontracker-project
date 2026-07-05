@@ -1,0 +1,14 @@
+[Unit]
+Description=Eternal Vanguard nightly SQLite backup
+After=eternal-vanguard.service
+
+[Service]
+Type=oneshot
+User=cod-app
+Group=cod-app
+ExecStart=/opt/dashboard/scripts/backup-db.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal

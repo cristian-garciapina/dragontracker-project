@@ -34,6 +34,7 @@ from .settings_routes import router as settings_router
 from .seasons_routes import router as seasons_router
 from .ingest import router as ingest_router
 from .recruitment_routes import router as recruitment_router
+from .events_routes import router as events_router
 from .player_routes import router as player_router
 from .models import User
 
@@ -56,6 +57,7 @@ app.include_router(staff_router)
 app.include_router(profile_router)
 app.include_router(settings_router)
 app.include_router(recruitment_router)
+app.include_router(events_router)
 app.include_router(player_router)
 app.include_router(seasons_router)
 

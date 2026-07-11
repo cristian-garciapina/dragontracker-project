@@ -40,6 +40,7 @@
   .status-WATCH { color: var(--color-gold); border-color: rgba(221, 184, 114, 0.4); }
   .status-EXPEL { color: #FCA5A5; border-color: rgba(252, 165, 165, 0.4); }
   .status-FARM  { color: var(--color-text-muted); border-color: var(--color-border); }
+  .status-MERIT_FARMER { color: #FCA5A5; border-color: rgba(252, 165, 165, 0.4); }
 
   .note-card { border: 1px solid var(--color-border); background: var(--color-bg-card); border-left: 2px solid var(--color-gold); padding: 0.9rem 1.1rem; border-radius: 2px; }
   .note-card .meta { font-size: 0.72rem; color: var(--color-text-muted); font-family: var(--font-mono); }
@@ -121,7 +122,35 @@
     {% if current.is_farm_account %}
       <span class="status-pill status-FARM ml-2">Farm account</span>
     {% endif %}
+    <div class="mt-4">
+      <form id="mf-toggle-form" method="post" action="/player/{{ member.character_id }}/merit-farmer" style="display:contents"></form>
+      <button type="button"
+              onclick="document.getElementById('mf-toggle-dialog').showModal()"
+              class="text-xs font-mono uppercase tracking-wider text-secondary hover:text-gold border border-edge px-3 py-2 rounded-sm">
+        {% if member.is_merit_farmer %}Remove merit farmer flag{% else %}Flag as merit farmer{% endif %}
+      </button>
+    </div>
   </section>
+
+  <dialog id="mf-toggle-dialog">
+    <div style="padding: 1.5rem;">
+      <p style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-gold); margin: 0 0 0.5rem;">Confirm status change</p>
+      <h2 style="font-family: var(--font-display); font-size: 1.4rem; margin: 0 0 0.75rem;">
+        {% if member.is_merit_farmer %}Remove merit farmer flag?{% else %}Flag as merit farmer?{% endif %}
+      </h2>
+      <p style="color: var(--color-text-secondary); font-size: 0.875rem; margin: 0 0 1rem;">
+        {% if member.is_merit_farmer %}
+          {{ member.current_name }} will re-enter the main ranking at the next recompute.
+        {% else %}
+          {{ member.current_name }} will be excluded from the S/A/B/C/D ranking and marked MERIT_FARMER. Their merits stay in the DB.
+        {% endif %}
+      </p>
+      <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+        <button type="button" onclick="document.getElementById('mf-toggle-dialog').close()" class="text-xs font-mono uppercase tracking-wider text-secondary border border-edge px-3 py-2 rounded-sm">Cancel</button>
+        <button type="submit" form="mf-toggle-form" class="text-xs font-mono uppercase tracking-wider text-gold border border-gold px-3 py-2 rounded-sm">Confirm</button>
+      </div>
+    </div>
+  </dialog>
   {% endif %}
   {% endif %}
 
@@ -308,6 +337,46 @@
     </div>
     {% else %}
     <p class="text-muted text-sm italic">No burns recorded this season.</p>
+    {% endif %}
+  </section>
+
+  <section data-section="events" id="events" class="mb-16">
+    <h2 class="font-display text-2xl mb-4">Event history</h2>
+    {% if event_history %}
+    <div class="border border-edge rounded-sm overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="text-muted text-xs uppercase tracking-wider bg-card">
+          <tr>
+            <th class="text-left py-3 px-4">Dates</th>
+            <th class="text-left px-4">Event</th>
+            <th class="text-right px-4">Points</th>
+            <th class="text-right px-4 pr-6">Rank</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-edge">
+          {% for e in event_history %}
+          <tr class="hover:bg-card/60">
+            <td class="py-2.5 px-4 font-mono text-xs text-secondary">
+              {{ e.date_start }}{% if e.date_end != e.date_start %} <span class="text-muted">→</span> {{ e.date_end }}{% endif %}
+            </td>
+            <td class="px-4">
+              {% if is_staff %}
+              <a href="/staff/events/{{ e.event_id }}" class="text-cyan-300 hover:underline">{{ e.name }}</a>
+              {% else %}
+              {{ e.name }}
+              {% endif %}
+            </td>
+            <td class="px-4 text-right font-mono tnum {% if e.points == 0 %}text-muted{% endif %}">
+              {{ "{:,}".format(e.points) }}
+            </td>
+            <td class="px-4 pr-6 text-right font-mono tnum text-secondary">#{{ e.rank }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-sm italic">No event participations recorded.</p>
     {% endif %}
   </section>
 

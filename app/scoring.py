@@ -31,7 +31,7 @@ from typing import Optional
 from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import Session
 
-from .models import Score, Season, Setting, Snapshot, Stat
+from .models import Member, Score, Season, Setting, Snapshot, Stat
 
 
 # ----------------------------------------------------------------------------
@@ -159,7 +159,7 @@ def recompute_scores_for_active_season(session: Session) -> dict:
 
     # 6) Compute one Score row per character that has BOTH start and cum stats
     now = datetime.utcnow()
-    counts = {"S": 0, "A": 0, "B": 0, "C": 0, "D": 0, "FARM": 0, "MISSING": 0}
+    counts = {"S": 0, "A": 0, "B": 0, "C": 0, "D": 0, "FARM": 0, "MERIT_FARMER": 0, "MISSING": 0}
     scores: list[Score] = []
 
     for cid, start_stat in start_stats.items():
@@ -172,12 +172,19 @@ def recompute_scores_for_active_season(session: Session) -> dict:
         is_farm = start_stat.power <= thr["farm_power"]
         merits = cum_stat.merits_total
         sp = start_stat.power
+        member = session.get(Member, cid)
+        is_merit_farmer = bool(member and member.is_merit_farmer)
 
         if is_farm:
             grade = None
             status = "FARM"
             mp = 0.0
             counts["FARM"] += 1
+        elif is_merit_farmer:
+            grade = None
+            status = "MERIT_FARMER"
+            mp = 0.0
+            counts["MERIT_FARMER"] += 1
         else:
             mp = (merits / sp) * 100.0 if sp > 0 else 0.0
             grade = _grade_from_ratio(mp, thr)

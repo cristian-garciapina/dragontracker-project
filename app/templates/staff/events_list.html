@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Events · Staff{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="font-display text-3xl text-white">Events</h1>
+      <p class="text-slate-400 text-sm mt-1">
+        {% if season %}Season {{ season.name }}{% else %}No active season{% endif %}
+      </p>
+    </div>
+    {% if season %}
+    <button type="button" onclick="document.getElementById('new-event-dlg').showModal()"
+            class="btn-primary">+ New event</button>
+    {% endif %}
+  </div>
+
+  {% if not events %}
+    <div class="text-slate-500 italic py-12 text-center border border-slate-800 rounded-lg">
+      No events yet this season.
+    </div>
+  {% else %}
+    <div class="border border-slate-800 rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="text-slate-400 text-xs uppercase tracking-wider bg-slate-900/60">
+        <tr>
+          <th class="text-left py-3 px-4">Dates</th>
+          <th class="text-left px-4">Name</th>
+          <th class="text-right px-4">Participants</th>
+          <th class="text-right px-4">Total pts</th>
+          <th class="px-4"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        {% for row in events %}
+        <tr class="hover:bg-slate-800/40">
+          <td class="py-3 px-4 text-slate-300 font-mono text-xs">
+            {{ row.event.date_start }}
+            {% if row.event.date_end != row.event.date_start %}
+              <span class="text-slate-500">→</span> {{ row.event.date_end }}
+            {% endif %}
+          </td>
+          <td class="px-4"><a href="/staff/events/{{ row.event.id }}" class="text-cyan-400 hover:underline">{{ row.event.name }}</a></td>
+          <td class="px-4 text-right text-slate-300 font-mono tnum">{{ row.participant_count }}</td>
+          <td class="px-4 text-right text-slate-300 font-mono tnum">{{ "{:,}".format(row.total_points) }}</td>
+          <td class="px-4 text-right">
+            <a href="/staff/events/{{ row.event.id }}" class="text-xs text-slate-400 hover:text-cyan-400">Open →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% endif %}
+</div>
+
+{% if season %}
+<dialog id="new-event-dlg" class="rounded-lg bg-slate-900 border border-slate-700 p-6 max-w-md w-full text-slate-200 backdrop:bg-black/60">
+  <form id="new-event-form" method="post" action="/staff/events/new" class="space-y-4">
+    <h2 class="font-display text-xl text-white">New event</h2>
+    <label class="block">
+      <span class="text-xs uppercase text-slate-400">Name</span>
+      <input name="name" required maxlength="128"
+             class="field-input w-full mt-1"
+             placeholder="e.g. Alliance mobilisation">
+    </label>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="block">
+        <span class="text-xs uppercase text-slate-400">Start</span>
+        <input type="date" name="date_start" required class="field-input w-full mt-1">
+      </label>
+      <label class="block">
+        <span class="text-xs uppercase text-slate-400">End</span>
+        <input type="date" name="date_end" required class="field-input w-full mt-1">
+      </label>
+    </div>
+  </form>
+  <div class="flex justify-end gap-2 mt-6">
+    <button type="button" onclick="document.getElementById('new-event-dlg').close()"
+            class="btn-ghost">Cancel</button>
+    <button type="submit" form="new-event-form" class="btn-primary">Create</button>
+  </div>
+</dialog>
+{% endif %}
+{% endblock %}

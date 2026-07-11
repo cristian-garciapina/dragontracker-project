@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from .auth import get_db, require_user, require_staff
 from .models import Burn, Member, PlayerNote, Score, Season, Stat, User
+from .queries import get_player_event_history
 
 router = APIRouter(tags=["player"])
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -118,6 +119,7 @@ async def player_profile(
             "notes": notes,
             "active_season": active_season,
             "burns_current_season": burns_current_season,
+            "event_history": get_player_event_history(db, character_id),
         },
     )
 
@@ -220,3 +222,22 @@ async def delete_burn(
         db.delete(burn)
         db.commit()
     return RedirectResponse(url=f"/player/{character_id}#burns", status_code=303)
+
+@router.post("/player/{character_id}/merit-farmer")
+def toggle_merit_farmer(
+    character_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_staff),
+):
+    member = db.get(Member, character_id)
+    if member is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    member.is_merit_farmer = not member.is_merit_farmer
+    db.commit()
+    from .scoring import recompute_scores_for_active_season
+    try:
+        recompute_scores_for_active_season(db)
+    except Exception:
+        pass
+    return RedirectResponse(url=f"/player/{character_id}", status_code=303)
+

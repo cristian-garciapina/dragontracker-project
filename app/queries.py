@@ -516,3 +516,241 @@ def get_burns_for_character(db: Session, character_id: int, season_id: int | Non
     if season_id is not None:
         stmt = stmt.where(Burn.season_id == season_id)
     return list(db.scalars(stmt.order_by(Burn.burn_date.desc(), Burn.recorded_at.desc())).all())
+
+
+# ============================================================================
+# ALLIANCE EVENTS
+# ============================================================================
+
+from sqlalchemy import delete as sa_delete
+from .models import Event, EventParticipation
+
+EVENT_TYPES = [
+    ("mobilization", "Mobilisation"),
+    ("war_threshold", "Seuil de la Guerre"),
+    ("other", "Autre"),
+]
+EVENT_TYPE_LABELS = dict(EVENT_TYPES)
+
+
+def list_alliance_members(db: Session) -> list[dict]:
+    """All in-alliance members, id + name, ordered by name."""
+    stmt = (
+        select(Member.character_id, Member.current_name)
+        .where(Member.in_alliance == True)  # noqa: E712
+        .order_by(Member.current_name.asc())
+    )
+    return [{"character_id": cid, "name": name} for cid, name in db.execute(stmt).all()]
+
+
+def list_events_for_season(db: Session, season_id: int) -> list[dict]:
+    stmt = (
+        select(
+            Event,
+            func.count(EventParticipation.id).label("participant_count"),
+            func.coalesce(func.sum(EventParticipation.points), 0).label("total_points"),
+        )
+        .outerjoin(EventParticipation, EventParticipation.event_id == Event.id)
+        .where(Event.season_id == season_id)
+        .group_by(Event.id)
+        .order_by(Event.date_start.desc(), Event.id.desc())
+    )
+    return [
+        {"event": e, "participant_count": pc, "total_points": tp}
+        for e, pc, tp in db.execute(stmt).all()
+    ]
+
+
+def get_event(db: Session, event_id: int) -> Optional[Event]:
+    return db.get(Event, event_id)
+
+
+def get_event_participations_ranked(db: Session, event_id: int) -> list[dict]:
+    rank_expr = func.rank().over(
+        partition_by=EventParticipation.event_id,
+        order_by=EventParticipation.points.desc(),
+    ).label("rank")
+    stmt = (
+        select(
+            EventParticipation.character_id,
+            Member.current_name,
+            EventParticipation.points,
+            EventParticipation.notes,
+            rank_expr,
+        )
+        .join(Member, Member.character_id == EventParticipation.character_id)
+        .where(EventParticipation.event_id == event_id, EventParticipation.is_eligible == True)  # noqa: E712
+        .order_by(EventParticipation.points.desc(), Member.current_name.asc())
+    )
+    return [
+        {"character_id": cid, "name": name, "points": pts, "notes": n, "rank": r}
+        for cid, name, pts, n, r in db.execute(stmt).all()
+    ]
+
+
+def upsert_event_participations(
+    db: Session, event_id: int, rows: list[tuple[int, int, Optional[str]]]
+) -> tuple[int, int, int]:
+    """rows: (character_id, points, notes). Returns (inserted, updated, skipped)."""
+    known = set(db.scalars(select(Member.character_id)).all())
+    existing = {
+        p.character_id: p
+        for p in db.scalars(
+            select(EventParticipation).where(EventParticipation.event_id == event_id)
+        )
+    }
+    inserted = updated = skipped = 0
+    for character_id, points, notes in rows:
+        if character_id not in known:
+            skipped += 1
+            continue
+        if character_id in existing:
+            p = existing[character_id]
+            changed = False
+            if p.points != points:
+                p.points = points; changed = True
+            if notes and p.notes != notes:
+                p.notes = notes; changed = True
+            if not p.is_eligible:
+                p.is_eligible = True; changed = True
+            if changed:
+                updated += 1
+        else:
+            db.add(EventParticipation(
+                event_id=event_id, character_id=character_id,
+                points=points, notes=notes, is_eligible=True,
+            ))
+            inserted += 1
+    db.commit()
+    return inserted, updated, skipped
+
+
+def delete_event(db: Session, event_id: int) -> bool:
+    ev = db.get(Event, event_id)
+    if not ev:
+        return False
+    db.delete(ev)
+    db.commit()
+    return True
+
+
+def get_player_event_history(db: Session, character_id: int) -> list[dict]:
+    rank_expr = func.rank().over(
+        partition_by=EventParticipation.event_id,
+        order_by=EventParticipation.points.desc(),
+    ).label("rank")
+    inner = (
+        select(
+            EventParticipation.event_id,
+            EventParticipation.character_id,
+            EventParticipation.points,
+            rank_expr,
+        )
+        .where(EventParticipation.is_eligible == True)  # noqa: E712
+        .subquery()
+    )
+    stmt = (
+        select(
+            Event.id, Event.name, Event.date_start, Event.date_end, Event.season_id,
+            inner.c.points, inner.c.rank,
+        )
+        .join(inner, inner.c.event_id == Event.id)
+        .where(inner.c.character_id == character_id)
+        .order_by(Event.date_start.desc())
+    )
+    return [
+        {"event_id": eid, "name": n, "date_start": ds, "date_end": de,
+         "season_id": sid, "points": pt, "rank": r}
+        for eid, n, ds, de, sid, pt, r in db.execute(stmt).all()
+    ]
+
+
+def list_scored_non_farms(db: Session, season_id: int) -> list[dict]:
+    """All in-alliance members flagged non-farm in latest scoring for the season."""
+    latest_snap = db.scalar(
+        select(Score.snapshot_id)
+        .where(Score.season_id == season_id)
+        .order_by(Score.snapshot_id.desc())
+        .limit(1)
+    )
+    if latest_snap is None:
+        # Fallback : pas de scoring, on prend tous les in_alliance
+        stmt = (
+            select(Member.character_id, Member.current_name)
+            .where(Member.in_alliance == True)  # noqa: E712
+            .order_by(Member.current_name.asc())
+        )
+        return [{"character_id": cid, "name": n} for cid, n in db.execute(stmt).all()]
+    stmt = (
+        select(Member.character_id, Member.current_name)
+        .join(Score, Score.character_id == Member.character_id)
+        .where(
+            Score.snapshot_id == latest_snap,
+            Score.is_farm_account == False,  # noqa: E712
+            Member.in_alliance == True,  # noqa: E712
+        )
+        .order_by(Member.current_name.asc())
+    )
+    return [{"character_id": cid, "name": n} for cid, n in db.execute(stmt).all()]
+
+
+def prefill_event_eligibility(db: Session, event_id: int, season_id: int) -> int:
+    """Called at event creation: insert one participation per non-farm, is_eligible=False, points=0.
+    Staff will then check the actual participants. Returns count inserted."""
+    existing = set(db.scalars(
+        select(EventParticipation.character_id).where(EventParticipation.event_id == event_id)
+    ).all())
+    candidates = list_scored_non_farms(db, season_id)
+    inserted = 0
+    for m in candidates:
+        if m["character_id"] in existing:
+            continue
+        db.add(EventParticipation(
+            event_id=event_id,
+            character_id=m["character_id"],
+            points=0,
+            is_eligible=False,
+        ))
+        inserted += 1
+    db.commit()
+    return inserted
+
+
+def list_event_eligibility(db: Session, event_id: int) -> list[dict]:
+    """All participations for the event with member name — used by the Manage modal.
+    Includes non-eligible (unchecked) so the staff can flip them on."""
+    stmt = (
+        select(
+            EventParticipation.character_id,
+            Member.current_name,
+            EventParticipation.is_eligible,
+            EventParticipation.points,
+        )
+        .join(Member, Member.character_id == EventParticipation.character_id)
+        .where(EventParticipation.event_id == event_id)
+        .order_by(Member.current_name.asc())
+    )
+    return [
+        {"character_id": cid, "name": n, "is_eligible": bool(e), "points": pts}
+        for cid, n, e, pts in db.execute(stmt).all()
+    ]
+
+
+def set_event_eligibility(db: Session, event_id: int, eligible_ids: set[int]) -> tuple[int, int]:
+    """Update eligibility for all participations of the event.
+    eligible_ids = set of character_id to mark eligible=True. Others -> False.
+    Returns (marked_eligible, marked_ineligible)."""
+    parts = db.scalars(
+        select(EventParticipation).where(EventParticipation.event_id == event_id)
+    ).all()
+    on = off = 0
+    for p in parts:
+        should_be = p.character_id in eligible_ids
+        if p.is_eligible != should_be:
+            p.is_eligible = should_be
+            if should_be:
+                on += 1
+            else:
+                off += 1
+    db.commit()
+    return on, off

@@ -72,6 +72,7 @@ class Member(Base):
     current_name: Mapped[str] = mapped_column(String(64), nullable=False)
     alliance_id: Mapped[Optional[int]] = mapped_column(ForeignKey("alliances.id"))
     in_alliance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_merit_farmer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     troop_tier: Mapped[str] = mapped_column(
         String(8), default="unknown", nullable=False
     )  # 'T4' | 'T5' | 'unknown'
@@ -485,3 +486,45 @@ class PlayerNote(Base):
         Index("ix_player_notes_char", "character_id"),
         Index("ix_player_notes_created", "created_at"),
     )
+
+
+# ============================================================================
+# ALLIANCE EVENTS (Mobilisation, Seuil de la Guerre, etc.)
+# ============================================================================
+
+
+class Event(Base):
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    date_start: Mapped[date] = mapped_column(Date, nullable=False)
+    date_end: Mapped[date] = mapped_column(Date, nullable=False)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"), nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    created_by: Mapped[Optional[str]] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Legacy columns kept for NOT NULL constraint on old rows; not used by app.
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="event")
+    event_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
+
+    season: Mapped["Season"] = relationship()
+    participations: Mapped[list["EventParticipation"]] = relationship(
+        back_populates="event", cascade="all, delete-orphan"
+    )
+
+
+class EventParticipation(Base):
+    __tablename__ = "event_participations"
+    __table_args__ = (UniqueConstraint("event_id", "character_id", name="uq_event_char"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    character_id: Mapped[int] = mapped_column(ForeignKey("members.character_id"), nullable=False)
+    points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    is_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    event: Mapped["Event"] = relationship(back_populates="participations")
+    member: Mapped["Member"] = relationship()

@@ -273,6 +273,62 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+  /* ------------------------------------------------------------------
+     Shared form controls & buttons (promoted from roster/farms).
+     Available globally so dialogs and staff pages inherit correctly.
+     ------------------------------------------------------------------ */
+  .field-input,
+  .field-select {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: 2px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .field-input::placeholder { color: var(--color-text-muted); }
+  .field-input:focus,
+  .field-select:focus {
+    outline: none;
+    border-color: var(--color-cyan);
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25);
+  }
+  /* Force dark background on native date pickers (Chrome/Safari) */
+  .field-input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+    cursor: pointer;
+  }
+  .btn-primary,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 2px;
+    font-size: 0.8125rem;
+    letter-spacing: 0.04em;
+    transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+    border: 1px solid var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-primary);
+    cursor: pointer;
+  }
+  .btn-primary {
+    border-color: rgba(34, 211, 238, 0.45);
+    color: var(--color-cyan);
+  }
+  .btn-primary:hover {
+    border-color: var(--color-cyan);
+    background-color: rgba(34, 211, 238, 0.08);
+  }
+  .btn-ghost { color: var(--color-text-secondary); }
+  .btn-ghost:hover {
+    border-color: var(--color-ring);
+    color: var(--color-text-primary);
+  }
+
   </style>
 
   {% block head_extra %}{% endblock %}
@@ -352,6 +408,7 @@
           <li><a href="/staff/registrations" class="nav-link">Pending</a></li>
           <li><a href="/staff/users" class="nav-link">Users</a></li>
           <li><a href="/staff/seasons" class="nav-link">Seasons</a></li>
+          <li><a href="/staff/events" class="nav-link">Events</a></li>
           <li><a href="/staff/settings" class="nav-link">Settings</a></li>
           {% endif %}
         {% endif %}
@@ -433,6 +490,7 @@
         <a href="/staff/registrations" class="drawer-item"><span>Pending users</span><span class="chev">›</span></a>
         <a href="/staff/users" class="drawer-item"><span>Users</span><span class="chev">›</span></a>
         <a href="/staff/seasons" class="drawer-item"><span>Seasons</span><span class="chev">›</span></a>
+        <a href="/staff/events" class="drawer-item"><span>Events</span><span class="chev">›</span></a>
         <a href="/staff/settings" class="drawer-item"><span>Settings</span><span class="chev">›</span></a>
         {% endif %}
       {% endif %}

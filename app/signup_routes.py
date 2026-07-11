@@ -130,12 +130,16 @@ async def signup_submit(
             request, form, "An account is already linked to this Player ID.", 400
         )
 
+    # No hard check on Member existence: a fresh migrant may not have been
+    # ingested yet. Create a ghost Member (in_alliance=False) so foreign keys
+    # hold. Staff sees the pending account and can approve after cross-check.
     if not db.get(Member, character_id_int):
-        return _render_form(
-            request, form,
-            "Player ID not found in our records. Contact staff if this is unexpected.",
-            400,
-        )
+        db.add(Member(
+            character_id=character_id_int,
+            current_name=in_game_name_clean,
+            in_alliance=False,
+        ))
+        db.flush()
 
     # --- Create account
     # ALL registrations go through pending. Staff validates manually so

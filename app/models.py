@@ -356,6 +356,7 @@ class Score(Base):
     # Computed
     mp_ratio: Mapped[float] = mapped_column(Float, nullable=False)
     grade: Mapped[Optional[str]] = mapped_column(String(2))  # 'S'|'A'|'B'|'C'|'D' or NULL for farm
+    primary_role: Mapped[Optional[str]] = mapped_column(String(16))  # 'infantry'|'cavalry'|'archers'|'magic'|'other' or NULL
     status: Mapped[str] = mapped_column(String(8), nullable=False)
     # 'KEEP' | 'WATCH' | 'EXPEL' | 'FARM'
 

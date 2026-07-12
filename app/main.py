@@ -203,15 +203,21 @@ async def dashboard_overview(
 @app.get("/roster", response_class=HTMLResponse)
 async def roster(
     request: Request,
-    q: str = Query("", description="Substring search on member name"),
+    q: str = Query("", description="Substring search on member name or ID"),
     grade: str = Query("", description="Filter by grade letter"),
+    role: str = Query("", description="Filter by primary role"),
+    status: str = Query("", description="Filter by status KEEP/WATCH/EXPEL"),
     sort: str = Query("mp", description="Sort column key"),
     order: str = Query("desc", description="asc | desc"),
     farms: str = Query("0", description="Include farms (1) or not (0)"),
+    mfarmers: str = Query("0", description="Include merit farmers"),
+    exmembers: str = Query("0", description="Include ex-members"),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     include_farms = farms in ("1", "true", "yes")
+    include_merit_farmers = mfarmers in ("1", "true", "yes")
+    include_ex_members = exmembers in ("1", "true", "yes")
 
     context: dict = {
         "user": user,
@@ -226,9 +232,13 @@ async def roster(
         "filters": {
             "q": q,
             "grade": grade.upper() if grade else "",
+            "role": role.lower() if role else "",
+            "status": status.upper() if status else "",
             "sort": sort,
             "order": order,
             "include_farms": include_farms,
+            "include_merit_farmers": include_merit_farmers,
+            "include_ex_members": include_ex_members,
         },
         "sortable_columns": list(queries.ROSTER_SORTABLE_COLUMNS.keys()),
     }
@@ -254,7 +264,11 @@ async def roster(
         snapshot.id,
         search=q or None,
         grade=grade or None,
+        role=role or None,
+        status=status or None,
         include_farms=include_farms,
+        include_merit_farmers=include_merit_farmers,
+        include_ex_members=include_ex_members,
         sort=sort,
         order=order,
     )

@@ -88,7 +88,8 @@
     background-color: var(--color-bg-card);
     border-radius: 2px;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: auto;
+    max-height: calc(100vh - 16rem);
   }
   .roster-grid {
     width: 100%;
@@ -211,11 +212,41 @@
         </select>
       </div>
 
+      <div>
+        <label for="role" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Role</label>
+        <select id="role" name="role" class="field-select">
+          <option value="" {% if filters.role == "" %}selected{% endif %}>All</option>
+          {% for r, lbl in [('infantry','Infantry'),('cavalry','Cavalry'),('archers','Archers'),('magic','Mage'),('other','Other')] %}
+            <option value="{{ r }}" {% if filters.role == r %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
       {% if is_staff %}
+      <div>
+        <label for="status" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Status</label>
+        <select id="status" name="status" class="field-select">
+          <option value="" {% if filters.status == "" %}selected{% endif %}>All</option>
+          {% for st in ['KEEP','WATCH','EXPEL'] %}
+            <option value="{{ st }}" {% if filters.status == st %}selected{% endif %}>{{ st }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
       <label class="check-pill" data-staff-only="farms-toggle">
         <input id="farms" name="farms" type="checkbox" value="1"
                {% if filters.include_farms %}checked{% endif %}>
         Include farms
+      </label>
+      <label class="check-pill" data-staff-only="mfarmers-toggle">
+        <input id="mfarmers" name="mfarmers" type="checkbox" value="1"
+               {% if filters.include_merit_farmers %}checked{% endif %}>
+        Include merit farmers
+      </label>
+      <label class="check-pill" data-staff-only="exmembers-toggle">
+        <input id="exmembers" name="exmembers" type="checkbox" value="1"
+               {% if filters.include_ex_members %}checked{% endif %}>
+        Include ex-members
       </label>
       {% endif %}
 
@@ -231,8 +262,12 @@
 
   {% set q_qs = ('q=' ~ filters.q) if filters.q else '' %}
   {% set grade_qs = ('grade=' ~ filters.grade) if filters.grade else '' %}
+  {% set role_qs = ('role=' ~ filters.role) if filters.role else '' %}
+  {% set status_qs = ('status=' ~ filters.status) if filters.status else '' %}
   {% set farms_qs = 'farms=1' if filters.include_farms else '' %}
-  {% set base_qs = [q_qs, grade_qs, farms_qs] | select | join('&') %}
+  {% set mfarmers_qs = 'mfarmers=1' if filters.include_merit_farmers else '' %}
+  {% set exmembers_qs = 'exmembers=1' if filters.include_ex_members else '' %}
+  {% set base_qs = [q_qs, grade_qs, role_qs, status_qs, farms_qs, mfarmers_qs, exmembers_qs] | select | join('&') %}
 
   {% macro sort_link(col, label) -%}
     {%- set new_order = 'asc' if (filters.sort == col and filters.order == 'desc') else 'desc' -%}
@@ -253,6 +288,7 @@
             <th class="col-pin col-pin-1 text-left">#</th>
             <th class="col-pin col-pin-2 text-left" data-col="name">{{ sort_link('name', 'Player') }}</th>
             <th class="col-pin col-pin-3 text-left" data-col="character_id">ID</th>
+            <th class="text-center" data-col="primary_role">{{ sort_link('primary_role', 'Role') }}</th>
             <th class="text-center" data-col="grade">{{ sort_link('grade', 'Grade') }}</th>
 
             {% if is_staff %}
@@ -306,6 +342,14 @@
             <td class="col-pin col-pin-3 col-id font-mono"
                 data-character-id="{{ row.character_id }}"
                 title="Click to copy · paste into in-game search">{{ row.character_id }}</td>
+            <td class="text-center font-mono text-xs" data-role="{{ row.primary_role or '' }}">
+              {% if row.primary_role == 'infantry' %}<span class="text-cyan-300" title="Infantry">INF</span>
+              {% elif row.primary_role == 'cavalry' %}<span class="text-gold" title="Cavalry">CAV</span>
+              {% elif row.primary_role == 'archers' %}<span class="text-emerald-300" title="Archers">ARC</span>
+              {% elif row.primary_role == 'magic' %}<span class="text-violet-300" title="Mage">MAG</span>
+              {% elif row.primary_role == 'other' %}<span class="text-muted" title="Other">OTH</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
             <td class="text-center font-mono font-semibold" data-grade="{{ row.grade|lower }}">{{ row.grade }}</td>
 
             {% if is_staff %}

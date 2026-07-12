@@ -303,6 +303,7 @@
             <tr>
               <th class="px-4 py-3 text-left font-medium">Rank</th>
               <th class="px-4 py-3 text-left font-medium">Player</th>
+              <th class="px-4 py-3 text-center font-medium">Role</th>
               <th class="px-4 py-3 text-center font-medium">Grade</th>
               <th class="px-4 py-3 text-right font-medium">M/P %</th>
               <th class="px-4 py-3 text-right font-medium">Merits</th>
@@ -323,6 +324,14 @@
                      class="ml-1 inline-block align-middle text-gold hover:text-cyan-300 transition-colors"
                      style="font-size: 0.85em; text-decoration: none;">📝</a>
                 {% endif %}
+              </td>
+              <td class="px-4 py-3 text-center font-mono text-xs" data-role="{{ row.primary_role or '' }}">
+                {% if row.primary_role == 'infantry' %}<span class="text-cyan-300" title="Infantry">INF</span>
+                {% elif row.primary_role == 'cavalry' %}<span class="text-gold" title="Cavalry">CAV</span>
+                {% elif row.primary_role == 'archers' %}<span class="text-emerald-300" title="Archers">ARC</span>
+                {% elif row.primary_role == 'magic' %}<span class="text-violet-300" title="Mage">MAG</span>
+                {% elif row.primary_role == 'other' %}<span class="text-muted" title="Other">OTH</span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
               </td>
               <td class="px-4 py-3 text-center font-mono font-semibold" data-grade="{{ row.grade|lower }}">{{ row.grade }}</td>
               <td class="px-4 py-3 text-right font-mono text-cyan">{{ "%.1f"|format(row.mp_ratio) }}%</td>

@@ -161,6 +161,7 @@ def _row_to_dict(score: Score, member: Member, stat: Stat) -> dict:
         # Scoring outputs
         "grade": score.grade or "—",
         "status": score.status or "—",
+        "primary_role": score.primary_role,
         "mp_ratio": score.mp_ratio,
 
         # Power
@@ -256,6 +257,7 @@ ROSTER_SORTABLE_COLUMNS: dict[str, object] = {
     # Map URL param -> SQL column. Whitelist for safety.
     "name": Member.current_name,
     "grade": Score.grade,
+    "primary_role": Score.primary_role,
     "mp": Score.mp_ratio,
     "merits_total": Stat.merits_total,
     "power": Stat.power,
@@ -282,7 +284,11 @@ def get_full_roster(
     *,
     search: Optional[str] = None,
     grade: Optional[str] = None,
+    role: Optional[str] = None,
+    status: Optional[str] = None,
     include_farms: bool = False,
+    include_merit_farmers: bool = False,
+    include_ex_members: bool = False,
     sort: str = "mp",
     order: str = "desc",
 ) -> list[dict]:
@@ -311,12 +317,31 @@ def get_full_roster(
     if not include_farms:
         stmt = stmt.where(Score.is_farm_account == False)
 
+    if not include_merit_farmers:
+        stmt = stmt.where(Score.status != "MERIT_FARMER")
+
+    if not include_ex_members:
+        stmt = stmt.where(Member.in_alliance == True)
+
     if search:
         like = f"%{search.strip()}%"
-        stmt = stmt.where(Member.current_name.ilike(like))
+        # search matches name OR character_id
+        if search.strip().isdigit():
+            stmt = stmt.where(
+                (Member.current_name.ilike(like))
+                | (Member.character_id == int(search.strip()))
+            )
+        else:
+            stmt = stmt.where(Member.current_name.ilike(like))
 
     if grade and grade.upper() in ("S", "A", "B", "C", "D"):
         stmt = stmt.where(Score.grade == grade.upper())
+
+    if role and role.lower() in ("infantry", "cavalry", "archers", "magic", "other"):
+        stmt = stmt.where(Score.primary_role == role.lower())
+
+    if status and status.upper() in ("KEEP", "WATCH", "EXPEL"):
+        stmt = stmt.where(Score.status == status.upper())
 
     sort_col = ROSTER_SORTABLE_COLUMNS.get(sort, Score.mp_ratio)
     if order.lower() == "asc":

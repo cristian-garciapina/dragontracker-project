@@ -105,6 +105,21 @@ def _find_cumulative_snapshot(session: Session, season: Season) -> Optional[Snap
 # ----------------------------------------------------------------------------
 # Main entrypoint
 # ----------------------------------------------------------------------------
+def _primary_role_from_stat(stat) -> Optional[str]:
+    """Return the unit type with the most merits, or None if all zero."""
+    buckets = {
+        "infantry": stat.merits_infantry or 0,
+        "cavalry": stat.merits_cavalry or 0,
+        "archers": stat.merits_archers or 0,
+        "magic": stat.merits_magic or 0,
+        "other": stat.merits_other or 0,
+    }
+    top = max(buckets.values())
+    if top <= 0:
+        return None
+    return max(buckets, key=buckets.get)
+
+
 def recompute_scores_for_active_season(session: Session) -> dict:
     """Recompute scores for every member of the active season's roster.
 
@@ -205,6 +220,7 @@ def recompute_scores_for_active_season(session: Session) -> dict:
                 mp_ratio=mp,
                 grade=grade,
                 status=status,
+                primary_role=_primary_role_from_stat(cum_stat),
                 is_farm_account=is_farm,
                 computed_at=now,
             )

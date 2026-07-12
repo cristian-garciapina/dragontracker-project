@@ -69,7 +69,14 @@
     <p class="text-secondary text-sm flex items-center gap-3 flex-wrap">
       <span>ID <span class="id-copy font-mono text-primary" data-copy="{{ member.character_id }}">{{ member.character_id }}</span></span>
       <span class="text-muted">·</span>
-      <span>Troop tier: <span class="text-primary font-mono">{{ member.troop_tier }}</span></span>
+      <span>Main role: <span class="text-primary font-mono">
+        {% if current and current.primary_role == 'infantry' %}Infantry
+        {% elif current and current.primary_role == 'cavalry' %}Cavalry
+        {% elif current and current.primary_role == 'archers' %}Archers
+        {% elif current and current.primary_role == 'magic' %}Mage
+        {% elif current and current.primary_role == 'other' %}Other
+        {% else %}—{% endif %}
+      </span></span>
       {% if member.in_alliance %}
         <span class="text-muted">·</span>
         <span class="text-gold text-xs uppercase tracking-wider">In alliance</span>
@@ -339,6 +346,40 @@
     <p class="text-muted text-sm italic">No burns recorded this season.</p>
     {% endif %}
   </section>
+
+  {# ============================================== ROLE BREAKDOWN #}
+  {% if latest_stat %}
+    {% set inf = latest_stat.merits_infantry or 0 %}
+    {% set cav = latest_stat.merits_cavalry or 0 %}
+    {% set arc = latest_stat.merits_archers or 0 %}
+    {% set mag = latest_stat.merits_magic or 0 %}
+    {% set oth = latest_stat.merits_other or 0 %}
+    {% set unit_total = inf + cav + arc + mag + oth %}
+    {% if unit_total > 0 %}
+    <section data-section="role-breakdown" class="mb-16">
+      <h2 class="font-display text-2xl mb-4">Merit breakdown</h2>
+      {% set pct_inf = (inf * 100.0 / unit_total) %}
+      {% set pct_cav = (cav * 100.0 / unit_total) %}
+      {% set pct_arc = (arc * 100.0 / unit_total) %}
+      {% set pct_mag = (mag * 100.0 / unit_total) %}
+      {% set pct_oth = (oth * 100.0 / unit_total) %}
+      <div class="w-full h-3 rounded-full overflow-hidden flex" style="background-color: var(--color-bg-elevated);">
+        {% if pct_inf > 0 %}<div style="width: {{ pct_inf }}%; background-color: #7DD3FC;" title="Infantry {{ '%.1f'|format(pct_inf) }}%"></div>{% endif %}
+        {% if pct_cav > 0 %}<div style="width: {{ pct_cav }}%; background-color: #FFD700;" title="Cavalry {{ '%.1f'|format(pct_cav) }}%"></div>{% endif %}
+        {% if pct_arc > 0 %}<div style="width: {{ pct_arc }}%; background-color: #6EE7B7;" title="Archers {{ '%.1f'|format(pct_arc) }}%"></div>{% endif %}
+        {% if pct_mag > 0 %}<div style="width: {{ pct_mag }}%; background-color: #C4B5FD;" title="Mage {{ '%.1f'|format(pct_mag) }}%"></div>{% endif %}
+        {% if pct_oth > 0 %}<div style="width: {{ pct_oth }}%; background-color: #6B7280;" title="Other {{ '%.1f'|format(pct_oth) }}%"></div>{% endif %}
+      </div>
+      <div class="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs font-mono text-muted">
+        <span><span class="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style="background-color: #7DD3FC;"></span>Infantry {{ "%.1f"|format(pct_inf) }}%</span>
+        <span><span class="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style="background-color: #FFD700;"></span>Cavalry {{ "%.1f"|format(pct_cav) }}%</span>
+        <span><span class="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style="background-color: #6EE7B7;"></span>Archers {{ "%.1f"|format(pct_arc) }}%</span>
+        <span><span class="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style="background-color: #C4B5FD;"></span>Mage {{ "%.1f"|format(pct_mag) }}%</span>
+        <span><span class="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style="background-color: #6B7280;"></span>Other {{ "%.1f"|format(pct_oth) }}%</span>
+      </div>
+    </section>
+    {% endif %}
+  {% endif %}
 
   <section data-section="events" id="events" class="mb-16">
     <h2 class="font-display text-2xl mb-4">Event history</h2>

@@ -71,6 +71,7 @@ async def player_profile(
             "end_power": score.end_power,
             "merits_cumulative": score.merits_cumulative,
             "is_farm_account": score.is_farm_account,
+            "primary_role": score.primary_role,
         })
 
     current = history[0] if history else None

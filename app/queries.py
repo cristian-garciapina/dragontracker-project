@@ -783,19 +783,20 @@ def set_event_eligibility(db: Session, event_id: int, eligible_ids: set[int]) ->
 
 def ensure_member_exists(db, character_id: int, name: str) -> bool:
     """Create a ghost Member (in_alliance=False) if the ID is unknown.
-    Returns True if a new member was created."""
-    from sqlalchemy import text
-    exists = db.execute(
-        text("SELECT 1 FROM members WHERE character_id = :cid"),
-        {"cid": character_id},
-    ).first()
-    if exists:
+    Returns True if a new member was created.
+
+    Uses the ORM (not a raw SQL INSERT) so the Python-side column
+    defaults are applied — troop_tier, first_seen_at, last_seen_at and
+    is_merit_farmer are NOT NULL with no SQL default, so a raw INSERT
+    that omits them fails with an IntegrityError.
+    """
+    if db.get(Member, character_id) is not None:
         return False
-    db.execute(
-        text("INSERT INTO members (character_id, current_name, in_alliance) "
-             "VALUES (:cid, :name, 0)"),
-        {"cid": character_id, "name": name.strip()},
-    )
+    db.add(Member(
+        character_id=character_id,
+        current_name=name.strip(),
+        in_alliance=False,
+    ))
     db.commit()
     return True
 

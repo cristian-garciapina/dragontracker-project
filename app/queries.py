@@ -779,3 +779,50 @@ def set_event_eligibility(db: Session, event_id: int, eligible_ids: set[int]) ->
                 off += 1
     db.commit()
     return on, off
+
+
+def ensure_member_exists(db, character_id: int, name: str) -> bool:
+    """Create a ghost Member (in_alliance=False) if the ID is unknown.
+    Returns True if a new member was created."""
+    from sqlalchemy import text
+    exists = db.execute(
+        text("SELECT 1 FROM members WHERE character_id = :cid"),
+        {"cid": character_id},
+    ).first()
+    if exists:
+        return False
+    db.execute(
+        text("INSERT INTO members (character_id, current_name, in_alliance) "
+             "VALUES (:cid, :name, 0)"),
+        {"cid": character_id, "name": name.strip()},
+    )
+    db.commit()
+    return True
+
+
+def add_manual_participation(db, event_id: int, character_id: int,
+                             points: int, notes) -> str:
+    """Upsert a participation with is_eligible=True. Returns 'created' or 'updated'."""
+    from sqlalchemy import text
+    existing = db.execute(
+        text("SELECT id FROM event_participations "
+             "WHERE event_id = :eid AND character_id = :cid"),
+        {"eid": event_id, "cid": character_id},
+    ).first()
+    if existing:
+        db.execute(
+            text("UPDATE event_participations "
+                 "SET points = :pts, notes = :notes, is_eligible = 1 "
+                 "WHERE event_id = :eid AND character_id = :cid"),
+            {"pts": points, "notes": notes, "eid": event_id, "cid": character_id},
+        )
+        db.commit()
+        return "updated"
+    db.execute(
+        text("INSERT INTO event_participations "
+             "(event_id, character_id, points, notes, is_eligible, recorded_at) "
+             "VALUES (:eid, :cid, :pts, :notes, 1, CURRENT_TIMESTAMP)"),
+        {"eid": event_id, "cid": character_id, "pts": points, "notes": notes},
+    )
+    db.commit()
+    return "created"

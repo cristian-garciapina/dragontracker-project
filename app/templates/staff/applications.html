@@ -170,9 +170,11 @@
                   <label for="notes-{{ app.id }}" class="block text-xs text-muted uppercase tracking-wider mb-1">Internal notes</label>
                   <textarea id="notes-{{ app.id }}" name="notes" rows="2"
                             class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary text-sm"
-                            placeholder="Optional internal note (staff-only, overwrites previous)…"></textarea>
+                            placeholder="Optional internal note (staff-only, overwrites previous)…">{{ app.notes or "" }}</textarea>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
+                  <button type="submit" formaction="/staff/applications/{{ app.id }}/notes"
+                          class="text-xs px-3 py-1.5 border border-cyan-700 text-cyan-300 hover:bg-cyan-900/20 rounded-sm tracking-wider uppercase transition-colors">Save notes</button>
                   <button type="submit" name="new_status" value="reviewing"
                           class="text-xs px-3 py-1.5 border border-amber-700 text-gold hover:bg-amber-900/20 rounded-sm tracking-wider uppercase transition-colors">Mark reviewing</button>
                   <button type="submit" name="new_status" value="accepted"

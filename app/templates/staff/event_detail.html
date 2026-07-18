@@ -58,6 +58,42 @@
     </div>
   </div>
 
+  {# ---------------- ADD PARTICIPANT MANUALLY ---------------- #}
+  <div class="mb-8 p-5 rounded-lg bg-slate-900/60 border border-slate-800">
+    <h2 class="text-sm uppercase text-slate-400 tracking-wider mb-3">Add participant manually</h2>
+    <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+      For players not in the latest snapshot (recent leavers, players outside the top exported).
+      If the character ID is unknown to the system, a ghost member is created automatically.
+    </p>
+    <form method="post" action="/staff/events/{{ event.id }}/add-participant"
+          class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+      <div class="md:col-span-1">
+        <label class="text-xs text-slate-400 block mb-1">Character ID</label>
+        <input type="number" name="character_id" required min="1"
+               class="field-input w-full font-mono">
+      </div>
+      <div class="md:col-span-2">
+        <label class="text-xs text-slate-400 block mb-1">In-game name</label>
+        <input type="text" name="in_game_name" required maxlength="64"
+               placeholder="Used if ID is unknown"
+               class="field-input w-full">
+      </div>
+      <div class="md:col-span-1">
+        <label class="text-xs text-slate-400 block mb-1">Points</label>
+        <input type="number" name="points" value="0" min="0"
+               class="field-input w-full font-mono text-right">
+      </div>
+      <div class="md:col-span-1">
+        <label class="text-xs text-slate-400 block mb-1">Notes</label>
+        <input type="text" name="notes" placeholder="Optional"
+               class="field-input w-full">
+      </div>
+      <div class="md:col-span-1">
+        <button type="submit" class="btn-primary w-full">Add</button>
+      </div>
+    </form>
+  </div>
+
   {# ------------------------------ RANKING ------------------------------ #}
   <div class="mb-10">
     <div class="flex items-center justify-between mb-3">

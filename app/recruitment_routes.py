@@ -320,3 +320,22 @@ async def delete_application(
     db.delete(app)
     db.commit()
     return RedirectResponse(url="/staff/applications", status_code=303)
+
+
+@router.post("/staff/applications/{app_id}/notes")
+async def update_notes(
+    app_id: int,
+    notes: str = Form(""),
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    """Save internal notes without changing status."""
+    app = db.get(Application, app_id)
+    if app is None:
+        return RedirectResponse(url="/staff/applications", status_code=303)
+    app.notes = notes.strip() or None
+    db.commit()
+    return RedirectResponse(
+        url=f"/staff/applications?saved=notes#app-{app_id}",
+        status_code=303,
+    )

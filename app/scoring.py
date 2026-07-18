@@ -142,10 +142,24 @@ def recompute_scores_for_active_season(session: Session) -> dict:
     # 2) Cumulative snapshot for this season
     cum = _find_cumulative_snapshot(session, season)
     if cum is None:
-        raise RuntimeError(
-            f"No cumulative snapshot found for season {season.id} "
-            f"(starts {season.start_date})."
+        # Season just opened, no cumulative yet — this is a valid state,
+        # not an error. Wipe any stale scores from a previous season and
+        # return a no-op result.
+        session.execute(
+            __import__("sqlalchemy").text(
+                "DELETE FROM scores WHERE season_id = :sid"
+            ),
+            {"sid": season.id},
         )
+        session.commit()
+        return {
+            "status": "no_cumulative",
+            "season_id": season.id,
+            "season_name": season.name,
+            "scored": 0,
+            "farm": 0,
+            "missing": 0,
+        }
 
     # 3) Load thresholds from settings
     thr = _load_thresholds(session)

@@ -167,3 +167,33 @@ async def update_eligibility(
     msg = f"Marked {on} eligible, {off} not eligible"
     return RedirectResponse(f"/staff/events/{event_id}?flash={msg}", status_code=303)
 
+
+
+@router.post("/{event_id}/add-participant")
+async def add_manual_participant(
+    event_id: int,
+    character_id: int = Form(...),
+    in_game_name: str = Form(...),
+    points: int = Form(0),
+    notes: str = Form(""),
+    user=Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    if not q.get_event(db, event_id):
+        raise HTTPException(404)
+    if character_id <= 0:
+        raise HTTPException(400, "Invalid character_id")
+    name = in_game_name.strip()
+    if not name:
+        raise HTTPException(400, "In-game name required")
+    ghost_created = q.ensure_member_exists(db, character_id, name)
+    action = q.add_manual_participation(
+        db, event_id, character_id, max(0, points), notes.strip() or None
+    )
+    if ghost_created:
+        msg = f"Ghost member #{character_id} created and added ({points} pts)"
+    elif action == "created":
+        msg = f"Added participation for #{character_id} ({points} pts)"
+    else:
+        msg = f"Updated participation for #{character_id} ({points} pts)"
+    return RedirectResponse(f"/staff/events/{event_id}?flash={msg}", status_code=303)

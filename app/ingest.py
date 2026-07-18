@@ -10,6 +10,7 @@ merits_total).
 from __future__ import annotations
 
 import io
+import logging
 import re
 import unicodedata
 from datetime import date, datetime
@@ -24,6 +25,8 @@ from .models import Member, Season, Setting, Snapshot, Stat
 from .security import require_ingest_token
 
 router = APIRouter(prefix="/api", tags=["ingest"])
+
+logger = logging.getLogger(__name__)
 
 
 HEADER_MAP = {
@@ -56,6 +59,11 @@ def _normalize(s) -> str:
     if s is None:
         return ""
     s = str(s).strip().lower()
+    # Fold typographic apostrophes to ASCII BEFORE NFKD. NFKD does not map
+    # U+2019/U+2018 to a plain "'", so a Farlight export that switches to
+    # curly apostrophes would break header keys like "tireurs d'elite" and
+    # "dons de l'alliance", silently dropping those columns.
+    s = s.replace("’", "'").replace("‘", "'")
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     s = re.sub(r"\s+", " ", s)
@@ -145,6 +153,19 @@ async def ingest_excel(
         )
 
     filename = file.filename or "unknown.xlsx"
+
+    # Surface any header column we didn't recognise — a canary for future
+    # Farlight export format changes (renamed/added columns).
+    unmapped = sorted({
+        k for cell in header_row
+        if (k := _normalize(cell)) and k not in HEADER_MAP
+    })
+    if unmapped:
+        logger.warning(
+            "Ingest %s: %d unmapped column(s) ignored: %s",
+            filename, len(unmapped), unmapped,
+        )
+
     date_start, date_end = _extract_dates_from_filename(filename)
 
     existing = session.execute(
@@ -345,6 +366,14 @@ async def _ingest_upload(
 
     if HEADER_MAP is None:
         raise ValueError("HEADER_MAP not found in ingest.py — refactor needed.")
+
+    # Canary for Farlight format changes: log columns we couldn't map.
+    unmapped = sorted({c for c in df.columns if c and c not in HEADER_MAP})
+    if unmapped:
+        logger.warning(
+            "Ingest(upload) %s: %d unmapped column(s) ignored: %s",
+            file.filename, len(unmapped), unmapped,
+        )
 
     rows_inserted = 0
     for _, row in df.iterrows():

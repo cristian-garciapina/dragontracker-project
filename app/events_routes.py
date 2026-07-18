@@ -40,8 +40,11 @@ def create_event(
     season = q.get_active_season(db)
     if not season:
         raise HTTPException(400, "No active season")
-    ds = date.fromisoformat(date_start)
-    de = date.fromisoformat(date_end)
+    try:
+        ds = date.fromisoformat(date_start.strip())
+        de = date.fromisoformat(date_end.strip())
+    except ValueError:
+        raise HTTPException(400, "Invalid date format (expected YYYY-MM-DD).")
     if de < ds:
         raise HTTPException(400, "End date must be on or after start date")
     ev = Event(

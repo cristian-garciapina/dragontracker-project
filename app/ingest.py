@@ -190,11 +190,16 @@ async def _ingest_upload(
                 character_id=cid,
                 current_name=str(mapped["current_name"])[:64],
                 in_alliance=True,
+                last_seen_at=datetime.utcnow(),
             )
             session.add(member)
         else:
             member.current_name = str(mapped["current_name"])[:64]
-            member.last_seen_at = datetime.utcnow()
+            # Throttle last_seen_at: write at most once per snapshot day.
+            # Avoids ~300 UPDATEs per ingestion on a column that only needs
+            # day-level granularity.
+            if member.last_seen_at is None or member.last_seen_at.date() < date_end:
+                member.last_seen_at = datetime.utcnow()
 
         stat = _Stat(
             snapshot_id=snap.id,

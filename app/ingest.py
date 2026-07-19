@@ -171,6 +171,7 @@ async def _ingest_upload(
         )
 
     rows_inserted = 0
+    present_ids: set[int] = set()  # character_ids seen in this export
     for _, row in df.iterrows():
         mapped = {}
         for col_value, field in HEADER_MAP.items():
@@ -222,11 +223,37 @@ async def _ingest_upload(
             behemoth_victories=_parse_int(mapped.get("behemoth_victories", 0)),
         )
         session.add(stat)
+        present_ids.add(cid)
         rows_inserted += 1
+
+    # --- Sync in_alliance with the export --------------------------------
+    # A season export lists EVERY current alliance member, so a member who
+    # is currently in_alliance=True but absent from this file has left the
+    # alliance. Flip those to False. Members already in_alliance=False
+    # (past ex-members, external farms) are deliberately left untouched.
+    # Guarded on a non-empty export so a garbage/empty upload can never
+    # wipe the whole roster.
+    dropped: list[tuple[int, str]] = []
+    if present_ids:
+        stale = session.execute(
+            _select(_Member).where(
+                _Member.in_alliance == True,  # noqa: E712
+                _Member.character_id.not_in(present_ids),
+            )
+        ).scalars().all()
+        for m in stale:
+            m.in_alliance = False
+            dropped.append((m.character_id, m.current_name))
+        if dropped:
+            logger.info(
+                "Ingest(upload) %s: %d member(s) absent from export → in_alliance=False: %s",
+                file.filename, len(dropped), dropped,
+            )
 
     session.commit()
     return {
         "snapshot_id": snap.id,
         "filename": file.filename,
         "rows": rows_inserted,
+        "dropped": len(dropped),
     }

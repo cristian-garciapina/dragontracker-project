@@ -6,25 +6,23 @@ The portal lets users tick which columns to include in the export.
 This parser is therefore tolerant: any subset of known columns is accepted,
 provided the minimal identity columns are present (character_id, name, power,
 merits_total).
+
+Entrypoint: `_ingest_upload` — called by the staff seasons upload wizard
+(seasons_routes.py). The former `/api/ingest` HTTP endpoint (openpyxl-based
+pipeline B) was removed as unused.
 """
 from __future__ import annotations
 
-import io
 import logging
 import re
 import unicodedata
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from openpyxl import load_workbook
-from sqlalchemy import and_, select
+from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .db import get_session
-from .models import Member, Season, Setting, Snapshot, Stat
-from .security import require_ingest_token
-
-router = APIRouter(prefix="/api", tags=["ingest"])
+from .models import Season, Setting, Snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +57,7 @@ def _normalize(s) -> str:
     if s is None:
         return ""
     s = str(s).strip().lower()
-    # Fold typographic apostrophes to ASCII BEFORE NFKD. NFKD does not map
-    # U+2019/U+2018 to a plain "'", so a Farlight export that switches to
-    # curly apostrophes would break header keys like "tireurs d'elite" and
-    # "dons de l'alliance", silently dropping those columns.
-    s = s.replace("’", "'").replace("‘", "'")
+    s = s.replace("\u2019", "'").replace("\u2018", "'")
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     s = re.sub(r"\s+", " ", s)
@@ -116,207 +110,17 @@ def _detect_overlap(session: Session, season_id: int, date_start: date, date_end
     return None
 
 
-@router.post("/ingest", status_code=status.HTTP_201_CREATED)
-async def ingest_excel(
-    file: UploadFile = File(...),
-    session: Session = Depends(get_session),
-    _: None = Depends(require_ingest_token),
-):
-    raw = await file.read()
-    try:
-        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Cannot open as Excel: {exc}")
-
-    ws = wb.active
-    rows_iter = ws.iter_rows(values_only=True)
-
-    try:
-        header_row = next(rows_iter)
-    except StopIteration:
-        raise HTTPException(status_code=400, detail="Empty file.")
-
-    columns = []
-    seen_fields = set()
-    for cell in header_row:
-        key = _normalize(cell)
-        field = HEADER_MAP.get(key)
-        columns.append(field)
-        if field:
-            seen_fields.add(field)
-
-    missing = REQUIRED_FIELDS - seen_fields
-    if missing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Missing required columns: {sorted(missing)}",
-        )
-
-    filename = file.filename or "unknown.xlsx"
-
-    # Surface any header column we didn't recognise — a canary for future
-    # Farlight export format changes (renamed/added columns).
-    unmapped = sorted({
-        k for cell in header_row
-        if (k := _normalize(cell)) and k not in HEADER_MAP
-    })
-    if unmapped:
-        logger.warning(
-            "Ingest %s: %d unmapped column(s) ignored: %s",
-            filename, len(unmapped), unmapped,
-        )
-
-    date_start, date_end = _extract_dates_from_filename(filename)
-
-    existing = session.execute(
-        select(Snapshot).where(
-            and_(
-                Snapshot.source_filename == filename,
-                Snapshot.date_start == date_start,
-                Snapshot.date_end == date_end,
-            )
-        )
-    ).scalar_one_or_none()
-    if existing:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Snapshot already ingested (id={existing.id}).",
-        )
-
-    season = _get_active_season(session)
-    if _get_setting_bool(session, "ingest.reject_overlapping_periods", default=True):
-        overlap = _detect_overlap(session, season.id, date_start, date_end)
-        if overlap:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"Date range overlaps existing snapshot id={overlap.id} "
-                    f"({overlap.date_start} to {overlap.date_end})."
-                ),
-            )
-
-    parsed_rows = []
-    skipped = 0
-    for row in rows_iter:
-        if row is None or all(c is None or c == "" for c in row):
-            continue
-        record = {}
-        for col_field, value in zip(columns, row):
-            if col_field is None:
-                continue
-            record[col_field] = value
-        if not record.get("character_id") or not record.get("current_name"):
-            skipped += 1
-            continue
-        try:
-            record["character_id"] = int(record["character_id"])
-        except (ValueError, TypeError):
-            skipped += 1
-            continue
-        parsed_rows.append(record)
-
-    if not parsed_rows:
-        raise HTTPException(status_code=400, detail="No valid data rows.")
-
-    snapshot = Snapshot(
-        season_id=season.id,
-        date_start=date_start,
-        date_end=date_end,
-        source_filename=filename,
-        row_count=len(parsed_rows),
-        ingested_at=datetime.utcnow(),
-        ingested_by="api",
-    )
-    session.add(snapshot)
-    session.flush()
-
-    members_created = 0
-    members_updated = 0
-    now = datetime.utcnow()
-
-    char_ids = [r["character_id"] for r in parsed_rows]
-    existing_members = {
-        m.character_id: m
-        for m in session.execute(
-            select(Member).where(Member.character_id.in_(char_ids))
-        ).scalars()
-    }
-
-    stat_objects = []
-    for r in parsed_rows:
-        cid = r["character_id"]
-        name = str(r["current_name"]).strip()
-
-        member = existing_members.get(cid)
-        if member is None:
-            member = Member(
-                character_id=cid,
-                current_name=name,
-                in_alliance=False,
-                troop_tier="unknown",
-                first_seen_at=now,
-                last_seen_at=now,
-            )
-            session.add(member)
-            members_created += 1
-        else:
-            member.current_name = name
-            member.last_seen_at = now
-            members_updated += 1
-
-        stat_objects.append(
-            Stat(
-                snapshot_id=snapshot.id,
-                character_id=cid,
-                rank=_parse_int(r.get("rank")) or None,
-                power=_parse_int(r.get("power")),
-                peak_power=_parse_int(r.get("peak_power")) or None,
-                deaths_t45=_parse_int(r.get("deaths_t45")),
-                merits_total=_parse_int(r.get("merits_total")),
-                merits_infantry=_parse_int(r.get("merits_infantry")),
-                merits_cavalry=_parse_int(r.get("merits_cavalry")),
-                merits_archers=_parse_int(r.get("merits_archers")),
-                merits_magic=_parse_int(r.get("merits_magic")),
-                merits_other=_parse_int(r.get("merits_other")),
-                healing_t45=_parse_int(r.get("healing_t45")),
-                alliance_donations=_parse_int(r.get("alliance_donations")),
-                build_time=_parse_int(r.get("build_time")),
-                destruction_time=_parse_int(r.get("destruction_time")),
-                behemoth_victories=_parse_int(r.get("behemoth_victories")),
-                harvest=_parse_int(r.get("harvest")),
-            )
-        )
-
-    session.add_all(stat_objects)
-    session.commit()
-
-    return {
-        "snapshot_id": snapshot.id,
-        "season_id": season.id,
-        "date_start": str(date_start),
-        "date_end": str(date_end),
-        "rows_parsed": len(parsed_rows),
-        "rows_skipped": skipped,
-        "members_created": members_created,
-        "members_updated": members_updated,
-        "columns_detected": sorted(seen_fields),
-    }
-
-
-
 async def _ingest_upload(
     session,
     file,
     *,
     ingested_by: str,
 ) -> dict:
-    """Reusable ingestion entrypoint for both the API endpoint and the
-    staff UI. Wraps the same parsing/persistence path used by
-    /api/ingest. Returns a dict with snapshot_id, filename, rows.
+    """Reusable ingestion entrypoint used by the staff seasons upload wizard
+    (seasons_routes.py). Returns a dict with snapshot_id, filename, rows.
     """
     from io import BytesIO
     import pandas as pd
-    from datetime import datetime
     from sqlalchemy import select as _select
     from .models import Snapshot as _Snapshot, Stat as _Stat, Member as _Member
 
@@ -359,15 +163,6 @@ async def _ingest_upload(
     session.add(snap)
     session.flush()
 
-    # Reuse the same field mapping as the route by importing the constants
-    from . import ingest as _self
-    HEADER_MAP = getattr(_self, 'HEADER_MAP', None)
-    REQUIRED_FIELDS = getattr(_self, 'REQUIRED_FIELDS', {"character_id", "current_name", "power", "merits_total"})
-
-    if HEADER_MAP is None:
-        raise ValueError("HEADER_MAP not found in ingest.py — refactor needed.")
-
-    # Canary for Farlight format changes: log columns we couldn't map.
     unmapped = sorted({c for c in df.columns if c and c not in HEADER_MAP})
     if unmapped:
         logger.warning(

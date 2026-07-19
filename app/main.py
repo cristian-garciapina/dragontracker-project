@@ -7,7 +7,6 @@ Routes:
 - `/logout`        public (POST)
 - `/dashboard`     authenticated overview
 - `/roster`        authenticated full member grid
-- `/api/ingest`    bearer-token protected
 - `/healthz`       public
 """
 from pathlib import Path
@@ -32,7 +31,6 @@ from .staff_routes import router as staff_router
 from .profile_routes import router as profile_router
 from .settings_routes import router as settings_router
 from .seasons_routes import router as seasons_router
-from .ingest import router as ingest_router
 from .recruitment_routes import router as recruitment_router
 from .events_routes import router as events_router
 from .player_routes import router as player_router
@@ -50,7 +48,6 @@ app = FastAPI(
     redoc_url=None,
 )
 
-app.include_router(ingest_router)
 app.include_router(auth_router)
 app.include_router(signup_router)
 app.include_router(staff_router)

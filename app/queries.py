@@ -61,7 +61,8 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
     )
 
     count_scored = (
-        db.scalar(base(func.count(Score.id)).where(Score.is_farm_account == False))
+        db.scalar(base(func.count(Score.id)).where(Score.is_farm_account == False)
+        .where(Score.status != "MERIT_FARMER"))
         or 0
     )
     count_farm = (
@@ -70,14 +71,15 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
     )
     total_merits = (
         db.scalar(
-            base(func.sum(Score.merits_cumulative)).where(
-                Score.is_farm_account == False
-            )
+            base(func.sum(Score.merits_cumulative))
+            .where(Score.is_farm_account == False)
+            .where(Score.status != "MERIT_FARMER")
         )
         or 0
     )
     mp_avg = db.scalar(
         base(func.avg(Score.mp_ratio)).where(Score.is_farm_account == False)
+        .where(Score.status != "MERIT_FARMER")
     )
 
     powers = db.scalars(
@@ -85,6 +87,7 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
         .where(Score.season_id == season_id)
         .where(Score.snapshot_id == snapshot_id)
         .where(Score.is_farm_account == False)
+        .where(Score.status != "MERIT_FARMER")
     ).all()
     median_power = int(statistics.median(powers)) if powers else 0
 
@@ -361,6 +364,7 @@ def count_total_roster(db: Session, season_id: int, snapshot_id: int) -> int:
             .where(Score.season_id == season_id)
             .where(Score.snapshot_id == snapshot_id)
             .where(Score.is_farm_account == False)
+        .where(Score.status != "MERIT_FARMER")
         )
         or 0
     )

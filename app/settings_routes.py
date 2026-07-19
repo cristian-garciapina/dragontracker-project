@@ -98,6 +98,21 @@ async def settings_update(
     proposed = {spec["key"]: spec["current"] for spec in specs}
     for key, _old, new in changes:
         proposed[key] = new
+    threshold_keys = [
+        "scoring.threshold.s",
+        "scoring.threshold.a",
+        "scoring.threshold.b",
+        "scoring.threshold.c",
+    ]
+    missing = [k for k in threshold_keys if not isinstance(proposed.get(k), (int, float))]
+    if missing:
+        return _render(
+            request, db, user,
+            error=(
+                f"Threshold settings missing or null: {', '.join(missing)}. "
+                "Set all four before saving."
+            ),
+        )
     s = proposed["scoring.threshold.s"]
     a = proposed["scoring.threshold.a"]
     b = proposed["scoring.threshold.b"]

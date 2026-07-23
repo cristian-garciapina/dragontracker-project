@@ -31,7 +31,7 @@ from typing import Optional
 from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import Session
 
-from .models import Member, Score, Season, Setting, Snapshot, Stat
+from .models import SeasonFarmingWindow, Member, Score, Season, Setting, Snapshot, Stat
 
 
 # ----------------------------------------------------------------------------
@@ -120,6 +120,62 @@ def _primary_role_from_stat(stat) -> Optional[str]:
     return max(buckets, key=buckets.get)
 
 
+
+def _load_farming_deductions(session, season_id: int, start_snap_id: int) -> dict[int, int]:
+    """
+    For each character, sum of merit deltas across all farming windows of the season.
+    A window's delta = merits at upper-bound snapshot - merits at lower-bound snapshot.
+    Windows with no available upper-bound snapshot are silently skipped.
+    Returns {character_id: total_deduction}.
+    """
+    windows = session.execute(
+        select(SeasonFarmingWindow)
+        .where(SeasonFarmingWindow.season_id == season_id)
+        .order_by(SeasonFarmingWindow.date_start)
+    ).scalars().all()
+
+    if not windows:
+        return {}
+
+    all_snaps = session.execute(
+        select(Snapshot).order_by(Snapshot.date_end)
+    ).scalars().all()
+
+    deductions: dict[int, int] = {}
+
+    for w in windows:
+        # Upper bound: first snapshot with date_end >= w.date_end
+        upper = next((s for s in all_snaps if s.date_end >= w.date_end), None)
+        if upper is None:
+            continue  # can't compute this window yet
+
+        # Lower bound: last snapshot with date_end < w.date_start
+        lower_candidates = [s for s in all_snaps if s.date_end < w.date_start]
+        lower = lower_candidates[-1] if lower_candidates else session.get(Snapshot, start_snap_id)
+        if lower is None:
+            continue
+
+        lower_stats = {
+            s.character_id: s.merits_total
+            for s in session.execute(
+                select(Stat).where(Stat.snapshot_id == lower.id)
+            ).scalars()
+        }
+        upper_stats = {
+            s.character_id: s.merits_total
+            for s in session.execute(
+                select(Stat).where(Stat.snapshot_id == upper.id)
+            ).scalars()
+        }
+
+        for cid, upper_m in upper_stats.items():
+            delta = upper_m - lower_stats.get(cid, 0)
+            if delta > 0:
+                deductions[cid] = deductions.get(cid, 0) + delta
+
+    return deductions
+
+
 def recompute_scores_for_active_season(session: Session) -> dict:
     """Recompute scores for every member of the active season's roster.
 
@@ -164,6 +220,9 @@ def recompute_scores_for_active_season(session: Session) -> dict:
     # 3) Load thresholds from settings
     thr = _load_thresholds(session)
 
+    # 3b) Load farming deductions for this season
+    deductions = _load_farming_deductions(session, season.id, start_snap_id)
+
     # 4) Load all start stats and cumulative stats, indexed by character_id
     start_stats = {
         s.character_id: s
@@ -188,7 +247,7 @@ def recompute_scores_for_active_season(session: Session) -> dict:
 
     # 6) Compute one Score row per character that has BOTH start and cum stats
     now = datetime.utcnow()
-    counts = {"S": 0, "A": 0, "B": 0, "C": 0, "D": 0, "FARM": 0, "MERIT_FARMER": 0, "MISSING": 0}
+    counts = {"S": 0, "A": 0, "B": 0, "C": 0, "D": 0, "FARM": 0, "MISSING": 0}
     scores: list[Score] = []
 
     for cid, start_stat in start_stats.items():
@@ -201,21 +260,15 @@ def recompute_scores_for_active_season(session: Session) -> dict:
         is_farm = start_stat.power <= thr["farm_power"]
         merits = cum_stat.merits_total
         sp = start_stat.power
-        member = session.get(Member, cid)
-        is_merit_farmer = bool(member and member.is_merit_farmer)
-
         if is_farm:
             grade = None
             status = "FARM"
             mp = 0.0
             counts["FARM"] += 1
-        elif is_merit_farmer:
-            grade = None
-            status = "MERIT_FARMER"
-            mp = 0.0
-            counts["MERIT_FARMER"] += 1
         else:
-            mp = (merits / sp) * 100.0 if sp > 0 else 0.0
+            deduction = deductions.get(cid, 0)
+            merits_eff = max(0, merits - deduction)
+            mp = (merits_eff / sp) * 100.0 if sp > 0 else 0.0
             grade = _grade_from_ratio(mp, thr)
             status = _status_from_grade(grade)
             counts[grade] += 1
@@ -229,6 +282,8 @@ def recompute_scores_for_active_season(session: Session) -> dict:
                 start_power=sp,
                 end_power=cum_stat.power,
                 merits_cumulative=merits,
+                merits_farmed_deduction=(deductions.get(cid, 0) if not is_farm else 0),
+                merits_effective=(max(0, merits - deductions.get(cid, 0)) if not is_farm else merits),
                 deaths_t45=cum_stat.deaths_t45,
                 healing_t45=cum_stat.healing_t45,
                 mp_ratio=mp,

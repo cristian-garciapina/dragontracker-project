@@ -61,8 +61,7 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
     )
 
     count_scored = (
-        db.scalar(base(func.count(Score.id)).where(Score.is_farm_account == False)
-        .where(Score.status != "MERIT_FARMER"))
+        db.scalar(base(func.count(Score.id)).where(Score.is_farm_account == False))
         or 0
     )
     count_farm = (
@@ -73,13 +72,11 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
         db.scalar(
             base(func.sum(Score.merits_cumulative))
             .where(Score.is_farm_account == False)
-            .where(Score.status != "MERIT_FARMER")
         )
         or 0
     )
     mp_avg = db.scalar(
         base(func.avg(Score.mp_ratio)).where(Score.is_farm_account == False)
-        .where(Score.status != "MERIT_FARMER")
     )
 
     powers = db.scalars(
@@ -87,7 +84,6 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
         .where(Score.season_id == season_id)
         .where(Score.snapshot_id == snapshot_id)
         .where(Score.is_farm_account == False)
-        .where(Score.status != "MERIT_FARMER")
     ).all()
     median_power = int(statistics.median(powers)) if powers else 0
 
@@ -166,6 +162,10 @@ def _row_to_dict(score: Score, member: Member, stat: Stat) -> dict:
         "status": score.status or "—",
         "primary_role": score.primary_role,
         "mp_ratio": score.mp_ratio,
+        "merits_farmed_deduction": score.merits_farmed_deduction or 0,
+        "merits_farmed_deduction_short": format_number_short(score.merits_farmed_deduction or 0),
+        "merits_effective": score.merits_effective if score.merits_effective is not None else score.merits_cumulative,
+        "merits_effective_short": format_number_short(score.merits_effective if score.merits_effective is not None else score.merits_cumulative),
 
         # Power
         "power": stat.power,
@@ -262,6 +262,7 @@ ROSTER_SORTABLE_COLUMNS: dict[str, object] = {
     "grade": Score.grade,
     "primary_role": Score.primary_role,
     "mp": Score.mp_ratio,
+    "deduction": Score.merits_farmed_deduction,
     "merits_total": Stat.merits_total,
     "power": Stat.power,
     "peak_power": Stat.peak_power,
@@ -290,7 +291,6 @@ def get_full_roster(
     role: Optional[str] = None,
     status: Optional[str] = None,
     include_farms: bool = False,
-    include_merit_farmers: bool = False,
     include_ex_members: bool = False,
     sort: str = "mp",
     order: str = "desc",
@@ -320,8 +320,6 @@ def get_full_roster(
     if not include_farms:
         stmt = stmt.where(Score.is_farm_account == False)
 
-    if not include_merit_farmers:
-        stmt = stmt.where(Score.status != "MERIT_FARMER")
 
     if not include_ex_members:
         stmt = stmt.where(Member.in_alliance == True)
@@ -364,7 +362,6 @@ def count_total_roster(db: Session, season_id: int, snapshot_id: int) -> int:
             .where(Score.season_id == season_id)
             .where(Score.snapshot_id == snapshot_id)
             .where(Score.is_farm_account == False)
-        .where(Score.status != "MERIT_FARMER")
         )
         or 0
     )
@@ -790,8 +787,8 @@ def ensure_member_exists(db, character_id: int, name: str) -> bool:
     Returns True if a new member was created.
 
     Uses the ORM (not a raw SQL INSERT) so the Python-side column
-    defaults are applied — troop_tier, first_seen_at, last_seen_at and
-    is_merit_farmer are NOT NULL with no SQL default, so a raw INSERT
+    defaults are applied — troop_tier, first_seen_at, last_seen_at
+    are NOT NULL with no SQL default, so a raw INSERT
     that omits them fails with an IntegrityError.
     """
     if db.get(Member, character_id) is not None:

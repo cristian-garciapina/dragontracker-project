@@ -62,6 +62,12 @@ class Season(Base):
         back_populates="season",
         foreign_keys="Snapshot.season_id",
     )
+    farming_windows: Mapped[list["SeasonFarmingWindow"]] = relationship(
+        back_populates="season", cascade="all, delete-orphan"
+    )
+    farming_windows: Mapped[list["SeasonFarmingWindow"]] = relationship(
+        back_populates="season", cascade="all, delete-orphan"
+    )
     burns: Mapped[list["Burn"]] = relationship(back_populates="season")
 
 
@@ -72,7 +78,6 @@ class Member(Base):
     current_name: Mapped[str] = mapped_column(String(64), nullable=False)
     alliance_id: Mapped[Optional[int]] = mapped_column(ForeignKey("alliances.id"))
     in_alliance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_merit_farmer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     troop_tier: Mapped[str] = mapped_column(
         String(8), default="unknown", nullable=False
     )  # 'T4' | 'T5' | 'unknown'
@@ -350,6 +355,8 @@ class Score(Base):
     start_power: Mapped[int] = mapped_column(Integer, nullable=False)
     end_power: Mapped[int] = mapped_column(Integer, nullable=False)
     merits_cumulative: Mapped[int] = mapped_column(Integer, default=0)
+    merits_farmed_deduction: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    merits_effective: Mapped[Optional[int]] = mapped_column(Integer)
     deaths_t45: Mapped[int] = mapped_column(Integer, default=0)
     healing_t45: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -529,3 +536,19 @@ class EventParticipation(Base):
 
     event: Mapped["Event"] = relationship(back_populates="participations")
     member: Mapped["Member"] = relationship()
+
+class SeasonFarmingWindow(Base):
+    __tablename__ = "season_farming_windows"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(
+        ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    date_start: Mapped[date] = mapped_column(Date, nullable=False)
+    date_end: Mapped[date] = mapped_column(Date, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    season: Mapped["Season"] = relationship(back_populates="farming_windows")
+

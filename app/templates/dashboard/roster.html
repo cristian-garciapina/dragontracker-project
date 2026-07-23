@@ -238,11 +238,6 @@
                {% if filters.include_farms %}checked{% endif %}>
         Include farms
       </label>
-      <label class="check-pill" data-staff-only="mfarmers-toggle">
-        <input id="mfarmers" name="mfarmers" type="checkbox" value="1"
-               {% if filters.include_merit_farmers %}checked{% endif %}>
-        Include merit farmers
-      </label>
       <label class="check-pill" data-staff-only="exmembers-toggle">
         <input id="exmembers" name="exmembers" type="checkbox" value="1"
                {% if filters.include_ex_members %}checked{% endif %}>
@@ -265,9 +260,7 @@
   {% set role_qs = ('role=' ~ filters.role) if filters.role else '' %}
   {% set status_qs = ('status=' ~ filters.status) if filters.status else '' %}
   {% set farms_qs = 'farms=1' if filters.include_farms else '' %}
-  {% set mfarmers_qs = 'mfarmers=1' if filters.include_merit_farmers else '' %}
   {% set exmembers_qs = 'exmembers=1' if filters.include_ex_members else '' %}
-  {% set base_qs = [q_qs, grade_qs, role_qs, status_qs, farms_qs, mfarmers_qs, exmembers_qs] | select | join('&') %}
 
   {% macro sort_link(col, label) -%}
     {%- set new_order = 'asc' if (filters.sort == col and filters.order == 'desc') else 'desc' -%}
@@ -296,6 +289,7 @@
             {% endif %}
 
             <th class="text-right" data-col="mp">{{ sort_link('mp', 'M/P %') }}</th>
+            <th class="text-right" data-col="deduction">{{ sort_link('deduction', 'Farming deduction') }}</th>
             <th class="text-right" data-col="merits_total">{{ sort_link('merits_total', 'Merits') }}</th>
             <th class="text-right" data-col="power">{{ sort_link('power', 'Power') }}</th>
             <th class="text-right" data-col="peak_power">{{ sort_link('peak_power', 'Peak power') }}</th>
@@ -369,6 +363,7 @@
             {% endif %}
 
             <td class="text-right font-mono text-cyan">{{ "%.1f"|format(row.mp_ratio) }}%</td>
+            <td class="text-right font-mono {% if row.merits_farmed_deduction > 0 %}text-amber-300{% else %}text-muted{% endif %}">{% if row.merits_farmed_deduction > 0 %}−{{ row.merits_farmed_deduction_short }}{% else %}—{% endif %}</td>
             <td class="text-right font-mono">{{ row.merits_total_short }}</td>
             <td class="text-right font-mono">{{ row.power_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.peak_power_short }}</td>

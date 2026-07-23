@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Farming windows — Eternal Vanguard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-5xl">
+
+  <div class="mb-8">
+    <p class="text-xs uppercase tracking-widest text-cyan-400 mb-2">Staff · Merit deductions</p>
+    <h1 class="font-display text-4xl text-white mb-3">Farming windows</h1>
+    <p class="text-slate-400 max-w-2xl leading-relaxed">
+      Declare periods where merits gained must be excluded from M/P% scoring.
+      The system subtracts the delta between the snapshot just before and just after each window, for every player.
+      Windows without an available upper-bound snapshot are silently skipped until you ingest one.
+    </p>
+  </div>
+
+  {% if not season %}
+    <div class="rounded border border-slate-700 bg-slate-900/60 p-6 text-slate-400">
+      No active season. Activate a season first.
+    </div>
+  {% else %}
+
+  <div class="rounded-lg border border-slate-700 bg-slate-900/60 p-6 mb-8">
+    <h2 class="font-display text-xl text-white mb-4">Declare a new window</h2>
+    <form method="post" action="/staff/farming-windows/new" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Start date</label>
+        <input type="date" name="date_start" required class="field-input w-full">
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">End date</label>
+        <input type="date" name="date_end" required class="field-input w-full">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Reason (optional)</label>
+        <input type="text" name="reason" placeholder="e.g. Merit trade with alliance XYZ" class="field-input w-full">
+      </div>
+      <div class="md:col-span-4">
+        <button type="submit" class="btn-primary">Declare window & recompute</button>
+      </div>
+    </form>
+  </div>
+
+  <h2 class="font-display text-xl text-white mb-4">Windows in season {{ season.name }}</h2>
+
+  {% if not rows %}
+    <div class="rounded border border-slate-700 bg-slate-900/60 p-6 text-slate-400 text-center">
+      No farming windows declared yet.
+    </div>
+  {% else %}
+    <div class="space-y-3">
+      {% for row in rows %}
+        {% set w = row.w %}
+        <div class="rounded border border-slate-700 bg-slate-900/40 p-4 flex items-start justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="font-mono text-white">{{ w.date_start }} → {{ w.date_end }}</span>
+              {% if row.upper_ok and row.lower_ok %}
+                <span class="text-xs px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/50">active</span>
+              {% elif not row.upper_ok %}
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50">pending — no snapshot ≥ {{ w.date_end }}</span>
+              {% else %}
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-700/50">pending — no snapshot &lt; {{ w.date_start }}</span>
+              {% endif %}
+            </div>
+            {% if w.reason %}
+              <p class="text-sm text-slate-300 mb-1">{{ w.reason }}</p>
+            {% endif %}
+            <p class="text-xs text-slate-500">
+              Bounds: {{ row.lower_date or '—' }} / {{ row.upper_date or '—' }}
+              · declared by {{ w.created_by or 'unknown' }}
+              · {{ w.created_at.strftime('%Y-%m-%d %H:%M') if w.created_at else '' }}
+            </p>
+          </div>
+          <div>
+            <form id="del-{{ w.id }}" method="post" action="/staff/farming-windows/{{ w.id }}/delete" style="display:contents"></form>
+            <button type="button" class="btn-ghost text-red-300 hover:text-red-200" onclick="document.getElementById('confirm-{{ w.id }}').showModal()">Delete</button>
+            <dialog id="confirm-{{ w.id }}" class="rounded-lg border border-slate-700 bg-slate-900 p-6 text-slate-200 backdrop:bg-black/60">
+              <p class="mb-4">Delete this farming window? Scores will be recomputed.</p>
+              <div class="flex justify-end gap-2">
+                <button type="button" class="btn-ghost" onclick="document.getElementById('confirm-{{ w.id }}').close()">Cancel</button>
+                <button type="submit" form="del-{{ w.id }}" class="btn-primary bg-red-700 hover:bg-red-600">Delete</button>
+              </div>
+            </dialog>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+{% endblock %}

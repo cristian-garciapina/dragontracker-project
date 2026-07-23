@@ -33,6 +33,7 @@ from .settings_routes import router as settings_router
 from .seasons_routes import router as seasons_router
 from .recruitment_routes import router as recruitment_router
 from .events_routes import router as events_router
+from .farming_windows_routes import router as farming_windows_router
 from .player_routes import router as player_router
 from .models import User
 
@@ -55,6 +56,7 @@ app.include_router(profile_router)
 app.include_router(settings_router)
 app.include_router(recruitment_router)
 app.include_router(events_router)
+app.include_router(farming_windows_router)
 app.include_router(player_router)
 app.include_router(seasons_router)
 
@@ -213,7 +215,6 @@ async def roster(
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     include_farms = farms in ("1", "true", "yes")
-    include_merit_farmers = mfarmers in ("1", "true", "yes")
     include_ex_members = exmembers in ("1", "true", "yes")
 
     context: dict = {
@@ -234,7 +235,6 @@ async def roster(
             "sort": sort,
             "order": order,
             "include_farms": include_farms,
-            "include_merit_farmers": include_merit_farmers,
             "include_ex_members": include_ex_members,
         },
         "sortable_columns": list(queries.ROSTER_SORTABLE_COLUMNS.keys()),
@@ -264,7 +264,6 @@ async def roster(
         role=role or None,
         status=status or None,
         include_farms=include_farms,
-        include_merit_farmers=include_merit_farmers,
         include_ex_members=include_ex_members,
         sort=sort,
         order=order,

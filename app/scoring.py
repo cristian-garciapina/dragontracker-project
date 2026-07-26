@@ -28,7 +28,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import Session
 
 from .models import SeasonFarmingWindow, Member, Score, Season, Setting, Snapshot, Stat
@@ -172,6 +172,19 @@ def _load_farming_deductions(session, season_id: int, start_snap_id: int) -> dic
             delta = upper_m - lower_stats.get(cid, 0)
             if delta > 0:
                 deductions[cid] = deductions.get(cid, 0) + delta
+
+    # Add burn-derived merit deductions for this season (rally compensation
+    # merits from being burned — not real PvP effort).
+    from .models import Burn as _Burn
+    burn_rows = session.execute(
+        select(_Burn.character_id, func.sum(_Burn.merits_gained))
+        .where(_Burn.season_id == season_id)
+        .where(_Burn.merits_gained.isnot(None))
+        .group_by(_Burn.character_id)
+    ).all()
+    for cid, total in burn_rows:
+        if total and total > 0:
+            deductions[cid] = deductions.get(cid, 0) + int(total)
 
     return deductions
 

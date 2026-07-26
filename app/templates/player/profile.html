@@ -241,11 +241,20 @@
     {% if is_staff and active_season %}
     <form method="post" action="/player/{{ member.character_id }}/burns" class="mb-6 space-y-3 border border-edge bg-card rounded-sm p-4">
       <p class="text-xs uppercase tracking-wider text-muted font-mono">Mark as burned (staff)</p>
+      <div>
+        <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="merits_gained">
+          Merits gained <span class="text-cyan">*</span>
+        </label>
+        <input id="merits_gained" name="merits_gained" type="text" inputmode="numeric" required
+               placeholder="e.g. 800000"
+               class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary font-mono text-sm">
+        <p class="text-[10px] text-muted mt-1">Deducted from season merits · affects M/P%</p>
+      </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="power_before">Power before</label>
+          <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="power_before">Power before (optional)</label>
           <input id="power_before" name="power_before" type="text" inputmode="numeric"
-                 value="{% if latest_stat %}{{ latest_stat.power }}{% endif %}"
+                 placeholder="Leave empty if unknown"
                  class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary font-mono text-sm">
         </div>
         <div>
@@ -281,6 +290,12 @@
                 <span class="text-muted">·</span> <span class="text-secondary">{{ b.target }}</span>
               {% endif %}
             </p>
+            {% if b.merits_gained %}
+              <p class="text-sm mt-1">
+                <span class="text-cyan font-mono">+{{ '{:,}'.format(b.merits_gained).replace(',', ' ') }} merits</span>
+                <span class="text-muted text-xs ml-2">deducted from season score</span>
+              </p>
+            {% endif %}
             {% if b.power_before or b.power_after %}
             <p class="text-xs text-muted font-mono mt-1">
               {% if b.power_before %}Before: {{ '{:,}'.format(b.power_before).replace(',', ' ') }}{% endif %}

@@ -171,6 +171,7 @@ async def delete_note(
 @router.post("/player/{character_id}/burns")
 async def add_burn(
     character_id: int,
+    merits_gained: str = Form(""),
     power_before: str = Form(""),
     power_after: str = Form(""),
     target: str = Form(""),
@@ -199,6 +200,7 @@ async def add_burn(
         character_id=character_id,
         season_id=active_season.id,
         burn_date=datetime.utcnow().date(),
+        merits_gained=_to_int(merits_gained),
         power_before=_to_int(power_before),
         power_after=_to_int(power_after),
         target=(target.strip()[:64] or None),
@@ -208,6 +210,14 @@ async def add_burn(
     )
     db.add(burn)
     db.commit()
+    # Recompute scores if this burn carries a merits_gained value
+    if burn.merits_gained:
+        try:
+            from .scoring import recompute_scores_for_active_season
+            recompute_scores_for_active_season(db)
+            db.commit()
+        except Exception:
+            pass
     return RedirectResponse(url=f"/player/{character_id}#burns", status_code=303)
 
 
@@ -219,7 +229,16 @@ async def delete_burn(
     db: Session = Depends(get_db),
 ):
     burn = db.get(Burn, burn_id)
+    had_merits = False
     if burn is not None and burn.character_id == character_id:
+        had_merits = bool(burn.merits_gained)
         db.delete(burn)
         db.commit()
+        if had_merits:
+            try:
+                from .scoring import recompute_scores_for_active_season
+                recompute_scores_for_active_season(db)
+                db.commit()
+            except Exception:
+                pass
     return RedirectResponse(url=f"/player/{character_id}#burns", status_code=303)

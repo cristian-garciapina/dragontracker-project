@@ -214,6 +214,7 @@ class Burn(Base):
     burn_date: Mapped[date] = mapped_column(Date, nullable=False)
     power_before: Mapped[Optional[int]] = mapped_column(Integer)
     power_after: Mapped[Optional[int]] = mapped_column(Integer)
+    merits_gained: Mapped[Optional[int]] = mapped_column(Integer)
     target: Mapped[Optional[str]] = mapped_column(String(64))
     notes: Mapped[Optional[str]] = mapped_column(Text)
     recorded_by: Mapped[Optional[str]] = mapped_column(String(64))

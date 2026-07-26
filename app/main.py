@@ -98,6 +98,7 @@ async def farms(
     q: str = "",
     sort: str = "start_power",
     order: str = "desc",
+    season: int = Query(0, description="Season id (0 = active)"),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
@@ -109,15 +110,17 @@ async def farms(
         "snapshot": None,
         "farms": [],
         "total": 0,
-        "filters": {"q": "", "sort": "start_power", "order": "desc"},
+        "filters": {"q": "", "sort": "start_power", "order": "desc", "season": season or 0},
+        "seasons_list": queries.list_seasons_for_picker(db),
     }
 
-    season = queries.get_active_season(db)
-    if season is None:
+    selected = queries.resolve_season_or_active(db, season or None)
+    if selected is None:
         return templates.TemplateResponse(
             request=request, name="dashboard/farms.html", context=context
         )
-    context["season"] = season
+    context["season"] = selected
+    season = selected  # rest of function uses `season`
 
     snapshot = queries.get_scoring_snapshot(db, season)
     if snapshot is None or not queries.has_any_scores(db, snapshot.id):
@@ -132,7 +135,7 @@ async def farms(
         sort=sort,
         order=order,
     )
-    context["filters"] = {"q": q, "sort": sort, "order": order}
+    context["filters"] = {"q": q, "sort": sort, "order": order, "season": selected.id}
 
     return templates.TemplateResponse(
         request=request, name="dashboard/farms.html", context=context
@@ -148,6 +151,7 @@ async def healthz() -> dict[str, str]:
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_overview(
     request: Request,
+    season: int = Query(0, description="Season id (0 = active)"),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
@@ -161,15 +165,19 @@ async def dashboard_overview(
         "distribution": {},
         "top_performers": [],
         "has_scores": False,
+        "seasons_list": queries.list_seasons_for_picker(db),
+        "selected_season_id": season or 0,
     }
 
-    season = queries.get_active_season(db)
-    if season is None:
+    selected = queries.resolve_season_or_active(db, season or None)
+    if selected is None:
         return templates.TemplateResponse(
             request=request, name="dashboard/overview.html", context=context
         )
+    season = selected  # rest of function uses `season`
 
     context["season"] = season
+    context["selected_season_id"] = season.id
     context["season_progress"] = queries.compute_season_progress(season)
 
     snapshot = queries.get_scoring_snapshot(db, season)
@@ -211,6 +219,9 @@ async def roster(
     farms: str = Query("0", description="Include farms (1) or not (0)"),
     mfarmers: str = Query("0", description="Include merit farmers"),
     exmembers: str = Query("0", description="Include ex-members"),
+    season: int = Query(0, description="Season id (0 = active)"),
+    from_: str = Query("", alias="from", description="Window start YYYY-MM-DD"),
+    to: str = Query("", description="Window end YYYY-MM-DD"),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
@@ -236,16 +247,20 @@ async def roster(
             "order": order,
             "include_farms": include_farms,
             "include_ex_members": include_ex_members,
+            "season": season or 0,
         },
         "sortable_columns": list(queries.ROSTER_SORTABLE_COLUMNS.keys()),
+        "seasons_list": queries.list_seasons_for_picker(db),
     }
 
-    season = queries.get_active_season(db)
-    if season is None:
+    selected = queries.resolve_season_or_active(db, season or None)
+    if selected is None:
         return templates.TemplateResponse(
             request=request, name="dashboard/roster.html", context=context
         )
+    season = selected  # rest of function uses `season`
     context["season"] = season
+    context["filters"]["season"] = season.id
 
     snapshot = queries.get_scoring_snapshot(db, season)
     if snapshot is None or not queries.has_any_scores(db, snapshot.id):
@@ -253,6 +268,40 @@ async def roster(
             request=request, name="dashboard/roster.html", context=context
         )
     context["snapshot"] = snapshot
+
+    # Window mode branch: if from/to are set, aggregate daily snapshots instead.
+    from datetime import date as _date
+    window_from = None
+    window_to = None
+    if from_ and to:
+        try:
+            window_from = _date.fromisoformat(from_)
+            window_to = _date.fromisoformat(to)
+        except ValueError:
+            window_from = None
+            window_to = None
+    context["daily_snapshots"] = queries.list_daily_snapshots_for_season(db, season.id)
+    context["window_from"] = window_from.isoformat() if window_from else ""
+    context["window_to"] = window_to.isoformat() if window_to else ""
+    context["window_mode"] = bool(window_from and window_to)
+    context["filters"]["from"] = context["window_from"]
+    context["filters"]["to"] = context["window_to"]
+
+    if window_from and window_to:
+        rows = queries.get_roster_window(
+            db, season.id, window_from, window_to,
+            search=q or None,
+            role=(role.lower() or None) if role else None,
+            include_ex_members=include_ex_members,
+            sort=sort,
+            order=order,
+        )
+        context["rows"] = rows
+        context["total_count"] = len(rows)
+        context["filtered_count"] = len(rows)
+        return templates.TemplateResponse(
+            request=request, name="dashboard/roster.html", context=context
+        )
 
     context["total_count"] = queries.count_total_roster(db, season.id, snapshot.id)
     context["rows"] = queries.get_full_roster(

@@ -133,8 +133,10 @@
               <td class="px-3 py-2 font-mono text-xs text-muted">{{ snap.ingested_at.strftime('%Y-%m-%d %H:%M') }}</td>
               <td class="px-3 py-2 text-xs text-muted">{{ snap.ingested_by or '—' }}</td>
               <td class="px-3 py-2 text-center text-xs">
-                {% if snap.date_start == snap.date_end %}
+                {% if snap.id == season.start_snapshot_id %}
                   <span class="text-gold">start</span>
+                {% elif snap.date_start == snap.date_end %}
+                  <span class="text-emerald-300">daily</span>
                 {% else %}
                   <span class="text-cyan-400">cumulative</span>
                 {% endif %}

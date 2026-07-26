@@ -99,6 +99,10 @@
       {% if season %}
         <span class="text-muted">·</span>
         <span class="text-gold">{{ season.name }}</span>
+        {% if not season.is_active %}
+          <span class="text-muted">·</span>
+          <span class="px-1.5 py-0.5 border border-edge rounded-sm text-[10px] text-muted">Archived</span>
+        {% endif %}
       {% endif %}
     </div>
     <h1 class="font-display text-4xl tracking-wide leading-tight mb-2">Farm accounts</h1>
@@ -125,6 +129,18 @@
     {# ========================================================= FILTERS #}
     <section data-section="filters" class="mb-6">
       <form method="get" action="/farms" class="flex flex-wrap items-end gap-3">
+        {% if seasons_list and seasons_list|length > 1 %}
+        <div>
+          <label for="season" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Season</label>
+          <select id="season" name="season" class="field-select">
+            {% for s in seasons_list %}
+              <option value="{{ s.id }}" {% if season and s.id == season.id %}selected{% endif %}>
+                {{ s.name }}{% if s.is_active %} (active){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
         <div class="flex-1 min-w-[220px]">
           <label for="q" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Search</label>
           <input id="q" name="q" type="text" value="{{ filters.q }}" placeholder="Player name"
@@ -142,11 +158,12 @@
     </section>
 
     {% set q_qs = ('q=' ~ filters.q) if filters.q else '' %}
+    {% set season_qs = ('season=' ~ filters.season) if filters.season else '' %}
 
     {% macro sort_link(col, label) -%}
       {%- set new_order = 'asc' if (filters.sort == col and filters.order == 'desc') else 'desc' -%}
       {%- set sort_qs = 'sort=' ~ col ~ '&order=' ~ new_order -%}
-      {%- set full_qs = ([q_qs, sort_qs] | select | join('&')) -%}
+      {%- set full_qs = ([q_qs, season_qs, sort_qs] | select | join('&')) -%}
       <a href="/farms?{{ full_qs }}">
         {{ label }}{% if filters.sort == col %}<span class="ml-1 text-cyan" data-field="sort-indicator">{{ '↓' if filters.order == 'desc' else '↑' }}</span>{% endif %}
       </a>

@@ -175,9 +175,19 @@
       {% if season %}
         <span class="text-muted">·</span>
         <span class="text-gold">{{ season.name }}</span>
+        {% if not season.is_active %}
+          <span class="text-muted">·</span>
+          <span class="px-1.5 py-0.5 border border-edge rounded-sm text-[10px] text-muted">Archived</span>
+        {% endif %}
       {% endif %}
     </div>
     <h1 class="font-display text-4xl tracking-wide leading-tight mb-2">Full roster</h1>
+    {% if window_mode %}
+    <p class="text-cyan text-sm mb-1">
+      Activity window <span class="font-mono">{{ window_from }} → {{ window_to }}</span>
+      <span class="text-muted">· grades and M/P% hidden</span>
+    </p>
+    {% endif %}
     <p class="text-secondary text-sm">
       {% if filtered_count == total_count %}
         Showing all
@@ -196,6 +206,42 @@
   {# ========================================================= FILTERS #}
   <section data-section="filters" class="mb-6">
     <form method="get" action="/roster" class="flex flex-wrap items-end gap-3">
+      {% if seasons_list and seasons_list|length > 1 %}
+      <div>
+        <label for="season" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Season</label>
+        <select id="season" name="season" class="field-select">
+          {% for s in seasons_list %}
+            <option value="{{ s.id }}" {% if season and s.id == season.id %}selected{% endif %}>
+              {{ s.name }}{% if s.is_active %} (active){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      {% if daily_snapshots %}
+      <div>
+        <label for="from" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">From</label>
+        <select id="from" name="from" class="field-select">
+          <option value="">—</option>
+          {% for d in daily_snapshots %}
+            <option value="{{ d.date_start.isoformat() }}" {% if filters.from == d.date_start.isoformat() %}selected{% endif %}>
+              {{ d.date_start.isoformat() }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="to" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">To</label>
+        <select id="to" name="to" class="field-select">
+          <option value="">—</option>
+          {% for d in daily_snapshots %}
+            <option value="{{ d.date_end.isoformat() }}" {% if filters.to == d.date_end.isoformat() %}selected{% endif %}>
+              {{ d.date_end.isoformat() }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
       <div class="flex-1 min-w-[220px]">
         <label for="q" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Search</label>
         <input id="q" name="q" type="text" value="{{ filters.q }}" placeholder="Operator name or ID"
@@ -261,6 +307,8 @@
   {% set status_qs = ('status=' ~ filters.status) if filters.status else '' %}
   {% set farms_qs = 'farms=1' if filters.include_farms else '' %}
   {% set exmembers_qs = 'exmembers=1' if filters.include_ex_members else '' %}
+  {% set season_qs = ('season=' ~ filters.season) if filters.season else '' %}
+  {% set base_qs = ([q_qs, grade_qs, role_qs, status_qs, farms_qs, exmembers_qs, season_qs] | select | join('&')) %}
 
   {% macro sort_link(col, label) -%}
     {%- set new_order = 'asc' if (filters.sort == col and filters.order == 'desc') else 'desc' -%}
@@ -289,8 +337,9 @@
             {% endif %}
 
             <th class="text-right" data-col="mp">{{ sort_link('mp', 'M/P %') }}</th>
-            <th class="text-right" data-col="deduction">{{ sort_link('deduction', 'Farming deduction') }}</th>
             <th class="text-right" data-col="merits_total">{{ sort_link('merits_total', 'Merits') }}</th>
+            <th class="text-right" data-col="merits_net">{{ sort_link('merits_net', 'Net merits') }}</th>
+            <th class="text-right" data-col="deduction">{{ sort_link('deduction', 'Farming deduction') }}</th>
             <th class="text-right" data-col="power">{{ sort_link('power', 'Power') }}</th>
             <th class="text-right" data-col="peak_power">{{ sort_link('peak_power', 'Peak power') }}</th>
             <th class="text-right" data-col="deaths">{{ sort_link('deaths', 'Deaths T4/T5') }}</th>
@@ -362,9 +411,13 @@
             </td>
             {% endif %}
 
-            <td class="text-right font-mono text-cyan">{{ "%.1f"|format(row.mp_ratio) }}%</td>
-            <td class="text-right font-mono {% if row.merits_farmed_deduction > 0 %}text-amber-300{% else %}text-muted{% endif %}">{% if row.merits_farmed_deduction > 0 %}−{{ row.merits_farmed_deduction_short }}{% else %}—{% endif %}</td>
+            <td class="text-right font-mono text-cyan">{% if row.mp_ratio is not none %}{{ "%.1f"|format(row.mp_ratio) }}%{% else %}—{% endif %}</td>
             <td class="text-right font-mono">{{ row.merits_total_short }}</td>
+            <td class="text-right font-mono {% if row.merits_farmed_deduction > 0 %}text-cyan{% else %}text-muted{% endif %}"
+                {% if row.merits_farmed_deduction > 0 %}title="Raw {{ row.merits_total_short }} − farmed {{ row.merits_farmed_deduction_short }}"{% endif %}>
+              {{ row.merits_net_short }}
+            </td>
+            <td class="text-right font-mono {% if row.merits_farmed_deduction > 0 %}text-amber-300{% else %}text-muted{% endif %}">{% if row.merits_farmed_deduction > 0 %}−{{ row.merits_farmed_deduction_short }}{% else %}—{% endif %}</td>
             <td class="text-right font-mono">{{ row.power_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.peak_power_short }}</td>
             <td class="text-right font-mono">{{ row.deaths_t45_short }}</td>

@@ -107,12 +107,30 @@
       {% if season %}
         <span class="text-muted">·</span>
         <span class="text-gold">{{ season.name }}</span>
+        {% if not season.is_active %}
+          <span class="text-muted">·</span>
+          <span class="px-1.5 py-0.5 border border-edge rounded-sm text-[10px] text-muted">Archived</span>
+        {% endif %}
       {% endif %}
     </div>
 
     <h1 class="font-display text-4xl md:text-5xl tracking-wide leading-tight mb-2">
       Season report
     </h1>
+
+    {% if seasons_list and seasons_list|length > 1 %}
+    <form method="get" action="/dashboard" class="mt-3 inline-flex items-center gap-2 text-xs">
+      <label for="season" class="text-muted uppercase tracking-[0.14em]">View season</label>
+      <select id="season" name="season" onchange="this.form.submit()"
+              class="bg-card border border-edge rounded-sm px-2 py-1 text-primary focus:outline-none focus:border-cyan-400">
+        {% for s in seasons_list %}
+          <option value="{{ s.id }}" {% if season and s.id == season.id %}selected{% endif %}>
+            {{ s.name }}{% if s.is_active %} (active){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+    {% endif %}
 
     {% if season_progress %}
     <div class="mt-6 max-w-md">

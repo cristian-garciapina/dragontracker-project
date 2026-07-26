@@ -22,6 +22,33 @@ def get_active_season(db: Session) -> Optional[Season]:
     return db.scalar(select(Season).where(Season.is_active == True))
 
 
+def list_seasons_for_picker(db: Session) -> list[Season]:
+    """Seasons that have at least one score row, for the UI picker.
+    Sorted: active first, then most recent start_date first."""
+    scored_ids = db.execute(
+        select(Score.season_id).distinct()
+    ).scalars().all()
+    if not scored_ids:
+        return []
+    return db.execute(
+        select(Season)
+        .where(Season.id.in_(scored_ids))
+        .order_by(Season.is_active.desc(), Season.start_date.desc())
+    ).scalars().all()
+
+
+def resolve_season_or_active(
+    db: Session, season_id: Optional[int]
+) -> Optional[Season]:
+    """Return the requested season if it exists, else the active season,
+    else None. Invalid IDs silently fall back to active."""
+    if season_id:
+        season = db.get(Season, season_id)
+        if season is not None:
+            return season
+    return get_active_season(db)
+
+
 def get_scoring_snapshot(db: Session, season: Season) -> Optional[Snapshot]:
     """The latest cumulative snapshot used for the current scores."""
     return db.scalar(
@@ -182,6 +209,8 @@ def _row_to_dict(score: Score, member: Member, stat: Stat) -> dict:
         # Merits (total + breakdown)
         "merits_total": stat.merits_total,
         "merits_total_short": format_number_short(stat.merits_total),
+        "merits_net": score.merits_effective or 0,
+        "merits_net_short": format_number_short(score.merits_effective or 0),
         "merits_infantry": stat.merits_infantry,
         "merits_infantry_short": format_number_short(stat.merits_infantry),
         "merits_cavalry": stat.merits_cavalry,
@@ -211,10 +240,187 @@ def _row_to_dict(score: Score, member: Member, stat: Stat) -> dict:
 
 
 # --- Helpers -------------------------------------------------------------
+def list_daily_snapshots_for_season(db: Session, season_id: int) -> list[Snapshot]:
+    """Daily snapshots (date_start == date_end) for a season, oldest first.
+    Excludes the season's start_snapshot_id — that one is 'start', not 'daily'."""
+    season = db.get(Season, season_id)
+    start_snap_id = season.start_snapshot_id if season else None
+    stmt = (
+        select(Snapshot)
+        .where(Snapshot.season_id == season_id)
+        .where(Snapshot.date_start == Snapshot.date_end)
+        .order_by(Snapshot.date_end.asc())
+    )
+    rows = db.execute(stmt).scalars().all()
+    return [s for s in rows if s.id != start_snap_id]
+
+
+def _short(v: int | float | None) -> str:
+    return format_number_short(v or 0)
+
+
+def get_roster_window(
+    db: Session,
+    season_id: int,
+    from_date,
+    to_date,
+    *,
+    search: Optional[str] = None,
+    role: Optional[str] = None,
+    include_ex_members: bool = False,
+    sort: str = "merits_total",
+    order: str = "desc",
+) -> list[dict]:
+    """Aggregate activity across daily snapshots in [from_date, to_date].
+    Additive columns SUM'd; power/peak_power taken from the latest daily in the window.
+    No grade/status/M-P%: these belong to season-cumulative context only.
+    """
+    # Daily snapshot ids inside the window
+    daily_ids = db.execute(
+        select(Snapshot.id).where(
+            and_(
+                Snapshot.season_id == season_id,
+                Snapshot.date_start == Snapshot.date_end,
+                Snapshot.date_start >= from_date,
+                Snapshot.date_end <= to_date,
+            )
+        )
+    ).scalars().all()
+    if not daily_ids:
+        return []
+
+    # Latest snapshot id in the window (for non-additive columns)
+    latest_snap = db.scalar(
+        select(Snapshot).where(Snapshot.id.in_(daily_ids))
+        .order_by(Snapshot.date_end.desc()).limit(1)
+    )
+
+    # Aggregated additive stats per character
+    agg_stmt = (
+        select(
+            Stat.character_id,
+            func.sum(Stat.merits_total).label("merits_total"),
+            func.sum(Stat.merits_infantry).label("merits_infantry"),
+            func.sum(Stat.merits_cavalry).label("merits_cavalry"),
+            func.sum(Stat.merits_archers).label("merits_archers"),
+            func.sum(Stat.merits_magic).label("merits_magic"),
+            func.sum(Stat.merits_other).label("merits_other"),
+            func.sum(Stat.deaths_t45).label("deaths_t45"),
+            func.sum(Stat.healing_t45).label("healing_t45"),
+            func.sum(Stat.harvest).label("harvest"),
+            func.sum(Stat.build_time).label("build_time"),
+            func.sum(Stat.destruction_time).label("destruction_time"),
+            func.sum(Stat.alliance_donations).label("alliance_donations"),
+            func.sum(Stat.behemoth_victories).label("behemoth_victories"),
+        )
+        .where(Stat.snapshot_id.in_(daily_ids))
+        .group_by(Stat.character_id)
+    )
+
+    # Latest-in-window power/peak per character
+    latest_stmt = (
+        select(Stat.character_id, Stat.power, Stat.peak_power)
+        .where(Stat.snapshot_id == latest_snap.id)
+    )
+    latest_by_cid = {
+        cid: (p, pp) for cid, p, pp in db.execute(latest_stmt).all()
+    }
+
+    # Join with Member for name + ex-member filter
+    aggregates = db.execute(agg_stmt).all()
+
+    rows: list[dict] = []
+    for r in aggregates:
+        member = db.get(Member, r.character_id)
+        if member is None:
+            continue
+        if not include_ex_members and not member.in_alliance:
+            continue
+        if search:
+            like = search.strip().lower()
+            if like not in (member.current_name or "").lower() and like not in str(member.character_id):
+                continue
+        # Role filter uses the season's primary_role from Score if it exists,
+        # otherwise skipped (window view has no grade context)
+        p, pp = latest_by_cid.get(r.character_id, (None, None))
+        rows.append({
+            "character_id": r.character_id,
+            "name": member.current_name,
+            "grade": "—",
+            "status": "—",
+            "primary_role": None,
+            "mp_ratio": None,
+            "merits_total": r.merits_total or 0,
+            "merits_total_short": _short(r.merits_total),
+            "merits_net": r.merits_total or 0,
+            "merits_net_short": _short(r.merits_total),
+            "merits_farmed_deduction": 0,
+            "merits_farmed_deduction_short": _short(0),
+            "merits_infantry": r.merits_infantry or 0,
+            "merits_infantry_short": _short(r.merits_infantry),
+            "merits_cavalry": r.merits_cavalry or 0,
+            "merits_cavalry_short": _short(r.merits_cavalry),
+            "merits_archers": r.merits_archers or 0,
+            "merits_archers_short": _short(r.merits_archers),
+            "merits_magic": r.merits_magic or 0,
+            "merits_magic_short": _short(r.merits_magic),
+            "merits_other": r.merits_other or 0,
+            "merits_other_short": _short(r.merits_other),
+            "deaths_t45": r.deaths_t45 or 0,
+            "deaths_t45_short": _short(r.deaths_t45),
+            "healing_t45": r.healing_t45 or 0,
+            "healing_t45_short": _short(r.healing_t45),
+            "harvest": r.harvest or 0,
+            "harvest_short": _short(r.harvest),
+            "build_time": r.build_time or 0,
+            "build_time_short": _short(r.build_time),
+            "destruction_time": r.destruction_time or 0,
+            "destruction_time_short": _short(r.destruction_time),
+            "alliance_donations": r.alliance_donations or 0,
+            "alliance_donations_short": _short(r.alliance_donations),
+            "behemoth_victories": r.behemoth_victories or 0,
+            "power": p or 0,
+            "power_short": _short(p),
+            "peak_power": pp or 0,
+            "peak_power_short": _short(pp),
+            "start_power": 0,
+            "start_power_short": "—",
+            "end_power": p or 0,
+            "end_power_short": _short(p),
+        })
+
+    # Sort
+    sort_map = {
+        "name": lambda r: (r["name"] or "").lower(),
+        "merits_total": lambda r: r["merits_total"],
+        "merits_net": lambda r: r["merits_net"],
+        "deaths": lambda r: r["deaths_t45"],
+        "healing": lambda r: r["healing_t45"],
+        "power": lambda r: r["power"],
+        "peak_power": lambda r: r["peak_power"],
+        "behemoth": lambda r: r["behemoth_victories"],
+        "harvest": lambda r: r["harvest"],
+        "donations": lambda r: r["alliance_donations"],
+        "build_time": lambda r: r["build_time"],
+        "destruction": lambda r: r["destruction_time"],
+        "merits_infantry": lambda r: r["merits_infantry"],
+        "merits_cavalry": lambda r: r["merits_cavalry"],
+        "merits_archers": lambda r: r["merits_archers"],
+        "merits_magic": lambda r: r["merits_magic"],
+        "merits_other": lambda r: r["merits_other"],
+    }
+    key_fn = sort_map.get(sort, sort_map["merits_total"])
+    rows.sort(key=key_fn, reverse=(order.lower() != "asc"))
+    return rows
+
+
 def compute_season_progress(season: Season) -> dict:
     today = date.today()
     start = season.start_date
     days_elapsed = max(1, (today - start).days + 1)
+    # Cap day_current to end_date for closed/archived seasons.
+    if season.end_date and today > season.end_date:
+        days_elapsed = (season.end_date - start).days + 1
 
     result = {
         "day_current": days_elapsed,
@@ -264,6 +470,7 @@ ROSTER_SORTABLE_COLUMNS: dict[str, object] = {
     "mp": Score.mp_ratio,
     "deduction": Score.merits_farmed_deduction,
     "merits_total": Stat.merits_total,
+    "merits_net": Score.merits_effective,
     "power": Stat.power,
     "peak_power": Stat.peak_power,
     "deaths": Stat.deaths_t45,

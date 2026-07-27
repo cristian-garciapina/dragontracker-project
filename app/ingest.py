@@ -234,7 +234,15 @@ async def _ingest_upload(
     # Guarded on a non-empty export so a garbage/empty upload can never
     # wipe the whole roster.
     dropped: list[tuple[int, str]] = []
-    if present_ids:
+    # Only flip in_alliance based on cumulative exports of the ACTIVE season.
+    # Rationale:
+    #   - Cumulatives of past seasons cannot inform current membership
+    #     (a member may have joined after that snapshot was captured).
+    #   - Daily exports (date_start == date_end) reflect a top-N of the day
+    #     and can transiently drop inactive members — false positives.
+    is_cumulative = date_start != date_end
+    is_active_season = season.is_active
+    if present_ids and is_cumulative and is_active_season:
         stale = session.execute(
             _select(_Member).where(
                 _Member.in_alliance == True,  # noqa: E712
@@ -246,9 +254,14 @@ async def _ingest_upload(
             dropped.append((m.character_id, m.current_name))
         if dropped:
             logger.info(
-                "Ingest(upload) %s: %d member(s) absent from export → in_alliance=False: %s",
+                "Ingest(upload) %s: %d member(s) absent from cumulative export → in_alliance=False: %s",
                 file.filename, len(dropped), dropped,
             )
+    elif present_ids and not (is_cumulative and is_active_season):
+        logger.info(
+            "Ingest(upload) %s: skipping in_alliance sync (cumulative=%s, active_season=%s)",
+            file.filename, is_cumulative, is_active_season,
+        )
 
     session.commit()
     return {

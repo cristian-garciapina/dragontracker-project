@@ -12,6 +12,12 @@ Notes are traceability for the staff. They are never rendered for
 non-staff users.
 """
 from __future__ import annotations
+from fastapi import Depends as _EV_Depends
+from sqlalchemy.orm import Session as _EV_Session
+from sqlalchemy import select as _EV_select
+from .models import Season as _EV_Season
+from .auth import get_db as _EV_get_db
+from .queries import get_player_daily_merits as _EV_gpdm
 
 from datetime import datetime
 from pathlib import Path
@@ -242,3 +248,25 @@ async def delete_burn(
             except Exception:
                 pass
     return RedirectResponse(url=f"/player/{character_id}#burns", status_code=303)
+
+
+@router.get("/player/{character_id}/daily-merits.json")
+def daily_merits_json(character_id: int, season: int = None, db: _EV_Session = _EV_Depends(_EV_get_db)):
+    all_seasons = db.execute(
+        _EV_select(_EV_Season).order_by(_EV_Season.start_date.desc())
+    ).scalars().all()
+    if season is not None:
+        target = next((s for s in all_seasons if s.id == season), None)
+    else:
+        target = next((s for s in all_seasons if s.is_active), None)
+    if not target:
+        return {"data": [], "seasons": [], "current_season_id": None}
+    seasons_list = [
+        {"id": s.id, "name": s.name, "is_active": bool(s.is_active)}
+        for s in all_seasons
+    ]
+    return {
+        "data": _EV_gpdm(db, character_id, target.id),
+        "seasons": seasons_list,
+        "current_season_id": target.id,
+    }

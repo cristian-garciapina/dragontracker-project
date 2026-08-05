@@ -138,7 +138,10 @@ def _load_farming_deductions(session, season_id: int, start_snap_id: int) -> dic
         return {}
 
     all_snaps = session.execute(
-        select(Snapshot).order_by(Snapshot.date_end)
+        select(Snapshot)
+        .where(Snapshot.season_id == season_id)
+        .where(Snapshot.date_start != Snapshot.date_end)
+        .order_by(Snapshot.date_end)
     ).scalars().all()
 
     deductions: dict[int, int] = {}

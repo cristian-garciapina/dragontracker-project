@@ -367,7 +367,126 @@
     {% endif %}
   {% endif %}
 
-  <section data-section="events" id="events" class="mb-16">
+  
+<section data-section="daily-merits" class="mt-8 mb-12">
+  <div class="flex justify-between items-center mb-4 gap-3 flex-wrap">
+    <h2 class="font-display text-2xl text-slate-100">Daily merits <span class="text-slate-400 text-base font-normal">-- farming vs war effort</span></h2>
+    <select id="ev-daily-season" class="bg-slate-900 border border-slate-700 text-slate-100 text-sm rounded px-2 py-1">
+      <option>Loading...</option>
+    </select>
+  </div>
+  <div id="ev-daily-merits" class="bg-slate-900/40 border border-slate-800 rounded-lg p-4">
+    <div class="text-slate-500 text-sm">Loading...</div>
+  </div>
+</section>
+
+<script>
+(function() {
+  const m = window.location.pathname.match(/\/player\/(\d+)/);
+  const cid = m ? m[1] : null;
+  const container = document.getElementById('ev-daily-merits');
+  const picker = document.getElementById('ev-daily-season');
+  if (!cid || !container || !picker) return;
+  const num = (n) => n.toLocaleString();
+  let chart = null;
+
+  function renderPicker(seasons, currentId) {
+    if (!seasons || !seasons.length) {
+      picker.innerHTML = '<option>No seasons</option>';
+      return;
+    }
+    picker.innerHTML = seasons.map(s =>
+      '<option value="' + s.id + '"' + (s.id === currentId ? ' selected' : '') + '>' +
+      s.name + (s.is_active ? ' (active)' : '') + '</option>'
+    ).join('');
+    picker.onchange = () => load(picker.value);
+  }
+
+  function renderChart(data) {
+    if (chart) { chart.destroy(); chart = null; }
+    if (!data || !data.length) {
+      container.innerHTML = '<div class="text-slate-500 text-sm">No daily snapshots for this season.</div>';
+      return;
+    }
+    const farm = data.filter(d => d.in_farming_window).reduce((s,d) => s+d.merits, 0);
+    const war = data.filter(d => !d.in_farming_window).reduce((s,d) => s+d.merits, 0);
+    const grand = farm + war;
+    const fpct = grand ? (farm*100/grand).toFixed(1) : '0';
+    const wpct = grand ? (war*100/grand).toFixed(1) : '0';
+
+    container.innerHTML = `
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-slate-900/60 border border-amber-500/20 rounded-lg p-4">
+          <div class="text-xs uppercase tracking-wider text-amber-400/80">Farming windows</div>
+          <div class="text-2xl font-mono text-amber-300 mt-1">${num(farm)}</div>
+          <div class="text-xs text-slate-500 mt-1">${fpct}% of total</div>
+        </div>
+        <div class="bg-slate-900/60 border border-cyan-500/20 rounded-lg p-4">
+          <div class="text-xs uppercase tracking-wider text-cyan-400/80">War effort</div>
+          <div class="text-2xl font-mono text-cyan-300 mt-1">${num(war)}</div>
+          <div class="text-xs text-slate-500 mt-1">${wpct}% of total</div>
+        </div>
+      </div>
+      <div class="flex gap-4 text-xs text-slate-400 mb-3">
+        <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#eda100"></span>Farming window (declared)</span>
+        <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#22d3ee"></span>War window</span>
+      </div>
+      <div style="position:relative;width:100%;height:280px;">
+        <canvas id="ev-daily-chart" role="img" aria-label="Daily merits chart"></canvas>
+      </div>
+    `;
+
+    const labels = data.map(d => { const p = d.date.split('-'); return p[2]+'/'+p[1]; });
+    const merits = data.map(d => d.merits);
+    const colors = data.map(d => d.in_farming_window ? '#eda100' : '#22d3ee');
+    const flags = data.map(d => d.in_farming_window);
+
+    const draw = () => { chart = new Chart(document.getElementById('ev-daily-chart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: merits, backgroundColor: colors, borderRadius: 4, borderSkipped: false, maxBarThickness: 24 }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => c.parsed.y.toLocaleString() + ' merits - ' + (flags[c.dataIndex] ? 'Farming' : 'War') }}
+        },
+        scales: {
+          x: { ticks: { autoSkip: false, maxRotation: 45, color: '#94a3b8', font: { size: 11 }}, grid: { display: false }},
+          y: { beginAtZero: true, ticks: {
+            color: '#94a3b8', font: { size: 11 },
+            callback: (v) => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v
+          }, grid: { color: 'rgba(148,163,184,0.1)', drawBorder: false }}
+        }
+      }
+    }); };
+
+    if (window.Chart) draw();
+    else {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      s.onload = draw;
+      document.head.appendChild(s);
+    }
+  }
+
+  function load(seasonId) {
+    const url = seasonId
+      ? `/player/${cid}/daily-merits.json?season=${seasonId}`
+      : `/player/${cid}/daily-merits.json`;
+    fetch(url)
+      .then(r => r.json())
+      .then(j => {
+        renderPicker(j.seasons, j.current_season_id);
+        renderChart(j.data);
+      })
+      .catch(e => { container.innerHTML = '<div class="text-red-400 text-sm">Failed to load daily merits.</div>'; });
+  }
+
+  load(null);
+})();
+</script>
+
+<section data-section="events" id="events" class="mb-16">
     <h2 class="font-display text-2xl mb-4">Event history</h2>
     {% if event_history %}
     <div class="border border-edge rounded-sm overflow-hidden">

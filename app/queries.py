@@ -1035,3 +1035,31 @@ def add_manual_participation(db, event_id: int, character_id: int,
     )
     db.commit()
     return "created"
+
+
+
+def get_player_daily_merits(session, character_id: int, season_id: int) -> list[dict]:
+    """Daily merit gains for a player, tagged with farming window membership."""
+    from .models import SeasonFarmingWindow, Snapshot, Stat
+    windows = session.execute(
+        select(SeasonFarmingWindow)
+        .where(SeasonFarmingWindow.season_id == season_id)
+    ).scalars().all()
+    def in_window(d):
+        return any(w.date_start <= d <= w.date_end for w in windows)
+    rows = session.execute(
+        select(Snapshot.date_end, Stat.merits_total)
+        .join(Stat, Stat.snapshot_id == Snapshot.id)
+        .where(Stat.character_id == character_id)
+        .where(Snapshot.season_id == season_id)
+        .where(Snapshot.date_start == Snapshot.date_end)
+        .order_by(Snapshot.date_end)
+    ).all()
+    return [
+        {
+            "date": r.date_end.isoformat(),
+            "merits": int(r.merits_total or 0),
+            "in_farming_window": in_window(r.date_end),
+        }
+        for r in rows
+    ]

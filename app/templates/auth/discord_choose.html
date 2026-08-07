@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Continue setup · Eternal Vanguard{% endblock %}
+{% block content %}
+<section class="max-w-lg mx-auto px-6 py-16">
+  <h1 class="font-display text-3xl mb-2">Almost there</h1>
+  <p class="text-secondary text-sm mb-8">
+    You signed in with Discord as
+    <span class="font-mono text-primary">{{ discord_username }}</span>,
+    but this Discord account is not linked to any site account yet.
+  </p>
+
+  <div class="space-y-4">
+    <a href="/login"
+       class="block px-4 py-4 border border-cyan-700 bg-cyan-950/20 hover:bg-cyan-900/30 rounded transition-colors">
+      <p class="font-display text-lg text-cyan-300 mb-1">I already have an account</p>
+      <p class="text-secondary text-sm">
+        Sign in with your username and password. Your Discord will be linked automatically.
+      </p>
+    </a>
+
+    <form method="post" action="/auth/discord/create-external">
+      <button type="submit"
+              class="w-full text-left px-4 py-4 border border-edge bg-card hover:border-cyan-700 rounded transition-colors cursor-pointer">
+        <p class="font-display text-lg text-primary mb-1">Create a new account</p>
+        <p class="text-secondary text-sm">
+          Start a fresh account tied to your Discord. You will be redirected
+          to the alliance application form.
+        </p>
+      </button>
+    </form>
+  </div>
+</section>
+{% endblock %}

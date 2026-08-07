@@ -50,6 +50,7 @@ SCOPE = "identify"
 
 STATE_COOKIE = "discord_oauth_state"
 NEXT_COOKIE = "discord_oauth_next"
+PENDING_COOKIE = "discord_pending_id"
 
 
 def _oauth_configured() -> bool:
@@ -189,8 +190,47 @@ async def discord_callback(
             resp.delete_cookie(NEXT_COOKIE, path="/")
             return resp
 
-    # Case C: anonymous + unknown discord_id -> auto-create external user
-    # Generate a unique username derived from discord username + suffix
+    # Case C: anonymous + unknown discord_id -> ask user what to do
+    # Stash discord_user_id + username in a short-lived cookie and redirect
+    # to /auth/discord/choose. NO account is created here.
+    resp = RedirectResponse(url="/auth/discord/choose", status_code=303)
+    payload = f"{discord_user_id}|{discord_username}"
+    resp.set_cookie(
+        PENDING_COOKIE, payload, max_age=600, httponly=True,
+        secure=SECURE_COOKIES, samesite="lax", path="/",
+    )
+    resp.delete_cookie(STATE_COOKIE, path="/")
+    resp.delete_cookie(NEXT_COOKIE, path="/")
+    return resp
+
+
+
+@router.get("/auth/discord/choose")
+async def discord_choose(request: Request):
+    from fastapi.templating import Jinja2Templates
+    templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+    pending = request.cookies.get(PENDING_COOKIE, "")
+    if "|" not in pending:
+        return RedirectResponse(url="/login?error=discord_pending_missing", status_code=303)
+    _, discord_username = pending.split("|", 1)
+    return templates.TemplateResponse(
+        request=request,
+        name="auth/discord_choose.html",
+        context={"discord_username": discord_username},
+    )
+
+
+@router.post("/auth/discord/create-external")
+async def discord_create_external(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    pending = request.cookies.get(PENDING_COOKIE, "")
+    if "|" not in pending:
+        return RedirectResponse(url="/login?error=discord_pending_missing", status_code=303)
+    discord_user_id, discord_username = pending.split("|", 1)
+
+    # Generate unique username derived from discord username
     base = ("dc_" + discord_username).lower().strip()[:24] or "dc_user"
     base = "".join(c for c in base if c.isalnum() or c in "_-") or "dc_user"
     username = base
@@ -199,9 +239,6 @@ async def discord_callback(
         n += 1
         username = f"{base}_{n}"[:32]
 
-    # Create ghost member for this discord_user_id -> character_id must be
-    # non-null on User.character_id? It IS optional. Leave character_id NULL
-    # for a pure discord signup, no in-game link yet.
     now = datetime.utcnow()
     user = User(
         username=username,
@@ -225,8 +262,7 @@ async def discord_callback(
     )
     resp = RedirectResponse(url="/apply", status_code=303)
     _set_session_cookie(resp, session.session_id)
-    resp.delete_cookie(STATE_COOKIE, path="/")
-    resp.delete_cookie(NEXT_COOKIE, path="/")
+    resp.delete_cookie(PENDING_COOKIE, path="/")
     return resp
 
 

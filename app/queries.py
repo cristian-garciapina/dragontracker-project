@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from .models import Member, Score, Season, Snapshot, Stat
+from .models import Member, Score, Season, Snapshot, Stat, User
 
 
 # --- Season / snapshot resolution ----------------------------------------

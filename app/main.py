@@ -227,6 +227,7 @@ async def roster(
     farms: str = Query("0", description="Include farms (1) or not (0)"),
     mfarmers: str = Query("0", description="Include merit farmers"),
     exmembers: str = Query("0", description="Include ex-members"),
+    discord: str = Query("0", description="Only Discord-linked users"),
     season: int = Query(0, description="Season id (0 = active)"),
     from_: str = Query("", alias="from", description="Window start YYYY-MM-DD"),
     to: str = Query("", description="Window end YYYY-MM-DD"),
@@ -235,6 +236,7 @@ async def roster(
 ) -> HTMLResponse:
     include_farms = farms in ("1", "true", "yes")
     include_ex_members = exmembers in ("1", "true", "yes")
+    discord_only = discord in ("1", "true", "yes")
 
     context: dict = {
         "user": user,
@@ -255,6 +257,7 @@ async def roster(
             "order": order,
             "include_farms": include_farms,
             "include_ex_members": include_ex_members,
+            "discord_only": discord_only,
             "season": season or 0,
         },
         "sortable_columns": list(queries.ROSTER_SORTABLE_COLUMNS.keys()),

@@ -47,7 +47,7 @@
                 <form method="post" action="/staff/registrations/{{ u.id }}/approve" class="inline">
                   <select name="grant_role"
                           class="px-1 py-1 text-xs bg-card border border-edge rounded text-primary">
-                    {% if u.submitted_rank == 'External' %}
+                    {% if u.submitted_rank == 'EXTERNAL' %}
                       <option value="external" selected>as external</option>
                     {% else %}
                       <option value="member" selected>as member</option>

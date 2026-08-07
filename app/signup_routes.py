@@ -32,7 +32,7 @@ router = APIRouter(tags=["signup"])
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-ALLOWED_RANKS = {"R1", "R2", "R3", "R4", "R5", "External"}
+ALLOWED_RANKS = {"R1", "R2", "R3", "R4", "R5", "EXTERNAL"}
 PRIVILEGED_RANKS = {"R4", "R5"}
 MIN_PASSWORD_LEN = 10
 

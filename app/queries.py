@@ -719,6 +719,18 @@ def load_editable_settings(db: Session) -> list[dict]:
 
 
 # --- Player notes -------------------------------------------------------
+def get_character_ids_with_discord(db: Session) -> set[int]:
+    """Return the set of character_ids whose linked user has a discord_id."""
+    from .models import User
+    rows = db.execute(
+        select(User.character_id).where(
+            User.discord_id.isnot(None),
+            User.character_id.isnot(None),
+        )
+    ).all()
+    return {r[0] for r in rows if r[0] is not None}
+
+
 def get_character_ids_with_notes(db: Session) -> set[int]:
     """Return the set of character_ids that have at least one staff note.
     Used to render the 📝 badge on Roster and Dashboard for staff users."""

@@ -328,6 +328,7 @@ async def roster(
     context["filtered_count"] = len(context["rows"])
     is_staff_roster = user.role in ("staff", "owner")
     context["ids_with_notes"] = queries.get_character_ids_with_notes(db) if is_staff_roster else set()
+    context["ids_with_discord"] = queries.get_character_ids_with_discord(db)
     context["burns_count_by_char"] = queries.get_character_ids_burned_this_season(db, season.id)
 
     return templates.TemplateResponse(

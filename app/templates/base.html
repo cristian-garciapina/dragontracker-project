@@ -7,6 +7,8 @@
   <meta name="x-apple-disable-message-reformatting" content="" />
   <meta name="description" content="Eternal Vanguard alliance — Call of Dragons Kingdom 193." />
   <title>{% block title %}Eternal Vanguard{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  <link rel="apple-touch-icon" href="/static/favicon.png" />
 
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -329,6 +331,28 @@
     color: var(--color-text-primary);
   }
 
+  
+    /* Fix iOS/Safari default form control appearance */
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="number"],
+    input[type="search"],
+    input[type="date"],
+    textarea,
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-clip: padding-box;
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 12px;
+      padding-right: 2rem;
+    }
   </style>
 
   {% block head_extra %}{% endblock %}

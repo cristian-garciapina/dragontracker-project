@@ -398,6 +398,10 @@
         {% if not user %}
         {% endif %}
         {% if user %}
+          {% if user.role == 'external' %}
+            <li><a href="/apply" class="nav-link">Apply</a></li>
+            <li><a href="/profile" class="nav-link">Profile</a></li>
+          {% else %}
           <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
           <li><a href="/roster" class="nav-link">Roster</a></li>
           <li><a href="/farms" class="nav-link">Farms</a></li>
@@ -410,6 +414,7 @@
           <li><a href="/staff/events" class="nav-link">Events</a></li>
           <li><a href="/staff/farming-windows" class="nav-link">Farming</a></li>
           <li><a href="/staff/settings" class="nav-link">Settings</a></li>
+          {% endif %}
           {% endif %}
         {% endif %}
       </ul>
@@ -478,6 +483,10 @@
       {% if not user %}
       {% endif %}
       {% if user %}
+        {% if user.role == 'external' %}
+          <a href="/apply" class="drawer-item"><span>Apply</span><span class="chev">›</span></a>
+          <a href="/profile" class="drawer-item"><span>Profile</span><span class="chev">›</span></a>
+        {% else %}
         <a href="/dashboard" class="drawer-item"><span>Dashboard</span><span class="chev">›</span></a>
         <a href="/roster" class="drawer-item"><span>Roster</span><span class="chev">›</span></a>
         <a href="/farms" class="drawer-item"><span>Farms</span><span class="chev">›</span></a>
@@ -492,6 +501,7 @@
         <a href="/staff/events" class="drawer-item"><span>Events</span><span class="chev">›</span></a>
         <a href="/staff/farming-windows" class="drawer-item"><span>Farming</span><span class="chev">›</span></a>
         <a href="/staff/settings" class="drawer-item"><span>Settings</span><span class="chev">›</span></a>
+        {% endif %}
         {% endif %}
       {% endif %}
     </nav>

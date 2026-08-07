@@ -47,10 +47,14 @@
                 <form method="post" action="/staff/registrations/{{ u.id }}/approve" class="inline">
                   <select name="grant_role"
                           class="px-1 py-1 text-xs bg-card border border-edge rounded text-primary">
-                    <option value="member" selected>as member</option>
-                    <option value="staff">as staff</option>
-                    {% if user.role == 'owner' %}
-                      <option value="owner">as owner</option>
+                    {% if u.submitted_rank == 'External' %}
+                      <option value="external" selected>as external</option>
+                    {% else %}
+                      <option value="member" selected>as member</option>
+                      <option value="staff">as staff</option>
+                      {% if user.role == 'owner' %}
+                        <option value="owner">as owner</option>
+                      {% endif %}
                     {% endif %}
                   </select>
                   <button type="submit"

@@ -32,7 +32,7 @@ router = APIRouter(tags=["signup"])
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-ALLOWED_RANKS = {"R1", "R2", "R3", "R4", "R5"}
+ALLOWED_RANKS = {"R1", "R2", "R3", "R4", "R5", "External"}
 PRIVILEGED_RANKS = {"R4", "R5"}
 MIN_PASSWORD_LEN = 10
 
@@ -210,7 +210,7 @@ async def approve_registration(
     if u is None or not u.pending_approval:
         return RedirectResponse(url="/staff/registrations", status_code=303)
 
-    role = grant_role if grant_role in ("member", "staff", "owner") else "member"
+    role = grant_role if grant_role in ("external", "member", "staff", "owner") else "member"
     # Only an owner can grant the owner role at approval time
     if role == "owner" and staff.role != "owner":
         role = "staff"

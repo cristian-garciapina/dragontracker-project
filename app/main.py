@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from . import queries
 from .auth import (
+    ExternalGateException,
     RequiresLoginException,
     get_current_user,
     get_db,
@@ -69,6 +70,11 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 @app.exception_handler(RequiresLoginException)
 async def requires_login_handler(request: Request, exc: RequiresLoginException):
     return RedirectResponse(url=f"/login?next={exc.next_url}", status_code=303)
+
+
+@app.exception_handler(ExternalGateException)
+async def external_gate_handler(request: Request, exc: ExternalGateException):
+    return RedirectResponse(url="/apply", status_code=303)
 
 
 # --- Public --------------------------------------------------------------

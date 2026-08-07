@@ -43,6 +43,13 @@ class RequiresLoginException(Exception):
         self.next_url = next_url
 
 
+class ExternalGateException(Exception):
+    """Raised by require_user when a role=external user tries to access
+    a page outside their allowlist. Caught in main.py, redirects to /apply.
+    """
+    pass
+
+
 # --- DB dependency --------------------------------------------------------
 def get_db() -> Session:
     db = SessionLocal()
@@ -140,9 +147,19 @@ def require_user(
     request: Request,
     user: Optional[User] = Depends(get_current_user),
 ) -> User:
-    """Forces login. Anonymous visitors trigger a redirect to /login."""
+    """Forces login. Anonymous visitors trigger a redirect to /login.
+    External users are gated to /apply, /account, /logout only."""
     if user is None:
         raise RequiresLoginException(next_url=request.url.path)
+    if user.role == "external":
+        path = request.url.path
+        allowed = (
+            path.startswith("/apply")
+            or path.startswith("/account")
+            or path == "/logout"
+        )
+        if not allowed:
+            raise ExternalGateException()
     return user
 
 

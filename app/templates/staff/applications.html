@@ -89,7 +89,7 @@
   {% endif %}
 
   <section data-section="filters" class="mb-6 flex flex-wrap gap-2">
-    {% set tabs = [('', 'All'), ('new', 'New'), ('reviewing', 'Reviewing'), ('accepted', 'Accepted'), ('rejected', 'Rejected')] %}
+    {% set tabs = [('', 'All'), ('new', 'New'), ('reviewing', 'Reviewing'), ('accepted', 'Accepted'), ('migrated', 'Migrated'), ('rejected', 'Rejected')] %}
     {% for value, label in tabs %}
       {% set is_active = current_filter == value %}
       <a href="/staff/applications{% if value %}?status={{ value }}{% endif %}"
@@ -179,6 +179,8 @@
                           class="text-xs px-3 py-1.5 border border-amber-700 text-gold hover:bg-amber-900/20 rounded-sm tracking-wider uppercase transition-colors">Mark reviewing</button>
                   <button type="submit" name="new_status" value="accepted"
                           class="text-xs px-3 py-1.5 border border-green-700 text-green-300 hover:bg-green-900/20 rounded-sm tracking-wider uppercase transition-colors">Accept</button>
+                  <button type="submit" name="new_status" value="migrated"
+                          class="text-xs px-3 py-1.5 border border-cyan-700 text-cyan-300 hover:bg-cyan-900/20 rounded-sm tracking-wider uppercase transition-colors">Mark migrated</button>
                   <button type="submit" name="new_status" value="new"
                           class="text-xs px-3 py-1.5 border border-cyan-700 text-cyan-300 hover:bg-cyan-900/20 rounded-sm tracking-wider uppercase transition-colors">Reopen</button>
                 </div>

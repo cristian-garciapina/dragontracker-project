@@ -227,13 +227,13 @@ async def list_applications(
     db: Session = Depends(get_db),
 ):
     stmt = select(Application).order_by(Application.created_at.desc())
-    if status in ("new", "reviewing", "accepted", "rejected"):
+    if status in ("new", "reviewing", "accepted", "migrated", "rejected"):
         stmt = stmt.where(Application.status == status)
 
     apps = list(db.scalars(stmt).all())
     counts = {
         st: db.scalar(select(func.count(Application.id)).where(Application.status == st)) or 0
-        for st in ("new", "reviewing", "accepted", "rejected")
+        for st in ("new", "reviewing", "accepted", "migrated", "rejected")
     }
 
     return templates.TemplateResponse(
@@ -263,11 +263,17 @@ async def update_status(
         return RedirectResponse(url="/staff/applications", status_code=303)
 
     # Reject goes through /reject to enforce public_reason.
-    if new_status in ("new", "reviewing", "accepted"):
+    if new_status in ("new", "reviewing", "accepted", "migrated"):
         app.status = new_status
         app.reviewed_by = user.username
         app.reviewed_at = datetime.utcnow()
         app.status_updated_at = datetime.utcnow()
+        # On migration: promote the linked external user to member
+        if new_status == "migrated":
+            from .models import User
+            linked = db.scalar(select(User).where(User.character_id == app.player_id))
+            if linked is not None and linked.role == "external":
+                linked.role = "member"
     if notes.strip():
         app.notes = notes.strip()
     db.commit()

@@ -43,6 +43,7 @@
         {% for r in ['R1', 'R2', 'R3', 'R4', 'R5'] %}
           <option value="{{ r }}" {% if form.rank == r %}selected{% endif %}>{{ r }}</option>
         {% endfor %}
+        <option value="External" {% if form.rank == 'External' %}selected{% endif %}>External (not a member yet)</option>
       </select>
       <p class="text-xs text-muted mt-1">R4/R5 require staff approval before activation.</p>
     </div>

@@ -38,6 +38,7 @@ def _render(request: Request, user: User, db: Session,
         context={
             "user": user,
             "member_current_name": member.current_name if member else None,
+            "linked_discord_id": member.discord_id if member else None,
             "error": error,
             "success": success,
         },

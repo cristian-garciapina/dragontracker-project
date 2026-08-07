@@ -148,14 +148,14 @@ def require_user(
     user: Optional[User] = Depends(get_current_user),
 ) -> User:
     """Forces login. Anonymous visitors trigger a redirect to /login.
-    External users are gated to /apply, /account, /logout only."""
+    External users are gated to /apply, /profile, /logout only."""
     if user is None:
         raise RequiresLoginException(next_url=request.url.path)
     if user.role == "external":
         path = request.url.path
         allowed = (
             path.startswith("/apply")
-            or path.startswith("/account")
+            or path.startswith("/profile")
             or path == "/logout"
         )
         if not allowed:

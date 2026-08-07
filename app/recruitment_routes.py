@@ -4,7 +4,6 @@ Recruitment endpoints.
 Public:
   GET  /apply                     application form
   POST /apply                     submit form -> shows reference
-  GET  /apply/status/{ref}        public follow-up (rate-limited)
 
 Staff:
   GET  /staff/applications                       review queue
@@ -15,8 +14,6 @@ Staff:
 from __future__ import annotations
 
 import secrets
-import time
-from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -37,23 +34,6 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 DISCORD_INVITE = "https://discord.gg/jbRycmjNJ"
 
-# --- In-memory rate limit for /apply/status/{ref} ------------------------
-# 20 hits per IP per hour. Sufficient for the scale of the site; if we ever
-# need cross-process limits we'll move to a real store.
-_RL_WINDOW_S = 3600
-_RL_MAX = 20
-_rl_hits: dict[str, deque] = {}
-
-
-def _rate_limited(ip: str) -> bool:
-    now = time.monotonic()
-    q = _rl_hits.setdefault(ip, deque())
-    while q and q[0] < now - _RL_WINDOW_S:
-        q.popleft()
-    if len(q) >= _RL_MAX:
-        return True
-    q.append(now)
-    return False
 
 
 def _generate_reference(db: Session) -> str:
@@ -164,55 +144,6 @@ async def apply_submit(
             "error": None,
             "submitted": True,
             "reference": reference,
-        },
-    )
-
-
-@router.get("/apply/status", response_class=HTMLResponse)
-async def apply_status_lookup(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="recruitment/status_lookup.html",
-        context={},
-    )
-
-
-@router.get("/apply/status/{ref}", response_class=HTMLResponse)
-async def apply_status(ref: str, request: Request, db: Session = Depends(get_db)):
-    ip = request.client.host if request.client else "unknown"
-    if _rate_limited(ip):
-        return templates.TemplateResponse(
-            request=request,
-            name="recruitment/status.html",
-            context={"state": "rate_limited", "reference": ref},
-            status_code=429,
-        )
-
-    ref_clean = ref.strip().upper()[:20]
-    app = db.scalar(select(Application).where(Application.reference == ref_clean))
-
-    # Unknown reference and invalid reference produce the SAME screen
-    # (no enumeration signal).
-    if app is None:
-        return templates.TemplateResponse(
-            request=request,
-            name="recruitment/status.html",
-            context={"state": "not_found", "reference": ref_clean},
-            status_code=404,
-        )
-
-    state = app.status
-    return templates.TemplateResponse(
-        request=request,
-        name="recruitment/status.html",
-        context={
-            "state": state,
-            "reference": app.reference,
-            "created_at": app.created_at,
-            "updated_at": app.status_updated_at or app.created_at,
-            "in_game_name": app.in_game_name,
-            "public_reason": app.public_reason if state == "rejected" else None,
-            "discord_invite": DISCORD_INVITE if state == "accepted" else None,
         },
     )
 

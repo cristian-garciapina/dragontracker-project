@@ -396,7 +396,6 @@
       <ul class="nav-links items-center gap-6" data-nav="primary">
         <li><a href="/" class="nav-link">Home</a></li>
         {% if not user %}
-          <li><a href="/apply/status" class="nav-link nav-cta">Track application</a></li>
         {% endif %}
         {% if user %}
           <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
@@ -477,7 +476,6 @@
       <p class="drawer-section-label">Navigate</p>
       <a href="/" class="drawer-item"><span>Home</span><span class="chev">›</span></a>
       {% if not user %}
-        <a href="/apply/status" class="drawer-item cta"><span>Track application</span><span class="chev">›</span></a>
       {% endif %}
       {% if user %}
         <a href="/dashboard" class="drawer-item"><span>Dashboard</span><span class="chev">›</span></a>

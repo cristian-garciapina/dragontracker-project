@@ -154,32 +154,26 @@ async def discord_callback(
             return RedirectResponse(url="/login?error=discord_me", status_code=303)
 
     # 3. Branch on session state
-    # Case A: already logged in -> link discord_id to the linked Member
+    # Case A: already logged in -> link discord_id to the current user
     if current is not None:
-        # Refuse if another Member already claims this discord_id
+        # Refuse if another user already claims this discord_id
         conflict = db.scalar(
-            select(Member).where(Member.discord_id == discord_user_id)
+            select(User).where(User.discord_id == discord_user_id)
         )
-        if conflict is not None and (
-            current.character_id is None or conflict.character_id != current.character_id
-        ):
+        if conflict is not None and conflict.id != current.id:
             resp = RedirectResponse(url="/profile?err=discord_taken", status_code=303)
         else:
-            if current.character_id is not None:
-                member = db.get(Member, current.character_id)
-                if member is not None:
-                    member.discord_id = discord_user_id
-                    db.commit()
+            current.discord_id = discord_user_id
+            db.commit()
             resp = RedirectResponse(url="/profile?ok=discord_linked", status_code=303)
         resp.delete_cookie(STATE_COOKIE, path="/")
         resp.delete_cookie(NEXT_COOKIE, path="/")
         return resp
 
-    # Case B: anonymous + discord_id matches an existing Member -> log in that User
-    member = db.scalar(select(Member).where(Member.discord_id == discord_user_id))
-    if member is not None:
-        user = db.scalar(select(User).where(User.character_id == member.character_id))
-        if user is not None and user.is_active and not user.pending_approval:
+    # Case B: anonymous + discord_id matches an existing User -> log them in
+    user = db.scalar(select(User).where(User.discord_id == discord_user_id))
+    if user is not None and user.is_active and not user.pending_approval:
+        if True:
             session = create_session(
                 db, user,
                 ip=request.client.host if request.client else None,
@@ -251,6 +245,7 @@ async def discord_create_external(
         pending_approval=False,
         submitted_at=now,
         submitted_in_game_name=discord_username or username,
+        discord_id=discord_user_id,
     )
     db.add(user)
     db.commit()
@@ -277,12 +272,10 @@ async def discord_unlink(
     from .auth import require_user
     # Re-run require_user manually
     current = await _require_or_none(request, db)
-    if current is None or current.character_id is None:
+    if current is None:
         return RedirectResponse(url="/profile", status_code=303)
-    member = db.get(Member, current.character_id)
-    if member is not None:
-        member.discord_id = None
-        db.commit()
+    current.discord_id = None
+    db.commit()
     return RedirectResponse(url="/profile?ok=discord_unlinked", status_code=303)
 
 

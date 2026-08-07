@@ -407,6 +407,7 @@ class User(Base):
     submitted_rank: Mapped[Optional[str]] = mapped_column(String(8))
     submitted_server: Mapped[Optional[int]] = mapped_column(Integer)
     submitted_alliance_tag: Mapped[Optional[str]] = mapped_column(String(16))
+    discord_id: Mapped[Optional[str]] = mapped_column(String(32), index=True)
 
     sessions: Mapped[list["UserSession"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

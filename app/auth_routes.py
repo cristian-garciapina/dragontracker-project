@@ -68,25 +68,22 @@ async def login_submit(
         user_agent=request.headers.get("user-agent"),
     )
 
-    # If a discord OAuth was pending, link the discord_id to this user's Member
+    # If a discord OAuth was pending, link the discord_id to this user
     pending = request.cookies.get("discord_pending_id", "")
     linked_msg = ""
     if "|" in pending:
         discord_user_id, _ = pending.split("|", 1)
-        if user.character_id is not None:
-            member = db.get(Member, user.character_id)
-            if member is not None:
-                # Refuse if the discord_id is already claimed by another Member
-                from sqlalchemy import select as _sel
-                conflict = db.scalar(
-                    _sel(Member).where(Member.discord_id == discord_user_id)
-                )
-                if conflict is None or conflict.character_id == member.character_id:
-                    member.discord_id = discord_user_id
-                    db.commit()
-                    linked_msg = "?ok=discord_linked"
-                else:
-                    linked_msg = "?err=discord_taken"
+        # Refuse if the discord_id is already claimed by another user
+        from sqlalchemy import select as _sel
+        conflict = db.scalar(
+            _sel(User).where(User.discord_id == discord_user_id)
+        )
+        if conflict is None or conflict.id == user.id:
+            user.discord_id = discord_user_id
+            db.commit()
+            linked_msg = "?ok=discord_linked"
+        else:
+            linked_msg = "?err=discord_taken"
 
     redirect_url = "/profile" + linked_msg if linked_msg else next
     response = RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)

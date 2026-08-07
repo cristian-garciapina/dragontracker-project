@@ -36,6 +36,7 @@
         <select id="role" name="role"
                 class="px-3 py-2 bg-card border border-edge rounded text-primary text-sm">
           <option value=""       {% if filters.role == "" %}selected{% endif %}>All</option>
+          <option value="external" {% if filters.role == "external" %}selected{% endif %}>External</option>
           <option value="member" {% if filters.role == "member" %}selected{% endif %}>Member</option>
           <option value="staff"  {% if filters.role == "staff" %}selected{% endif %}>Staff</option>
           <option value="owner"  {% if filters.role == "owner" %}selected{% endif %}>Owner</option>
@@ -99,6 +100,8 @@
                   <span class="text-violet-400">owner</span>
                 {% elif u.role == 'staff' %}
                   <span class="text-gold">staff</span>
+                {% elif u.role == 'external' %}
+                  <span class="text-cyan-400">external</span>
                 {% else %}
                   <span class="text-muted">member</span>
                 {% endif %}
@@ -133,6 +136,7 @@
                   <form method="post" action="/staff/users/{{ u.id }}/set-role" class="inline ml-1">
                     <select name="new_role"
                             class="px-1 py-1 text-xs bg-card border border-edge rounded text-primary">
+                      <option value="external" {% if u.role == 'external' %}selected{% endif %}>external</option>
                       <option value="member" {% if u.role == 'member' %}selected{% endif %}>member</option>
                       <option value="staff"  {% if u.role == 'staff'  %}selected{% endif %}>staff</option>
                       {% if user.role == 'owner' %}

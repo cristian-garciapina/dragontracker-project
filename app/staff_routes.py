@@ -49,7 +49,7 @@ def _can_act_on(actor: User, target: User) -> bool:
     if actor.role == "owner":
         return True
     if actor.role == "staff":
-        return target.role in ("member", "staff")
+        return target.role in ("external", "member", "staff")
     return False
 
 
@@ -81,7 +81,7 @@ async def list_users(
     elif state == "pending":
         stmt = stmt.where(User.pending_approval == True)
 
-    if role in ("member", "staff", "owner"):
+    if role in ("external", "member", "staff", "owner"):
         stmt = stmt.where(User.role == role)
 
     stmt = stmt.order_by(User.created_at.desc())
@@ -146,7 +146,7 @@ async def set_role(
         return _redirect_back()
     if not _can_act_on(actor, u):
         return _redirect_back()
-    if new_role not in ("member", "staff", "owner"):
+    if new_role not in ("external", "member", "staff", "owner"):
         return _redirect_back()
     # Only an owner can grant the owner role
     if new_role == "owner" and actor.role != "owner":

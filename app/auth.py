@@ -50,6 +50,13 @@ class ExternalGateException(Exception):
     pass
 
 
+class MissingEmailException(Exception):
+    """Raised by require_user when a user has no email set. Caught in main.py,
+    redirects to /profile with a banner asking to add one.
+    """
+    pass
+
+
 # --- DB dependency --------------------------------------------------------
 def get_db() -> Session:
     db = SessionLocal()
@@ -160,6 +167,15 @@ def require_user(
         )
         if not allowed:
             raise ExternalGateException()
+    if not user.email:
+        path = request.url.path
+        email_allowed = (
+            path.startswith("/profile")
+            or path.startswith("/auth/discord")
+            or path == "/logout"
+        )
+        if not email_allowed:
+            raise MissingEmailException()
     return user
 
 

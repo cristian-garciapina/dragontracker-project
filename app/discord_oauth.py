@@ -47,7 +47,7 @@ REDIRECT_URI = os.environ.get(
     "DISCORD_REDIRECT_URI",
     "https://eternal-vanguard.com/auth/discord/callback",
 )
-SCOPE = "identify"
+SCOPE = "identify email"
 
 STATE_COOKIE = "discord_oauth_state"
 NEXT_COOKIE = "discord_oauth_next"
@@ -150,6 +150,7 @@ async def discord_callback(
         me_data = me.json()
         discord_user_id = str(me_data.get("id", ""))
         discord_username = me_data.get("username", "")
+        discord_email = (me_data.get("email") or "").lower().strip()
         if not discord_user_id:
             return RedirectResponse(url="/login?error=discord_me", status_code=303)
 
@@ -164,6 +165,12 @@ async def discord_callback(
             resp = RedirectResponse(url="/profile?err=discord_taken", status_code=303)
         else:
             current.discord_id = discord_user_id
+            if not current.email and discord_email:
+                email_conflict = db.scalar(
+                    select(User).where(User.email == discord_email)
+                )
+                if email_conflict is None:
+                    current.email = discord_email
             db.commit()
             resp = RedirectResponse(url="/profile?ok=discord_linked", status_code=303)
         resp.delete_cookie(STATE_COOKIE, path="/")
@@ -173,6 +180,13 @@ async def discord_callback(
     # Case B: anonymous + discord_id matches an existing User -> log them in
     user = db.scalar(select(User).where(User.discord_id == discord_user_id))
     if user is not None and user.is_active and not user.pending_approval:
+        if not user.email and discord_email:
+            email_conflict = db.scalar(
+                select(User).where(User.email == discord_email)
+            )
+            if email_conflict is None:
+                user.email = discord_email
+                db.commit()
         if True:
             session = create_session(
                 db, user,
@@ -189,7 +203,7 @@ async def discord_callback(
     # Stash discord_user_id + username in a short-lived cookie and redirect
     # to /auth/discord/choose. NO account is created here.
     resp = RedirectResponse(url="/auth/discord/choose", status_code=303)
-    payload = f"{discord_user_id}|{discord_username}"
+    payload = f"{discord_user_id}|{discord_username}|{discord_email}"
     resp.set_cookie(
         PENDING_COOKIE, payload, max_age=600, httponly=True,
         secure=SECURE_COOKIES, samesite="lax", path="/",
@@ -223,7 +237,10 @@ async def discord_create_external(
     pending = request.cookies.get(PENDING_COOKIE, "")
     if "|" not in pending:
         return RedirectResponse(url="/login?error=discord_pending_missing", status_code=303)
-    discord_user_id, discord_username = pending.split("|", 1)
+    parts = pending.split("|")
+    discord_user_id = parts[0] if len(parts) > 0 else ""
+    discord_username = parts[1] if len(parts) > 1 else ""
+    discord_email = parts[2].lower().strip() if len(parts) > 2 else ""
 
     # Generate unique username derived from discord username
     base = ("dc_" + discord_username).lower().strip()[:24] or "dc_user"
@@ -246,6 +263,7 @@ async def discord_create_external(
         submitted_at=now,
         submitted_in_game_name=discord_username or username,
         discord_id=discord_user_id,
+        email=(discord_email if discord_email and not db.scalar(select(User).where(User.email == discord_email)) else None),
     )
     db.add(user)
     db.commit()

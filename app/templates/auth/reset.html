@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Reset password · Eternal Vanguard{% endblock %}
+{% block content %}
+<section class="max-w-md mx-auto px-6 py-16">
+  <h1 class="font-display text-3xl mb-3">Set a new password</h1>
+  <p class="text-secondary text-sm mb-8">
+    You are resetting the password for <strong class="text-primary">{{ username }}</strong>.
+  </p>
+  {% if error %}
+  <div role="alert" class="mb-4 p-3 border border-red-700 bg-red-900/30 text-red-200 text-sm rounded">
+    {{ error }}
+  </div>
+  {% endif %}
+  <form method="post" action="/reset/{{ token }}" class="space-y-4">
+    <div>
+      <label for="password" class="block text-sm text-secondary mb-1">New password</label>
+      <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"
+             class="w-full px-3 py-2 bg-card border border-edge rounded text-primary">
+      <p class="text-xs text-secondary mt-1">At least 8 characters.</p>
+    </div>
+    <div>
+      <label for="password_confirm" class="block text-sm text-secondary mb-1">Confirm new password</label>
+      <input id="password_confirm" name="password_confirm" type="password" required minlength="8" autocomplete="new-password"
+             class="w-full px-3 py-2 bg-card border border-edge rounded text-primary">
+    </div>
+    <button type="submit"
+            class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+      Set new password
+    </button>
+  </form>
+</section>
+{% endblock %}

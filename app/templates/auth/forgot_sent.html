@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Check your email · Eternal Vanguard{% endblock %}
+{% block content %}
+<section class="max-w-md mx-auto px-6 py-16 text-center">
+  <h1 class="font-display text-3xl mb-4">Check your email</h1>
+  <p class="text-secondary text-sm mb-6">
+    If an account exists for that email, we just sent a link to reset your password.
+    Follow it within the next hour.
+  </p>
+  <p class="text-secondary text-sm mb-8">
+    Didn't get anything? Check your spam folder, or
+    <a href="/forgot" class="text-cyan-400 hover:text-cyan-300">try again</a>.
+  </p>
+  <a href="/login" class="inline-block px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+    Back to log in
+  </a>
+</section>
+{% endblock %}

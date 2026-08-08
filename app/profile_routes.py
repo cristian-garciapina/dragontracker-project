@@ -39,6 +39,10 @@ def _render(request: Request, user: User, db: Session,
             "user": user,
             "member_current_name": member.current_name if member else None,
             "linked_discord_id": user.discord_id,
+            "user_email": user.email,
+            "need_email": bool(request.query_params.get("need_email")),
+            "email_ok": request.query_params.get("ok") == "email_updated",
+            "email_err": request.query_params.get("err") == "email_taken",
             "error": error,
             "success": success,
         },
@@ -113,3 +117,23 @@ async def profile_password(
     user.password_hash = hash_password(new_password)
     db.commit()
     return _render(request, user, db, success="Password changed.")
+
+
+@router.post("/profile/email")
+async def profile_email_update(
+    request: Request,
+    email: str = Form(...),
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import select as _sel
+    email_clean = (email or "").lower().strip()
+    if not email_clean or "@" not in email_clean or "." not in email_clean.split("@")[-1] or len(email_clean) > 120:
+        return _render(request, user, db, error="Please enter a valid email address.")
+    conflict = db.scalar(_sel(User).where(User.email == email_clean, User.id != user.id))
+    if conflict is not None:
+        return RedirectResponse(url="/profile?err=email_taken", status_code=303)
+    user.email = email_clean
+    db.commit()
+    return RedirectResponse(url="/profile?ok=email_updated", status_code=303)
+

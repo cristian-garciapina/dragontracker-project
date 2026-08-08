@@ -41,6 +41,7 @@ MIN_PASSWORD_LEN = 10
 def _empty_form() -> dict:
     return {
         "username": "",
+        "email": "",
         "in_game_name": "",
         "character_id": "",
         "rank": "",
@@ -69,6 +70,7 @@ async def signup_form(request: Request):
 async def signup_submit(
     request: Request,
     username: str = Form(...),
+    email: str = Form(...),
     in_game_name: str = Form(...),
     character_id: str = Form(...),
     rank: str = Form(...),
@@ -80,6 +82,7 @@ async def signup_submit(
 ):
     form = {
         "username": username,
+        "email": email,
         "in_game_name": in_game_name,
         "character_id": character_id,
         "rank": rank,
@@ -124,6 +127,11 @@ async def signup_submit(
     # --- Uniqueness / existence checks
     if db.scalar(select(User).where(User.username == username_clean)):
         return _render_form(request, form, "This username is already taken.", 400)
+    email_clean = (email or "").lower().strip()
+    if not email_clean or "@" not in email_clean or "." not in email_clean.split("@")[-1] or len(email_clean) > 120:
+        return _render_form(request, form, "Please enter a valid email address.", 400)
+    if db.scalar(select(User).where(User.email == email_clean)):
+        return _render_form(request, form, "An account already exists with this email.", 400)
 
     if db.scalar(select(User).where(User.character_id == character_id_int)):
         return _render_form(
@@ -149,6 +157,7 @@ async def signup_submit(
 
     user = User(
         username=username_clean,
+        email=email_clean,
         password_hash=hash_password(password),
         role="member",  # role is decided by staff at approval time
         character_id=character_id_int,

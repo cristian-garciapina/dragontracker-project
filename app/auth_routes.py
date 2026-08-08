@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .auth import (
@@ -28,11 +28,14 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request, next: str = "/dashboard"):
+async def login_form(request: Request, next: str = "/dashboard", reset: int = 0):
+    flash = None
+    if reset:
+        flash = "Your password has been reset. You can log in with your new password."
     return templates.TemplateResponse(
         request=request,
         name="auth/login.html",
-        context={"next": next, "error": None},
+        context={"next": next, "error": None, "flash": flash},
     )
 
 
@@ -44,7 +47,10 @@ async def login_submit(
     next: str = Form("/dashboard"),
     db: Session = Depends(get_db),
 ):
-    user = db.scalar(select(User).where(User.username == username.lower().strip()))
+    ident = (username or "").lower().strip()
+    user = db.scalar(
+        select(User).where(or_(User.username == ident, User.email == ident))
+    )
 
     if user is None or not user.is_active or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(
@@ -53,6 +59,7 @@ async def login_submit(
             context={
                 "next": next,
                 "error": "Invalid username or password.",
+                "flash": None,
             },
             status_code=status.HTTP_401_UNAUTHORIZED,
         )

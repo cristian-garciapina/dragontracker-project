@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Reset link invalid · Eternal Vanguard{% endblock %}
+{% block content %}
+<section class="max-w-md mx-auto px-6 py-16 text-center">
+  <h1 class="font-display text-3xl mb-4">This link is not valid</h1>
+  <p class="text-secondary text-sm mb-8">
+    The reset link has expired, has already been used, or does not exist.
+    Ask for a fresh one.
+  </p>
+  <a href="/forgot" class="inline-block px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+    Request a new link
+  </a>
+</section>
+{% endblock %}

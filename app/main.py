@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from . import queries
 from .auth import (
     ExternalGateException,
+    MissingEmailException,
     RequiresLoginException,
     get_current_user,
     get_db,
@@ -37,6 +38,7 @@ from .events_routes import router as events_router
 from .farming_windows_routes import router as farming_windows_router
 from .player_routes import router as player_router
 from .discord_oauth import router as discord_oauth_router
+from .password_reset import router as password_reset_router
 from .models import User
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -61,6 +63,7 @@ app.include_router(events_router)
 app.include_router(farming_windows_router)
 app.include_router(player_router)
 app.include_router(discord_oauth_router)
+app.include_router(password_reset_router)
 app.include_router(seasons_router)
 
 if STATIC_DIR.exists():
@@ -77,6 +80,11 @@ async def requires_login_handler(request: Request, exc: RequiresLoginException):
 @app.exception_handler(ExternalGateException)
 async def external_gate_handler(request: Request, exc: ExternalGateException):
     return RedirectResponse(url="/apply", status_code=303)
+
+
+@app.exception_handler(MissingEmailException)
+async def missing_email_handler(request: Request, exc: MissingEmailException):
+    return RedirectResponse(url="/profile?need_email=1", status_code=303)
 
 
 # --- Public --------------------------------------------------------------

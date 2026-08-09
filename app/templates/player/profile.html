@@ -242,6 +242,12 @@
     <form method="post" action="/player/{{ member.character_id }}/burns" class="mb-6 space-y-3 border border-edge bg-card rounded-sm p-4">
       <p class="text-xs uppercase tracking-wider text-muted font-mono">Mark as burned (staff)</p>
       <div>
+        <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="burn_date">Burn date</label>
+        <input id="burn_date" name="burn_date" type="date" value="{{ today_iso }}"
+               class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary font-mono text-sm">
+        <p class="text-[10px] text-muted mt-1">Day the burn happened. Multiple burns per day are allowed.</p>
+      </div>
+      <div>
         <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="merits_gained">
           Merits gained <span class="text-cyan">*</span>
         </label>

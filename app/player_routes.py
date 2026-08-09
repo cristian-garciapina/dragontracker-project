@@ -178,7 +178,8 @@ async def delete_note(
 @router.post("/player/{character_id}/burns")
 async def add_burn(
     character_id: int,
-    merits_gained: str = Form(""),
+    merits_before: str = Form(""),
+    merits_after: str = Form(""),
     burn_date: str = Form(""),
     power_before: str = Form(""),
     power_after: str = Form(""),
@@ -204,11 +205,44 @@ async def add_burn(
         except ValueError:
             return None
 
+    burn_date_val = (datetime.strptime(burn_date.strip(), "%Y-%m-%d").date() if burn_date.strip() else datetime.utcnow().date())
+    mb = _to_int(merits_before)
+    ma = _to_int(merits_after)
+    # Fallback: pick closest cumulative snapshot before/after burn_date for this character
+    if mb is None or ma is None:
+        from .models import Snapshot, Stat
+        if mb is None:
+            row = db.execute(
+                select(Stat.merits_total)
+                .join(Snapshot, Snapshot.id == Stat.snapshot_id)
+                .where(Stat.character_id == character_id)
+                .where(Snapshot.season_id == active_season.id)
+                .where(Snapshot.date_start != Snapshot.date_end)
+                .where(Snapshot.date_end < burn_date_val)
+                .order_by(Snapshot.date_end.desc())
+                .limit(1)
+            ).first()
+            mb = int(row[0]) if row and row[0] is not None else None
+        if ma is None:
+            row = db.execute(
+                select(Stat.merits_total)
+                .join(Snapshot, Snapshot.id == Stat.snapshot_id)
+                .where(Stat.character_id == character_id)
+                .where(Snapshot.season_id == active_season.id)
+                .where(Snapshot.date_start != Snapshot.date_end)
+                .where(Snapshot.date_end >= burn_date_val)
+                .order_by(Snapshot.date_end.asc())
+                .limit(1)
+            ).first()
+            ma = int(row[0]) if row and row[0] is not None else None
+    if mb is None or ma is None or ma < mb:
+        return RedirectResponse(url=f"/player/{character_id}?err=burn_calc#burns", status_code=303)
+    merits_gained_val = ma - mb
     burn = Burn(
         character_id=character_id,
         season_id=active_season.id,
-        burn_date=(datetime.strptime(burn_date.strip(), "%Y-%m-%d").date() if burn_date.strip() else datetime.utcnow().date()),
-        merits_gained=_to_int(merits_gained),
+        burn_date=burn_date_val,
+        merits_gained=merits_gained_val,
         power_before=_to_int(power_before),
         power_after=_to_int(power_after),
         target=(target.strip()[:64] or None),

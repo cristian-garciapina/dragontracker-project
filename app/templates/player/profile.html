@@ -247,15 +247,21 @@
                class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary font-mono text-sm">
         <p class="text-[10px] text-muted mt-1">Day the burn happened. Multiple burns per day are allowed.</p>
       </div>
-      <div>
-        <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="merits_gained">
-          Merits gained <span class="text-cyan">*</span>
-        </label>
-        <input id="merits_gained" name="merits_gained" type="text" inputmode="numeric" required
-               placeholder="e.g. 800000"
-               class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary font-mono text-sm">
-        <p class="text-[10px] text-muted mt-1">Deducted from season merits · affects M/P%</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="merits_before">Merits before (optional)</label>
+          <input id="merits_before" name="merits_before" type="text" inputmode="numeric"
+                 placeholder="Leave empty to auto-detect"
+                 class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary font-mono text-sm">
+        </div>
+        <div>
+          <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="merits_after">Merits after (optional)</label>
+          <input id="merits_after" name="merits_after" type="text" inputmode="numeric"
+                 placeholder="Leave empty to auto-detect"
+                 class="w-full px-3 py-2 bg-elevated border border-edge rounded-sm text-primary font-mono text-sm">
+        </div>
       </div>
+      <p class="text-[10px] text-muted -mt-2">Delta (after − before) is stored as Merits gained and deducted from M/P%. Empty fields fall back to the closest cumulative snapshot before / after the burn date.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="block text-xs text-muted uppercase tracking-wider mb-1" for="power_before">Power before (optional)</label>

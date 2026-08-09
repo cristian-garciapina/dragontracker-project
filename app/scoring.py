@@ -31,7 +31,7 @@ from typing import Optional
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import Session
 
-from .models import SeasonFarmingWindow, Member, Score, Season, Setting, Snapshot, Stat
+from .models import Burn, SeasonFarmingWindow, Member, Score, Season, Setting, Snapshot, Stat
 
 
 # ----------------------------------------------------------------------------
@@ -192,6 +192,23 @@ def _load_farming_deductions(session, season_id: int, start_snap_id: int) -> dic
     return deductions
 
 
+def _load_burn_deductions(session, season_id: int) -> dict[int, int]:
+    """Sum of merits_gained across all burns of the season, per character.
+
+    Burns are treated as farming-like: their merits count as non-war effort
+    and are deducted from merits_effective (used to compute M/P%).
+    Returns {character_id: total_burn_merits}.
+    """
+    from sqlalchemy import func as _f
+    rows = session.execute(
+        select(Burn.character_id, _f.sum(Burn.merits_gained))
+        .where(Burn.season_id == season_id)
+        .where(Burn.merits_gained.isnot(None))
+        .group_by(Burn.character_id)
+    ).all()
+    return {int(cid): int(total or 0) for cid, total in rows}
+
+
 def recompute_scores_for_active_season(session: Session) -> dict:
     """Recompute scores for every member of the active season's roster.
 
@@ -238,6 +255,7 @@ def recompute_scores_for_active_season(session: Session) -> dict:
 
     # 3b) Load farming deductions for this season
     deductions = _load_farming_deductions(session, season.id, start_snap_id)
+    burn_deductions = _load_burn_deductions(session, season.id)
 
     # 4) Load all start stats and cumulative stats, indexed by character_id
     start_stats = {
@@ -299,7 +317,8 @@ def recompute_scores_for_active_season(session: Session) -> dict:
                 end_power=cum_stat.power,
                 merits_cumulative=merits,
                 merits_farmed_deduction=(deductions.get(cid, 0) if not is_farm else 0),
-                merits_effective=(max(0, merits - deductions.get(cid, 0)) if not is_farm else merits),
+                merits_burn_deduction=(burn_deductions.get(cid, 0) if not is_farm else 0),
+                merits_effective=(max(0, merits - deductions.get(cid, 0) - burn_deductions.get(cid, 0)) if not is_farm else merits),
                 deaths_t45=cum_stat.deaths_t45,
                 healing_t45=cum_stat.healing_t45,
                 mp_ratio=mp,

@@ -127,6 +127,7 @@ async def player_profile(
             "active_season": active_season,
             "burns_current_season": burns_current_season,
             "event_history": get_player_event_history(db, character_id),
+            "today_iso": datetime.utcnow().date().isoformat(),
         },
     )
 
@@ -178,6 +179,7 @@ async def delete_note(
 async def add_burn(
     character_id: int,
     merits_gained: str = Form(""),
+    burn_date: str = Form(""),
     power_before: str = Form(""),
     power_after: str = Form(""),
     target: str = Form(""),
@@ -205,7 +207,7 @@ async def add_burn(
     burn = Burn(
         character_id=character_id,
         season_id=active_season.id,
-        burn_date=datetime.utcnow().date(),
+        burn_date=(datetime.strptime(burn_date.strip(), "%Y-%m-%d").date() if burn_date.strip() else datetime.utcnow().date()),
         merits_gained=_to_int(merits_gained),
         power_before=_to_int(power_before),
         power_after=_to_int(power_after),

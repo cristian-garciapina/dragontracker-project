@@ -357,6 +357,7 @@ class Score(Base):
     end_power: Mapped[int] = mapped_column(Integer, nullable=False)
     merits_cumulative: Mapped[int] = mapped_column(Integer, default=0)
     merits_farmed_deduction: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    merits_burn_deduction: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     merits_effective: Mapped[Optional[int]] = mapped_column(Integer)
     deaths_t45: Mapped[int] = mapped_column(Integer, default=0)
     healing_t45: Mapped[int] = mapped_column(Integer, default=0)

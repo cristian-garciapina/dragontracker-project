@@ -1051,14 +1051,24 @@ def add_manual_participation(db, event_id: int, character_id: int,
 
 
 def get_player_daily_merits(session, character_id: int, season_id: int) -> list[dict]:
-    """Daily merit gains for a player, tagged with farming window membership."""
-    from .models import SeasonFarmingWindow, Snapshot, Stat
+    """Daily merit gains for a player, tagged with farming window membership and burn share."""
+    from .models import Burn, SeasonFarmingWindow, Snapshot, Stat
+    from sqlalchemy import func as _f
     windows = session.execute(
         select(SeasonFarmingWindow)
         .where(SeasonFarmingWindow.season_id == season_id)
     ).scalars().all()
     def in_window(d):
         return any(w.date_start <= d <= w.date_end for w in windows)
+    # Per-day burn total for this character
+    burn_rows = session.execute(
+        select(Burn.burn_date, _f.sum(Burn.merits_gained))
+        .where(Burn.character_id == character_id)
+        .where(Burn.season_id == season_id)
+        .where(Burn.merits_gained.isnot(None))
+        .group_by(Burn.burn_date)
+    ).all()
+    burn_by_day = {d.isoformat(): int(total or 0) for d, total in burn_rows}
     rows = session.execute(
         select(Snapshot.date_end, Stat.merits_total)
         .join(Stat, Stat.snapshot_id == Snapshot.id)
@@ -1067,11 +1077,21 @@ def get_player_daily_merits(session, character_id: int, season_id: int) -> list[
         .where(Snapshot.date_start == Snapshot.date_end)
         .order_by(Snapshot.date_end)
     ).all()
-    return [
-        {
-            "date": r.date_end.isoformat(),
-            "merits": int(r.merits_total or 0),
+    out = []
+    for r in rows:
+        day = r.date_end.isoformat()
+        total = int(r.merits_total or 0)
+        burn = min(burn_by_day.get(day, 0), total)  # cap at total
+        farming = total if in_window(r.date_end) else 0
+        # If a day is both a farming window and has a burn, farming takes precedence
+        # (unlikely in practice). Burn is deducted from war effort only.
+        war = max(0, total - farming - burn)
+        out.append({
+            "date": day,
+            "merits": total,
             "in_farming_window": in_window(r.date_end),
-        }
-        for r in rows
-    ]
+            "burn_merits": burn,
+            "farming_merits": farming,
+            "war_merits": war,
+        })
+    return out

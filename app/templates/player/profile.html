@@ -408,10 +408,12 @@
       container.innerHTML = '<div class="text-slate-500 text-sm">No daily snapshots for this season.</div>';
       return;
     }
-    const farm = data.filter(d => d.in_farming_window).reduce((s,d) => s+d.merits, 0);
-    const war = data.filter(d => !d.in_farming_window).reduce((s,d) => s+d.merits, 0);
-    const grand = farm + war;
+    const farm = data.reduce((s,d) => s + (d.farming_merits || 0), 0);
+    const burn = data.reduce((s,d) => s + (d.burn_merits || 0), 0);
+    const war = data.reduce((s,d) => s + (d.war_merits || 0), 0);
+    const grand = farm + burn + war;
     const fpct = grand ? (farm*100/grand).toFixed(1) : '0';
+    const bpct = grand ? (burn*100/grand).toFixed(1) : '0';
     const wpct = grand ? (war*100/grand).toFixed(1) : '0';
 
     container.innerHTML = `
@@ -421,6 +423,11 @@
           <div class="text-2xl font-mono text-amber-300 mt-1">${num(farm)}</div>
           <div class="text-xs text-slate-500 mt-1">${fpct}% of total</div>
         </div>
+        <div class="bg-slate-900/60 border border-orange-500/20 rounded-lg p-4">
+          <div class="text-xs uppercase tracking-wider text-orange-400/80">Burn</div>
+          <div class="text-2xl font-mono text-orange-300 mt-1">${num(burn)}</div>
+          <div class="text-xs text-slate-500 mt-1">${bpct}% of total</div>
+        </div>
         <div class="bg-slate-900/60 border border-cyan-500/20 rounded-lg p-4">
           <div class="text-xs uppercase tracking-wider text-cyan-400/80">War effort</div>
           <div class="text-2xl font-mono text-cyan-300 mt-1">${num(war)}</div>
@@ -429,7 +436,8 @@
       </div>
       <div class="flex gap-4 text-xs text-slate-400 mb-3">
         <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#eda100"></span>Farming window (declared)</span>
-        <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#22d3ee"></span>War window</span>
+        <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#f97316"></span>Burn</span>
+        <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#22d3ee"></span>War effort</span>
       </div>
       <div style="position:relative;width:100%;height:280px;">
         <canvas id="ev-daily-chart" role="img" aria-label="Daily merits chart"></canvas>
@@ -437,25 +445,34 @@
     `;
 
     const labels = data.map(d => { const p = d.date.split('-'); return p[2]+'/'+p[1]; });
-    const merits = data.map(d => d.merits);
-    const colors = data.map(d => d.in_farming_window ? '#eda100' : '#22d3ee');
-    const flags = data.map(d => d.in_farming_window);
+    const farmingArr = data.map(d => d.farming_merits || 0);
+    const burnArr = data.map(d => d.burn_merits || 0);
+    const warArr = data.map(d => d.war_merits || 0);
 
     const draw = () => { chart = new Chart(document.getElementById('ev-daily-chart'), {
       type: 'bar',
-      data: { labels, datasets: [{ data: merits, backgroundColor: colors, borderRadius: 4, borderSkipped: false, maxBarThickness: 24 }]},
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Farming', data: farmingArr, backgroundColor: '#eda100', stack: 'daily', borderWidth: 0 },
+          { label: 'Burn',    data: burnArr,    backgroundColor: '#f97316', stack: 'daily', borderWidth: 0 },
+          { label: 'War',     data: warArr,     backgroundColor: '#22d3ee', stack: 'daily', borderWidth: 0 }
+        ]
+      },
       options: {
-        responsive: true, maintainAspectRatio: false,
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: (c) => c.parsed.y.toLocaleString() + ' merits - ' + (flags[c.dataIndex] ? 'Farming' : 'War') }}
+          tooltip: {
+            callbacks: {
+              label: (c) => c.dataset.label + ': ' + c.parsed.y.toLocaleString() + ' merits'
+            }
+          }
         },
         scales: {
-          x: { ticks: { autoSkip: false, maxRotation: 45, color: '#94a3b8', font: { size: 11 }}, grid: { display: false }},
-          y: { beginAtZero: true, ticks: {
-            color: '#94a3b8', font: { size: 11 },
-            callback: (v) => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v
-          }, grid: { color: 'rgba(148,163,184,0.1)', drawBorder: false }}
+          x: { stacked: true, ticks: { autoSkip: false, maxRotation: 45, color: '#94a3b8', font: { size: 11 }}, grid: { display: false }},
+          y: { stacked: true, ticks: { color: '#94a3b8', callback: (v) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v.toLocaleString() }, grid: { color: 'rgba(148,163,184,0.08)' }}
         }
       }
     }); };

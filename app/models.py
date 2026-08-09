@@ -488,7 +488,7 @@ class PlayerNote(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     character_id: Mapped[int] = mapped_column(
-        ForeignKey("members.character_id"), nullable=False
+        ForeignKey("members.character_id", ondelete="CASCADE"), nullable=False
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)

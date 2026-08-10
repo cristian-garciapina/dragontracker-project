@@ -197,6 +197,43 @@
       </div>
     </section>
 
+    {# ================================================= SEASON TOTALS #}
+    <section data-section="season-totals" class="mb-8">
+      <div class="mb-4">
+        <h2 class="font-display text-2xl mb-1">Season totals</h2>
+        <p class="text-secondary text-sm">Aggregate figures across all graded members (farms excluded).</p>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="stat-card" data-tone="primary">
+          <p class="text-[11px] text-secondary uppercase tracking-[0.12em] mb-3">Total power</p>
+          <p class="font-mono text-2xl text-primary" style="font-feature-settings: 'tnum' 1;">{{ stats.total_power_short }}</p>
+        </div>
+        <div class="stat-card" data-tone="muted">
+          <p class="text-[11px] text-secondary uppercase tracking-[0.12em] mb-3">Merits (gross)</p>
+          <p class="font-mono text-2xl text-muted" style="font-feature-settings: 'tnum' 1;">{{ stats.total_merits_gross_short }}</p>
+        </div>
+        <div class="stat-card" data-tone="primary">
+          <p class="text-[11px] text-secondary uppercase tracking-[0.12em] mb-3">Merits (net)</p>
+          <p class="font-mono text-2xl text-cyan" style="font-feature-settings: 'tnum' 1;">{{ stats.total_merits_net_short }}</p>
+        </div>
+        <div class="stat-card" data-tone="warning">
+          <p class="text-[11px] text-secondary uppercase tracking-[0.12em] mb-3">Farming deducted</p>
+          <p class="font-mono text-2xl text-gold" style="font-feature-settings: 'tnum' 1;">{{ stats.total_farming_short }}</p>
+        </div>
+        <div class="stat-card" data-tone="warning">
+          <p class="text-[11px] text-secondary uppercase tracking-[0.12em] mb-3">Burn deducted</p>
+          <p class="font-mono text-2xl text-gold" style="font-feature-settings: 'tnum' 1;">{{ stats.total_burn_short }}</p>
+        </div>
+      </div>
+      <p class="text-xs text-muted mt-4">
+        <span class="text-secondary">Median net merits</span> <span class="font-mono text-primary">{{ stats.median_merits_net_short }}</span>
+        <span class="mx-3 text-edge">·</span>
+        <span class="text-secondary">Median M/P%</span> <span class="font-mono text-primary">{{ "%.2f"|format(stats.median_mp) }}%</span>
+        <span class="mx-3 text-edge">·</span>
+        <span class="text-secondary">Standard deviation</span> <span class="font-mono text-primary">{{ "%.2f"|format(stats.stddev_mp) }} pp</span>
+      </p>
+    </section>
+
     <div class="signet mb-16" aria-hidden="true"></div>
 
     {# ============================================== GRADE DISTRIBUTION #}
@@ -363,6 +400,51 @@
       </div>
       {% endif %}
     </section>
+
+    {# ================================================ SEASON HISTORY #}
+    {% if season_history and season_history|length > 1 %}
+    <section data-section="season-history" class="mb-12">
+      <div class="mb-6">
+        <h2 class="font-display text-2xl mb-1">Season history</h2>
+        <p class="text-secondary text-sm">Compare kingdoms of arms across seasons. Descriptive stats computed on M/P% across all graded members.</p>
+      </div>
+      <div class="border border-edge bg-card rounded overflow-x-auto">
+        <table class="w-full text-sm" style="font-feature-settings: 'tnum' 1;">
+          <thead class="bg-elevated text-[11px] text-muted uppercase tracking-[0.18em]">
+            <tr>
+              <th class="px-4 py-3 text-left font-medium">Season</th>
+              <th class="px-4 py-3 text-right font-medium">Members</th>
+              <th class="px-4 py-3 text-right font-medium">Total power</th>
+              <th class="px-4 py-3 text-right font-medium">Merits (net)</th>
+              <th class="px-4 py-3 text-right font-medium">Farming</th>
+              <th class="px-4 py-3 text-right font-medium">Burn</th>
+              <th class="px-4 py-3 text-right font-medium">Avg M/P%</th>
+              <th class="px-4 py-3 text-right font-medium">Median</th>
+              <th class="px-4 py-3 text-right font-medium">σ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in season_history %}
+            <tr class="border-t border-edge {% if h.id == season.id %}bg-elevated/40{% endif %}">
+              <td class="px-4 py-3">
+                <a href="/dashboard?season={{ h.id }}" class="text-primary hover:text-cyan-300 transition-colors">{{ h.name }}</a>
+                {% if h.is_active %}<span class="ml-2 text-[10px] text-cyan-300 uppercase tracking-wider">active</span>{% endif %}
+              </td>
+              <td class="px-4 py-3 text-right font-mono">{{ h.count_scored }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ h.total_power_short }}</td>
+              <td class="px-4 py-3 text-right font-mono text-cyan">{{ h.total_merits_net_short }}</td>
+              <td class="px-4 py-3 text-right font-mono text-gold">{{ h.total_farming_short }}</td>
+              <td class="px-4 py-3 text-right font-mono text-gold">{{ h.total_burn_short }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ "%.2f"|format(h.mp_avg) }}%</td>
+              <td class="px-4 py-3 text-right font-mono">{{ "%.2f"|format(h.median_mp) }}%</td>
+              <td class="px-4 py-3 text-right font-mono text-muted">{{ "%.2f"|format(h.stddev_mp) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
 
   {% endif %}
 

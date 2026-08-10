@@ -213,6 +213,7 @@ async def dashboard_overview(
             "stats": stats,
             "distribution": queries.get_grade_distribution(db, season.id, snapshot.id),
             "top_performers": queries.get_top_grade_s(db, season.id, snapshot.id),
+            "season_history": queries.get_season_history(db),
             "has_scores": True,
             "ids_with_notes": queries.get_character_ids_with_notes(db) if is_staff_dash else set(),
         }

@@ -114,15 +114,109 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
     ).all()
     median_power = int(statistics.median(powers)) if powers else 0
 
+    total_power = db.scalar(
+        base(func.sum(Score.end_power)).where(Score.is_farm_account == False)
+    ) or 0
+    total_merits_net = db.scalar(
+        base(func.sum(Score.merits_effective)).where(Score.is_farm_account == False)
+    ) or 0
+    total_farming = db.scalar(
+        base(func.sum(Score.merits_farmed_deduction)).where(Score.is_farm_account == False)
+    ) or 0
+    total_burn = db.scalar(
+        base(func.sum(Score.merits_burn_deduction)).where(Score.is_farm_account == False)
+    ) or 0
+
+    net_merits = db.scalars(
+        select(Score.merits_effective)
+        .where(Score.season_id == season_id)
+        .where(Score.snapshot_id == snapshot_id)
+        .where(Score.is_farm_account == False)
+    ).all()
+    net_merits = [m for m in net_merits if m is not None]
+    median_merits_net = int(statistics.median(net_merits)) if net_merits else 0
+
+    mp_ratios = db.scalars(
+        select(Score.mp_ratio)
+        .where(Score.season_id == season_id)
+        .where(Score.snapshot_id == snapshot_id)
+        .where(Score.is_farm_account == False)
+    ).all()
+    median_mp = float(statistics.median(mp_ratios)) if mp_ratios else 0.0
+    stddev_mp = float(statistics.stdev(mp_ratios)) if len(mp_ratios) > 1 else 0.0
+
     return {
         "count_scored": count_scored,
         "count_farm": count_farm,
         "total_merits": int(total_merits),
         "total_merits_short": format_number_short(int(total_merits)),
+        "total_merits_gross": int(total_merits),
+        "total_merits_gross_short": format_number_short(int(total_merits)),
+        "total_merits_net": int(total_merits_net),
+        "total_merits_net_short": format_number_short(int(total_merits_net)),
+        "total_power": int(total_power),
+        "total_power_short": format_number_short(int(total_power)),
+        "total_farming": int(total_farming),
+        "total_farming_short": format_number_short(int(total_farming)),
+        "total_burn": int(total_burn),
+        "total_burn_short": format_number_short(int(total_burn)),
+        "median_merits_net": median_merits_net,
+        "median_merits_net_short": format_number_short(median_merits_net),
+        "median_mp": median_mp,
+        "stddev_mp": stddev_mp,
         "mp_avg": float(mp_avg) if mp_avg is not None else 0.0,
         "median_power": median_power,
         "median_power_short": format_number_short(median_power),
     }
+
+
+def get_season_history(db: Session) -> list[dict]:
+    """Aggregate stats for every scored season, for cross-season comparison.
+    Filters by each season's cumulative snapshot to avoid accumulated score dupes.
+    """
+    scored_ids = db.execute(
+        select(Score.season_id).distinct()
+    ).scalars().all()
+    if not scored_ids:
+        return []
+
+    seasons = db.execute(
+        select(Season)
+        .where(Season.id.in_(scored_ids))
+        .order_by(Season.is_active.desc(), Season.start_date.desc())
+    ).scalars().all()
+
+    history: list[dict] = []
+    for s in seasons:
+        snap = db.execute(
+            select(Snapshot)
+            .where(Snapshot.season_id == s.id)
+            .where(Snapshot.date_start == s.start_date)
+            .where(Snapshot.date_end > Snapshot.date_start)
+            .order_by(Snapshot.date_end.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if snap is None:
+            continue
+
+        stats = get_dashboard_stats(db, s.id, snap.id)
+        history.append({
+            "id": s.id,
+            "name": s.name,
+            "is_active": s.is_active,
+            "start_date": s.start_date,
+            "end_date": s.end_date,
+            "count_scored": stats["count_scored"],
+            "total_power_short": stats["total_power_short"],
+            "total_merits_gross_short": stats["total_merits_gross_short"],
+            "total_merits_net_short": stats["total_merits_net_short"],
+            "total_farming_short": stats["total_farming_short"],
+            "total_burn_short": stats["total_burn_short"],
+            "mp_avg": stats["mp_avg"],
+            "median_mp": stats["median_mp"],
+            "stddev_mp": stats["stddev_mp"],
+        })
+    return history
 
 
 def get_missing_count(

@@ -171,6 +171,46 @@ def get_top_performers(
     return [_row_to_dict(score, member, stat) for score, member, stat in rows]
 
 
+def get_reference_season_and_ratios(
+    db: Session, current_season_id: int
+) -> tuple[Optional[Season], dict[int, float]]:
+    """Most recent closed season with scores (excluding current).
+    Returns (season, {character_id: final_mp_ratio}) or (None, {})."""
+    scored_ids = db.execute(
+        select(Score.season_id).distinct().where(Score.season_id != current_season_id)
+    ).scalars().all()
+    if not scored_ids:
+        return None, {}
+
+    ref = db.execute(
+        select(Season)
+        .where(Season.id.in_(scored_ids))
+        .where(Season.is_active == False)
+        .order_by(Season.end_date.desc().nulls_last(), Season.start_date.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if ref is None:
+        return None, {}
+
+    final_snap = db.execute(
+        select(Snapshot)
+        .where(Snapshot.season_id == ref.id)
+        .where(Snapshot.date_start == ref.start_date)
+        .where(Snapshot.date_end > Snapshot.date_start)
+        .order_by(Snapshot.date_end.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if final_snap is None:
+        return None, {}
+
+    rows = db.execute(
+        select(Score.character_id, Score.mp_ratio)
+        .where(Score.snapshot_id == final_snap.id)
+        .where(Score.is_farm_account == False)
+    ).all()
+    return ref, {cid: mp for cid, mp in rows}
+
+
 def _row_to_dict(score: Score, member: Member, stat: Stat) -> dict:
     """Project every visible metric. `*_short` variants are the formatted
     "1.5M" strings; raw integers are also exposed for sorting or future use.
@@ -501,6 +541,7 @@ def get_full_roster(
     include_ex_members: bool = False,
     sort: str = "mp",
     order: str = "desc",
+    ref_ratios: Optional[dict[int, float]] = None,
 ) -> list[dict]:
     """Full roster query with search/filter/sort. Returns every member with
     a score for the given snapshot.
@@ -558,7 +599,31 @@ def get_full_roster(
         stmt = stmt.order_by(sort_col.desc().nulls_last())
 
     rows = db.execute(stmt).all()
-    return [_row_to_dict(score, member, stat) for score, member, stat in rows]
+    enriched = [_row_to_dict(score, member, stat) for score, member, stat in rows]
+
+    if ref_ratios is not None:
+        for r in enriched:
+            cid = r["character_id"]
+            current = r["mp_ratio"]
+            ref_mp = ref_ratios.get(cid)
+            if ref_mp is None:
+                r["mp_delta_pp"] = None
+                r["ref_status"] = "NEW"
+            elif current is None:
+                r["mp_delta_pp"] = None
+                r["ref_status"] = "NO_MATCH"
+            else:
+                r["mp_delta_pp"] = current - ref_mp
+                r["ref_status"] = "HAS_REF"
+
+        if sort == "mp_delta":
+            reverse = order.lower() != "asc"
+            with_delta = [r for r in enriched if r.get("mp_delta_pp") is not None]
+            without_delta = [r for r in enriched if r.get("mp_delta_pp") is None]
+            with_delta.sort(key=lambda r: r["mp_delta_pp"], reverse=reverse)
+            enriched = with_delta + without_delta
+
+    return enriched
 
 
 def count_total_roster(db: Session, season_id: int, snapshot_id: int) -> int:

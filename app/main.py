@@ -128,6 +128,7 @@ async def farms(
         "total": 0,
         "filters": {"q": "", "sort": "start_power", "order": "desc", "season": season or 0},
         "seasons_list": queries.list_seasons_for_picker(db),
+        "ref_season": None,
     }
 
     selected = queries.resolve_season_or_active(db, season or None)
@@ -323,6 +324,8 @@ async def roster(
         )
 
     context["total_count"] = queries.count_total_roster(db, season.id, snapshot.id)
+    ref_season, ref_ratios = queries.get_reference_season_and_ratios(db, season.id)
+    context["ref_season"] = ref_season
     context["rows"] = queries.get_full_roster(
         db,
         season.id,
@@ -335,6 +338,7 @@ async def roster(
         include_ex_members=include_ex_members,
         sort=sort,
         order=order,
+        ref_ratios=ref_ratios,
     )
     context["filtered_count"] = len(context["rows"])
     is_staff_roster = user.role in ("staff", "owner")

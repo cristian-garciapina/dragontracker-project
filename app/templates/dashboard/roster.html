@@ -343,6 +343,9 @@
             {% endif %}
 
             <th class="text-right" data-col="mp">{{ sort_link('mp', 'M/P %') }}</th>
+            {% if ref_season and not window_mode %}
+            <th class="text-right" data-col="mp_delta">{{ sort_link('mp_delta', 'Δ vs ' + ref_season.name) }}</th>
+            {% endif %}
             <th class="text-right" data-col="merits_total">{{ sort_link('merits_total', 'Merits') }}</th>
             <th class="text-right" data-col="merits_net">{{ sort_link('merits_net', 'Net merits') }}</th>
             <th class="text-right" data-col="deduction">{{ sort_link('deduction', 'Farming deduction') }}</th>
@@ -423,6 +426,24 @@
             {% endif %}
 
             <td class="text-right font-mono text-cyan">{% if row.mp_ratio is not none %}{{ "%.1f"|format(row.mp_ratio) }}%{% else %}—{% endif %}</td>
+            {% if ref_season and not window_mode %}
+            <td class="text-right font-mono">
+              {% if row.ref_status == "NEW" %}
+                <span class="text-cyan-300 text-xs uppercase tracking-wider">NEW</span>
+              {% elif row.mp_delta_pp is not none %}
+                {% set d = row.mp_delta_pp %}
+                {% if d > 0 %}
+                  <span class="text-emerald-400">+{{ '%.2f'|format(d) }} pp</span>
+                {% elif d < 0 %}
+                  <span class="text-rose-400">{{ '%.2f'|format(d) }} pp</span>
+                {% else %}
+                  <span class="text-muted">0.00 pp</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            {% endif %}
             <td class="text-right font-mono">{{ row.merits_total_short }}</td>
             <td class="text-right font-mono {% if row.merits_farmed_deduction > 0 %}text-cyan{% else %}text-muted{% endif %}"
                 {% if row.merits_farmed_deduction > 0 %}title="Raw {{ row.merits_total_short }} − farmed {{ row.merits_farmed_deduction_short }}"{% endif %}>

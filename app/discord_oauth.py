@@ -304,4 +304,5 @@ async def discord_unlink(
 
 async def _require_or_none(request: Request, db: Session) -> Optional[User]:
     from .auth import get_current_user
-    return await get_current_user(request=request, db=db)
+    ev_session = request.cookies.get(COOKIE_NAME)
+    return get_current_user(request=request, ev_session=ev_session, db=db)

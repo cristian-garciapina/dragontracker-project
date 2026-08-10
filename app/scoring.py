@@ -274,9 +274,7 @@ def recompute_scores_for_active_season(session: Session) -> dict:
     # 5) Wipe existing score rows for this (season, cumulative_snapshot) pair
     #    so a recompute does not pile up duplicates.
     session.execute(
-        delete(Score).where(
-            and_(Score.season_id == season.id, Score.snapshot_id == cum.id)
-        )
+        delete(Score).where(Score.season_id == season.id)
     )
 
     # 6) Compute one Score row per character that has BOTH start and cum stats

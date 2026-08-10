@@ -29,6 +29,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .bot_client import notify_verified_link, notify_verified_unlink
 from .auth import (
     COOKIE_NAME,
     SECURE_COOKIES,
@@ -172,6 +173,7 @@ async def discord_callback(
                 if email_conflict is None:
                     current.email = discord_email
             db.commit()
+            await notify_verified_link(current.discord_id)
             resp = RedirectResponse(url="/profile?ok=discord_linked", status_code=303)
         resp.delete_cookie(STATE_COOKIE, path="/")
         resp.delete_cookie(NEXT_COOKIE, path="/")
@@ -268,6 +270,7 @@ async def discord_create_external(
     db.add(user)
     db.commit()
     db.refresh(user)
+    await notify_verified_link(user.discord_id)
 
     session = create_session(
         db, user,
@@ -292,8 +295,10 @@ async def discord_unlink(
     current = await _require_or_none(request, db)
     if current is None:
         return RedirectResponse(url="/profile", status_code=303)
+    old_discord_id = current.discord_id
     current.discord_id = None
     db.commit()
+    await notify_verified_unlink(old_discord_id)
     return RedirectResponse(url="/profile?ok=discord_unlinked", status_code=303)
 
 

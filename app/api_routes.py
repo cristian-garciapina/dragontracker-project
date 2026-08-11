@@ -180,3 +180,147 @@ def api_reject_registration(
     session.delete(u)
     session.commit()
     return {"status": "rejected", "id": user_id}
+
+
+def _resolve_active_season_and_snapshot(session):
+    """Return (season_id, latest_cum_snapshot_id) or (None, None)."""
+    from sqlalchemy import select
+    from .models import Season, Score
+    season_id = session.execute(
+        select(Season.id).where(Season.is_active == True)  # noqa: E712
+    ).scalar_one_or_none()
+    if season_id is None:
+        return (None, None)
+    snap_id = session.execute(
+        select(Score.snapshot_id)
+        .where(Score.season_id == season_id)
+        .order_by(Score.snapshot_id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    return (season_id, snap_id)
+
+
+@router.get("/players/top", dependencies=[Depends(require_api_key)])
+def players_top(n: int = 10, session: Session = Depends(get_session)) -> list[dict]:
+    from .queries import get_default_roster_ordering
+    from .models import Member
+    n = max(1, min(int(n or 10), 50))
+    season_id, snap_id = _resolve_active_season_and_snapshot(session)
+    if season_id is None or snap_id is None:
+        return []
+    ordered = get_default_roster_ordering(session, season_id, snap_id)
+    top = ordered[:n]
+    name_by_cid = {
+        m.character_id: m.current_name
+        for m in session.execute(
+            select(Member).where(Member.character_id.in_([r.character_id for r in top]))
+        ).scalars().all()
+    }
+    return [
+        {
+            "rank": i + 1,
+            "character_id": r.character_id,
+            "current_name": name_by_cid.get(r.character_id, "?"),
+            "grade": r.grade,
+            "status": r.status,
+            "mp_ratio": float(r.mp_ratio) if r.mp_ratio is not None else None,
+            "merits_effective": int(r.merits_effective or 0),
+            "primary_role": r.primary_role,
+        }
+        for i, r in enumerate(top)
+    ]
+
+
+@router.get("/players/search", dependencies=[Depends(require_api_key)])
+def players_search(q: str = "", session: Session = Depends(get_session)) -> list[dict]:
+    from .models import Member, Score
+    q = (q or "").strip()
+    if not q:
+        return []
+    season_id, snap_id = _resolve_active_season_and_snapshot(session)
+    if season_id is None or snap_id is None:
+        return []
+    # search: nom LIKE %q% (case-insensitive) OR character_id exact si q est numerique
+    conditions = [Member.current_name.ilike(f"%{q}%")]
+    if q.isdigit():
+        conditions.append(Member.character_id == int(q))
+    from sqlalchemy import or_
+    members = session.execute(
+        select(Member).where(or_(*conditions)).limit(10)
+    ).scalars().all()
+    if not members:
+        return []
+    cids = [m.character_id for m in members]
+    scores = {
+        s.character_id: s
+        for s in session.execute(
+            select(Score)
+            .where(Score.season_id == season_id)
+            .where(Score.snapshot_id == snap_id)
+            .where(Score.character_id.in_(cids))
+        ).scalars().all()
+    }
+    out = []
+    for m in members:
+        sc = scores.get(m.character_id)
+        out.append({
+            "character_id": m.character_id,
+            "current_name": m.current_name,
+            "in_alliance": bool(m.in_alliance),
+            "grade": sc.grade if sc else None,
+            "status": sc.status if sc else None,
+            "mp_ratio": float(sc.mp_ratio) if sc and sc.mp_ratio is not None else None,
+            "merits_effective": int(sc.merits_effective or 0) if sc else None,
+            "primary_role": sc.primary_role if sc else None,
+        })
+    return out
+
+
+@router.get("/players/{character_id}", dependencies=[Depends(require_api_key)])
+def player_detail(character_id: int, session: Session = Depends(get_session)) -> dict:
+    from .queries import get_default_roster_ordering
+    from .models import Member, Score
+    member = session.get(Member, character_id)
+    if member is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    season_id, snap_id = _resolve_active_season_and_snapshot(session)
+    payload: dict = {
+        "character_id": member.character_id,
+        "current_name": member.current_name,
+        "in_alliance": bool(member.in_alliance),
+        "grade": None,
+        "status": None,
+        "mp_ratio": None,
+        "merits_effective": None,
+        "merits_cumulative": None,
+        "start_power": None,
+        "end_power": None,
+        "primary_role": None,
+        "rank": None,
+        "rank_total": None,
+        "season_id": season_id,
+    }
+    if season_id is None or snap_id is None:
+        return payload
+    sc = session.execute(
+        select(Score)
+        .where(Score.season_id == season_id)
+        .where(Score.snapshot_id == snap_id)
+        .where(Score.character_id == character_id)
+    ).scalar_one_or_none()
+    if sc is not None:
+        payload["grade"] = sc.grade
+        payload["status"] = sc.status
+        payload["mp_ratio"] = float(sc.mp_ratio) if sc.mp_ratio is not None else None
+        payload["merits_effective"] = int(sc.merits_effective or 0)
+        payload["merits_cumulative"] = int(sc.merits_cumulative or 0)
+        payload["start_power"] = int(sc.start_power or 0)
+        payload["end_power"] = int(sc.end_power or 0)
+        payload["primary_role"] = sc.primary_role
+    # rank dans l'ordre roster par defaut
+    ordered = get_default_roster_ordering(session, season_id, snap_id)
+    ids = [r.character_id for r in ordered]
+    if character_id in ids:
+        payload["rank"] = ids.index(character_id) + 1
+        payload["rank_total"] = len(ids)
+    return payload

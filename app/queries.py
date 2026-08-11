@@ -135,6 +135,7 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
     ).all()
     net_merits = [m for m in net_merits if m is not None]
     median_merits_net = int(statistics.median(net_merits)) if net_merits else 0
+    mean_merits_net = int(statistics.mean(net_merits)) if net_merits else 0
 
     mp_ratios = db.scalars(
         select(Score.mp_ratio)
@@ -162,6 +163,8 @@ def get_dashboard_stats(db: Session, season_id: int, snapshot_id: int) -> dict:
         "total_burn_short": format_number_short(int(total_burn)),
         "median_merits_net": median_merits_net,
         "median_merits_net_short": format_number_short(median_merits_net),
+        "mean_merits_net": mean_merits_net,
+        "mean_merits_net_short": format_number_short(mean_merits_net),
         "median_mp": median_mp,
         "stddev_mp": stddev_mp,
         "mp_avg": float(mp_avg) if mp_avg is not None else 0.0,

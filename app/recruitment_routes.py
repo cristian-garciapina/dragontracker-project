@@ -135,6 +135,20 @@ async def apply_submit(
     )
     db.add(app)
     db.commit()
+    try:
+        from .bot_client import notify_new_application
+        await notify_new_application({
+            "id": app.id,
+            "in_game_name": app.in_game_name,
+            "player_id": app.player_id,
+            "current_alliance": app.current_alliance,
+            "server": app.server,
+            "discord_handle": app.discord_handle,
+            "motivation": app.motivation,
+            "reference": app.reference,
+        })
+    except Exception:
+        pass
 
     return templates.TemplateResponse(
         request=request,

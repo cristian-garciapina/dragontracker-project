@@ -173,6 +173,19 @@ async def signup_submit(
     db.add(user)
     db.commit()
     db.refresh(user)
+    try:
+        from .bot_client import notify_new_signup
+        await notify_new_signup({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "submitted_in_game_name": user.submitted_in_game_name,
+            "submitted_rank": user.submitted_rank,
+            "submitted_server": user.submitted_server,
+            "submitted_alliance_tag": user.submitted_alliance_tag,
+        })
+    except Exception:
+        pass
 
     return templates.TemplateResponse(
         request=request,

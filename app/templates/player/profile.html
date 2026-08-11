@@ -59,6 +59,43 @@
 {% endblock %}
 
 {% block content %}
+
+<div data-nav="player-prev-next" class="mb-4 flex items-center gap-2 text-slate-300">
+  {% if prev_cid %}
+    <a href="/player/{{ prev_cid }}" class="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm hover:border-cyan-500/60 hover:text-cyan-300 transition-colors" aria-label="Previous player" title="Previous player (←)">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.24a.75.75 0 0 1 0-1.06l4.25-4.24a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
+      <span>Prev</span>
+    </a>
+  {% else %}
+    <span class="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-900/30 px-3 py-1.5 text-sm text-slate-600 cursor-not-allowed" aria-disabled="true" title="No previous player">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.24a.75.75 0 0 1 0-1.06l4.25-4.24a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
+      <span>Prev</span>
+    </span>
+  {% endif %}
+  {% if next_cid %}
+    <a href="/player/{{ next_cid }}" class="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm hover:border-cyan-500/60 hover:text-cyan-300 transition-colors" aria-label="Next player" title="Next player (→)">
+      <span>Next</span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 0-1.06L10.94 10 7.21 6.29a.75.75 0 1 1 1.06-1.06l4.25 4.24a.75.75 0 0 1 0 1.06l-4.25 4.24a.75.75 0 0 1-1.06 0Z" clip-rule="evenodd"/></svg>
+    </a>
+  {% else %}
+    <span class="inline-flex items-center gap-1 rounded-md border border-slate-800 bg-slate-900/30 px-3 py-1.5 text-sm text-slate-600 cursor-not-allowed" aria-disabled="true" title="No next player">
+      <span>Next</span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 0-1.06L10.94 10 7.21 6.29a.75.75 0 1 1 1.06-1.06l4.25 4.24a.75.75 0 0 1 0 1.06l-4.25 4.24a.75.75 0 0 1-1.06 0Z" clip-rule="evenodd"/></svg>
+    </span>
+  {% endif %}
+</div>
+<script>
+(function () {
+  const prev = {{ prev_cid | tojson }};
+  const next = {{ next_cid | tojson }};
+  document.addEventListener("keydown", function (e) {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable)) return;
+    if (e.key === "ArrowLeft" && prev) { window.location.href = "/player/" + prev; }
+    else if (e.key === "ArrowRight" && next) { window.location.href = "/player/" + next; }
+  });
+})();
+</script>
+
 <div class="max-w-5xl mx-auto px-6 py-10" data-page="player-profile">
 
   <section data-section="identity" class="mb-8">

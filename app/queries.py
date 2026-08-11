@@ -1257,3 +1257,59 @@ def get_player_daily_merits(session, character_id: int, season_id: int) -> list[
             "war_merits": war,
         })
     return out
+
+
+def get_prev_next_character_ids(db, current_character_id: int) -> tuple[int | None, int | None]:
+    """
+    Return (prev_cid, next_cid) for the roster's default ordering:
+      - in_alliance = True
+      - status not in ('FARM',)
+      - order by grade rank S=0..D=4 then mp_ratio DESC (NULLs last)
+    MERIT_FARMER and MISSING are included (they show on /roster by default).
+    FARM is excluded.
+    Returns (None, None) if current_character_id is not in the ordered list.
+    """
+    from sqlalchemy import select
+    from .models import Score, Member, Season
+
+    active_season_id = db.execute(
+        select(Season.id).where(Season.is_active == True)  # noqa: E712
+    ).scalar_one_or_none()
+    if active_season_id is None:
+        return (None, None)
+
+    # latest cumulative snapshot for this season
+    latest_cum_snap_id = db.execute(
+        select(Score.snapshot_id)
+        .where(Score.season_id == active_season_id)
+        .order_by(Score.snapshot_id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if latest_cum_snap_id is None:
+        return (None, None)
+
+    grade_rank = {"S": 0, "A": 1, "B": 2, "C": 3, "D": 4}
+
+    rows = db.execute(
+        select(Score.character_id, Score.grade, Score.status, Score.mp_ratio)
+        .join(Member, Member.character_id == Score.character_id)
+        .where(Score.season_id == active_season_id)
+        .where(Score.snapshot_id == latest_cum_snap_id)
+        .where(Member.in_alliance == True)  # noqa: E712
+        .where(Score.status != "FARM")
+    ).all()
+
+    ordered = sorted(
+        rows,
+        key=lambda r: (
+            grade_rank.get(r.grade, 99),
+            -(r.mp_ratio if r.mp_ratio is not None else -1.0),
+        ),
+    )
+    ids = [r.character_id for r in ordered]
+    if current_character_id not in ids:
+        return (None, None)
+    i = ids.index(current_character_id)
+    prev_cid = ids[i - 1] if i > 0 else None
+    next_cid = ids[i + 1] if i < len(ids) - 1 else None
+    return (prev_cid, next_cid)

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session as _EV_Session
 from sqlalchemy import select as _EV_select
 from .models import Season as _EV_Season
 from .auth import get_db as _EV_get_db
+from .queries import get_prev_next_character_ids as _get_prev_next_cids  # noqa: F401
 from .queries import get_player_daily_merits as _EV_gpdm
 
 from datetime import datetime
@@ -128,6 +129,8 @@ async def player_profile(
             "burns_current_season": burns_current_season,
             "event_history": get_player_event_history(db, character_id),
             "today_iso": datetime.utcnow().date().isoformat(),
+            "prev_cid": _get_prev_next_cids(db, character_id)[0],
+            "next_cid": _get_prev_next_cids(db, character_id)[1],
         },
     )
 

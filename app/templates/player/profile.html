@@ -62,30 +62,26 @@
 
 <div class="max-w-5xl mx-auto px-6 py-10" data-page="player-profile">
 
-  <section data-section="identity" class="mb-8">
-    <p class="text-xs tracking-[0.22em] uppercase text-muted font-mono mb-3">Player profile</p>
-    <div class="flex items-center gap-3 mb-2">
-      <h1 class="font-display text-4xl leading-tight">{{ member.current_name }}</h1>
-      <div class="flex items-center gap-1 ml-2">
-        {% if prev_cid %}
-          <a href="/player/{{ prev_cid }}" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:text-cyan-300 hover:bg-slate-800/60 transition-colors" title="Previous player (←)" aria-label="Previous player">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.24a.75.75 0 0 1 0-1.06l4.25-4.24a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
-          </a>
-        {% else %}
-          <span class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-700 cursor-not-allowed" aria-disabled="true">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.24a.75.75 0 0 1 0-1.06l4.25-4.24a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
-          </span>
-        {% endif %}
-        {% if next_cid %}
-          <a href="/player/{{ next_cid }}" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:text-cyan-300 hover:bg-slate-800/60 transition-colors" title="Next player (→)" aria-label="Next player">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 0-1.06L10.94 10 7.21 6.29a.75.75 0 1 1 1.06-1.06l4.25 4.24a.75.75 0 0 1 0 1.06l-4.25 4.24a.75.75 0 0 1-1.06 0Z" clip-rule="evenodd"/></svg>
-          </a>
-        {% else %}
-          <span class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-700 cursor-not-allowed" aria-disabled="true">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 0-1.06L10.94 10 7.21 6.29a.75.75 0 1 1 1.06-1.06l4.25 4.24a.75.75 0 0 1 0 1.06l-4.25 4.24a.75.75 0 0 1-1.06 0Z" clip-rule="evenodd"/></svg>
-          </span>
-        {% endif %}
-      </div>
+  <section data-section="identity" class="mb-8 relative">
+    <div class="absolute top-0 right-0 flex items-center gap-1">
+      {% if prev_cid %}
+        <a href="/player/{{ prev_cid }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-800 bg-slate-900/40 text-slate-400 hover:border-cyan-500/60 hover:text-cyan-300 hover:bg-slate-900/70 transition-colors" title="Previous player (←)" aria-label="Previous player">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.24a.75.75 0 0 1 0-1.06l4.25-4.24a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
+        </a>
+      {% else %}
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-900 bg-slate-900/20 text-slate-700 cursor-not-allowed" aria-disabled="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 0 1 0 1.06L9.06 10l3.73 3.71a.75.75 0 1 1-1.06 1.06l-4.25-4.24a.75.75 0 0 1 0-1.06l4.25-4.24a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
+        </span>
+      {% endif %}
+      {% if next_cid %}
+        <a href="/player/{{ next_cid }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-800 bg-slate-900/40 text-slate-400 hover:border-cyan-500/60 hover:text-cyan-300 hover:bg-slate-900/70 transition-colors" title="Next player (→)" aria-label="Next player">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 0-1.06L10.94 10 7.21 6.29a.75.75 0 1 1 1.06-1.06l4.25 4.24a.75.75 0 0 1 0 1.06l-4.25 4.24a.75.75 0 0 1-1.06 0Z" clip-rule="evenodd"/></svg>
+        </a>
+      {% else %}
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-900 bg-slate-900/20 text-slate-700 cursor-not-allowed" aria-disabled="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 0-1.06L10.94 10 7.21 6.29a.75.75 0 1 1 1.06-1.06l4.25 4.24a.75.75 0 0 1 0 1.06l-4.25 4.24a.75.75 0 0 1-1.06 0Z" clip-rule="evenodd"/></svg>
+        </span>
+      {% endif %}
     </div>
     <script>
     (function () {
@@ -98,6 +94,8 @@
       });
     })();
     </script>
+    <p class="text-xs tracking-[0.22em] uppercase text-muted font-mono mb-3">Player profile</p>
+    <h1 class="font-display text-4xl leading-tight mb-2">{{ member.current_name }}</h1>
     <p class="text-secondary text-sm flex items-center gap-3 flex-wrap">
       <span>ID <span class="id-copy font-mono text-primary" data-copy="{{ member.character_id }}">{{ member.character_id }}</span></span>
       <span class="text-muted">·</span>

@@ -1,38 +1,5 @@
 {% extends "base.html" %}
 {% block title %}Pending registrations · Eternal Vanguard
-<div id="screenshot-modal"
-     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 p-4"
-     role="dialog" aria-modal="true">
-  <button type="button" id="screenshot-modal-close"
-          class="absolute top-4 right-4 text-white text-3xl leading-none hover:text-cyan-300"
-          aria-label="Close">&times;</button>
-  <img id="screenshot-modal-img" src="" alt="signup proof"
-       class="max-h-[90vh] max-w-[95vw] object-contain rounded shadow-2xl">
-</div>
-<script>
-(function () {
-  const modal = document.getElementById('screenshot-modal');
-  const img = document.getElementById('screenshot-modal-img');
-  const close = document.getElementById('screenshot-modal-close');
-  function open(src) {
-    img.src = src;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-  }
-  function hide() {
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    img.src = '';
-  }
-  document.querySelectorAll('.js-open-screenshot').forEach(function (btn) {
-    btn.addEventListener('click', function () { open(btn.dataset.screenshotSrc); });
-  });
-  close.addEventListener('click', hide);
-  modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
-})();
-</script>
-
 {% endblock %}
 {% block content %}
 <div class="max-w-6xl mx-auto px-6 py-12" data-page="staff-registrations">
@@ -126,4 +93,36 @@
   {% endif %}
 
 </div>
+<div id="screenshot-modal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 p-4"
+     role="dialog" aria-modal="true">
+  <button type="button" id="screenshot-modal-close"
+          class="absolute top-4 right-4 text-white text-3xl leading-none hover:text-cyan-300"
+          aria-label="Close">&times;</button>
+  <img id="screenshot-modal-img" src="" alt="signup proof"
+       class="max-h-[90vh] max-w-[95vw] object-contain rounded shadow-2xl">
+</div>
+<script>
+(function () {
+  const modal = document.getElementById('screenshot-modal');
+  const img = document.getElementById('screenshot-modal-img');
+  const close = document.getElementById('screenshot-modal-close');
+  function open(src) {
+    img.src = src;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function hide() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    img.src = '';
+  }
+  document.querySelectorAll('.js-open-screenshot').forEach(function (btn) {
+    btn.addEventListener('click', function () { open(btn.dataset.screenshotSrc); });
+  });
+  close.addEventListener('click', hide);
+  modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+})();
+</script>
 {% endblock %}

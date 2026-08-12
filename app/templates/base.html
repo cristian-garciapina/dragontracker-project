@@ -462,6 +462,11 @@
             </button>
           </form>
         {% else %}
+          <a href="/signup"
+             class="text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors whitespace-nowrap"
+             data-action="signup">
+            Sign up
+          </a>
           <a href="/login"
              class="text-sm px-4 py-2 border border-edge rounded hover:border-cyan-400 hover:text-cyan-300 transition-colors whitespace-nowrap"
              data-action="login">
@@ -549,6 +554,7 @@
       {% else %}
         <p class="user-line">Members</p>
         <p class="user-name text-secondary text-sm">Log in to access the dashboard.</p>
+        <a href="/signup" class="drawer-btn login">Sign up</a>
         <a href="/login" class="drawer-btn login">Log in</a>
       {% endif %}
     </div>

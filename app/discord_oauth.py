@@ -201,6 +201,35 @@ async def discord_callback(
             resp.delete_cookie(NEXT_COOKIE, path="/")
             return resp
 
+    # Case C-bis: anonymous + unknown discord_id + Discord provided an email
+    # that matches an existing (non-Discord-linked, active, non-pending) user
+    # -> auto-link and log them in. Prevents duplicate dc_* accounts when a
+    # member who already has a site account clicks "Continue with Discord"
+    # while logged out.
+    if discord_email:
+        existing = db.scalar(
+            select(User).where(User.email == discord_email)
+        )
+        if (
+            existing is not None
+            and existing.is_active
+            and not existing.pending_approval
+            and not existing.discord_id
+        ):
+            existing.discord_id = discord_user_id
+            db.commit()
+            await notify_verified_link(existing.discord_id)
+            session = create_session(
+                db, existing,
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+            resp = RedirectResponse(url=next_url or "/dashboard", status_code=303)
+            _set_session_cookie(resp, session.session_id)
+            resp.delete_cookie(STATE_COOKIE, path="/")
+            resp.delete_cookie(NEXT_COOKIE, path="/")
+            return resp
+
     # Case C: anonymous + unknown discord_id -> ask user what to do
     # Stash discord_user_id + username in a short-lived cookie and redirect
     # to /auth/discord/choose. NO account is created here.

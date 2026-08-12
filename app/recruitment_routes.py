@@ -18,14 +18,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .auth import get_db, require_staff
 from .models import Application, User
+from .uploads import UploadError, delete_screenshot, save_screenshot
 
 router = APIRouter(tags=["recruitment"])
 
@@ -84,6 +85,7 @@ async def apply_submit(
     server: str = Form(...),
     motivation: str = Form(...),
     discord_handle: str = Form(""),
+    screenshot: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
     form = {
@@ -117,6 +119,8 @@ async def apply_submit(
     motivation_clean = motivation.strip()
     if len(motivation_clean) < 20:
         return render_error("Please tell us a bit more about yourself (20+ characters).")
+    if not screenshot or not screenshot.filename:
+        return render_error("Profile screenshot is required.")
 
     now = datetime.utcnow()
     reference = _generate_reference(db)
@@ -134,6 +138,15 @@ async def apply_submit(
         status_updated_at=now,
     )
     db.add(app)
+    db.commit()
+    db.refresh(app)
+    try:
+        screenshot_path = await save_screenshot(screenshot, "applications", str(app.id))
+    except UploadError as e:
+        db.delete(app)
+        db.commit()
+        return render_error(str(e))
+    app.screenshot_path = screenshot_path
     db.commit()
     try:
         from .bot_client import notify_new_application
@@ -268,8 +281,10 @@ async def delete_application(
     app = db.get(Application, app_id)
     if app is None:
         return RedirectResponse(url="/staff/applications", status_code=303)
+    screenshot = app.screenshot_path
     db.delete(app)
     db.commit()
+    delete_screenshot(screenshot)
     return RedirectResponse(url="/staff/applications", status_code=303)
 
 
@@ -290,3 +305,18 @@ async def update_notes(
         url=f"/staff/applications?saved=notes#app-{app_id}",
         status_code=303,
     )
+
+
+@router.get("/staff/application-screenshot/{app_id}")
+async def application_screenshot_view(
+    app_id: int,
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    app = db.get(Application, app_id)
+    if app is None or not app.screenshot_path:
+        return RedirectResponse(url="/staff/applications", status_code=303)
+    path = Path(app.screenshot_path)
+    if not path.is_file():
+        return RedirectResponse(url="/staff/applications", status_code=303)
+    return FileResponse(str(path))

@@ -86,6 +86,22 @@
                 <span class="text-primary font-mono">{{ app.discord_handle }}</span>
               </p>
             {% endif %}
+            {% if app.screenshot_path %}
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wider mb-1">Profile screenshot</p>
+              <button type="button"
+                      data-screenshot-src="/staff/application-screenshot/{{ app.id }}"
+                      class="js-open-screenshot inline-block border border-edge rounded overflow-hidden hover:border-cyan-500 transition-colors"
+                      title="Click to view full size">
+                <img src="/staff/application-screenshot/{{ app.id }}" alt="proof"
+                     class="block h-24 w-auto object-contain bg-black/40" loading="lazy">
+              </button>
+            </div>
+            {% else %}
+            <div>
+              <p class="text-xs text-rose-400">No screenshot attached (legacy application).</p>
+            </div>
+            {% endif %}
             <div>
               <p class="text-xs text-muted uppercase tracking-wider mb-1">Motivation</p>
               <p class="text-sm text-secondary whitespace-pre-wrap leading-relaxed">{{ app.motivation }}</p>
@@ -184,4 +200,38 @@
   {% endif %}
 
 </div>
+
+<div id="screenshot-modal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 p-4"
+     role="dialog" aria-modal="true">
+  <button type="button" id="screenshot-modal-close"
+          class="absolute top-4 right-4 text-white text-3xl leading-none hover:text-cyan-300"
+          aria-label="Close">&times;</button>
+  <img id="screenshot-modal-img" src="" alt="application proof"
+       class="max-h-[90vh] max-w-[95vw] object-contain rounded shadow-2xl">
+</div>
+<script>
+(function () {
+  const modal = document.getElementById('screenshot-modal');
+  const img = document.getElementById('screenshot-modal-img');
+  const close = document.getElementById('screenshot-modal-close');
+  function open(src) {
+    img.src = src;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function hide() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    img.src = '';
+  }
+  document.querySelectorAll('.js-open-screenshot').forEach(function (btn) {
+    btn.addEventListener('click', function () { open(btn.dataset.screenshotSrc); });
+  });
+  close.addEventListener('click', hide);
+  modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+})();
+</script>
+
 {% endblock %}

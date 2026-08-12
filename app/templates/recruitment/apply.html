@@ -114,7 +114,7 @@
     </div>
     {% endif %}
 
-    <form method="post" action="/apply" class="space-y-5">
+    <form method="post" action="/apply" enctype="multipart/form-data" class="space-y-5">
 
       <div>
         <label for="in_game_name" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">In-game name</label>
@@ -161,6 +161,14 @@
         <p class="text-xs text-muted mt-1">20 characters minimum.</p>
       </div>
 
+      <div>
+        <label for="screenshot" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">Profile screenshot <span class="text-rose-400">*</span></label>
+        <input id="screenshot" name="screenshot" type="file" required accept="image/jpeg,image/png,image/webp"
+               class="w-full px-3 py-2 bg-card border border-edge rounded-sm text-primary text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-cyan-600 file:text-white hover:file:bg-cyan-500">
+        <p class="text-xs text-muted mt-1 leading-relaxed">
+          Screenshot of your in-game Profile screen (open by tapping your own portrait). This view is only visible to the account owner. Your Character name and Character ID must be clearly readable. JPG/PNG/WEBP, max 5&nbsp;MB. Applications without a valid screenshot will be rejected.
+        </p>
+      </div>
       <div class="pt-2">
         <button type="submit"
                 class="px-5 py-2.5 border border-cyan-500/50 text-cyan-300 hover:border-cyan-400 hover:bg-cyan-900/20 transition-colors rounded-sm text-sm tracking-wider">

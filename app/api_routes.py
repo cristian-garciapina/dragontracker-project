@@ -147,6 +147,39 @@ def api_reject_application(
     return {"status": "rejected", "id": app.id}
 
 
+@router.post("/applications/{app_id}/migrate", dependencies=[Depends(require_api_key)])
+def api_migrate_application(
+    app_id: int,
+    payload: dict = Body(default={}),
+    session: Session = Depends(get_session),
+) -> dict:
+    app = session.get(Application, app_id)
+    if app is None:
+        raise HTTPException(status_code=404, detail="application not found")
+    if app.status == "migrated":
+        return {"status": "noop", "current_status": "migrated"}
+    if app.status == "rejected":
+        raise HTTPException(status_code=409, detail="cannot migrate a rejected application")
+    if app.status not in ("new", "reviewing", "accepted"):
+        raise HTTPException(status_code=409, detail=f"invalid current status: {app.status}")
+    acted_by = str(payload.get("acted_by", "discord:unknown"))[:64]
+    now = datetime.utcnow()
+    app.status = "migrated"
+    app.reviewed_by = acted_by
+    app.reviewed_at = now
+    app.status_updated_at = now
+    # Auto-promote linked external user to member (mirror of update_status)
+    linked = session.execute(
+        select(User).where(User.character_id == app.player_id)
+    ).scalar_one_or_none()
+    promoted = False
+    if linked is not None and linked.role == "external":
+        linked.role = "member"
+        promoted = True
+    session.commit()
+    return {"status": "migrated", "id": app.id, "promoted_user_id": linked.id if promoted else None}
+
+
 @router.post("/registrations/{user_id}/approve", dependencies=[Depends(require_api_key)])
 def api_approve_registration(
     user_id: int,

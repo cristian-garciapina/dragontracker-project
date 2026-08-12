@@ -11,6 +11,7 @@ from .db import get_session
 from datetime import datetime
 from fastapi import Body
 from .models import Application, Score, Season, User
+from .audit import record_staff_event, latest_event
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -116,6 +117,10 @@ def api_accept_application(
     app.reviewed_by = acted_by
     app.reviewed_at = now
     app.status_updated_at = now
+    record_staff_event(
+        session, entity_type="application", entity_id=app.id,
+        entity_ref=app.reference, action="accepted", actor=acted_by,
+    )
     session.commit()
     return {"status": "accepted", "id": app.id}
 
@@ -143,6 +148,10 @@ def api_reject_application(
     app.reviewed_by = acted_by
     app.reviewed_at = now
     app.status_updated_at = now
+    record_staff_event(
+        session, entity_type="application", entity_id=app.id,
+        entity_ref=app.reference, action="rejected", actor=acted_by,
+    )
     session.commit()
     return {"status": "rejected", "id": app.id}
 
@@ -176,6 +185,10 @@ def api_migrate_application(
     if linked is not None and linked.role == "external":
         linked.role = "member"
         promoted = True
+    record_staff_event(
+        session, entity_type="application", entity_id=app.id,
+        entity_ref=app.reference, action="migrated", actor=acted_by,
+    )
     session.commit()
     return {"status": "migrated", "id": app.id, "promoted_user_id": linked.id if promoted else None}
 
@@ -193,9 +206,15 @@ def api_approve_registration(
     if grant_role not in ("external", "member", "staff"):
         grant_role = "member"
     # API cannot grant owner role — only interactive staff can (existing web rule).
+    acted_by = str(payload.get("acted_by", "discord:unknown"))[:64]
     u.pending_approval = False
     u.is_active = True
     u.role = grant_role
+    record_staff_event(
+        session, entity_type="registration", entity_id=u.id,
+        entity_ref=u.username, action="approved",
+        detail=grant_role, actor=acted_by,
+    )
     session.commit()
     return {"status": "approved", "id": u.id, "role": grant_role}
 
@@ -203,6 +222,7 @@ def api_approve_registration(
 @router.post("/registrations/{user_id}/reject", dependencies=[Depends(require_api_key)])
 def api_reject_registration(
     user_id: int,
+    payload: dict = Body(default={}),
     session: Session = Depends(get_session),
 ) -> dict:
     u = session.get(User, user_id)
@@ -210,9 +230,79 @@ def api_reject_registration(
         raise HTTPException(status_code=404, detail="user not found")
     if not u.pending_approval:
         raise HTTPException(status_code=409, detail="user not pending")
+    acted_by = str(payload.get("acted_by", "discord:unknown"))[:64]
+    username = u.username
+    record_staff_event(
+        session, entity_type="registration", entity_id=u.id,
+        entity_ref=username, action="rejected", actor=acted_by,
+    )
     session.delete(u)
     session.commit()
     return {"status": "rejected", "id": user_id}
+
+
+@router.get("/applications/{app_id}/status", dependencies=[Depends(require_api_key)])
+def api_application_status(app_id: int, session: Session = Depends(get_session)) -> dict:
+    """Return current state + last audit event for an application.
+
+    Never 404s if there is history: returns state='deleted' when the row is
+    gone but an audit event exists. Returns 404 only for true orphans.
+    """
+    app = session.get(Application, app_id)
+    evt = latest_event(session, entity_type="application", entity_id=app_id)
+    if app is None and evt is None:
+        raise HTTPException(status_code=404, detail="unknown application")
+    state = app.status if app is not None else "deleted"
+    entity_ref = app.reference if app is not None else (evt.entity_ref if evt else None)
+    return {
+        "state": state,
+        "entity_ref": entity_ref,
+        "last_action": {
+            "action": evt.action,
+            "detail": evt.detail,
+            "actor": evt.actor,
+            "at": evt.at.isoformat(),
+        } if evt else None,
+    }
+
+
+@router.get("/registrations/{user_id}/status", dependencies=[Depends(require_api_key)])
+def api_registration_status(user_id: int, session: Session = Depends(get_session)) -> dict:
+    """Return current state + last audit event for a registration.
+
+    States:
+      pending        -> user exists, pending_approval=True
+      approved:role  -> user exists, active, not pending
+      inactive       -> user exists but is_active=False
+      rejected       -> user gone, last event was 'rejected'
+      deleted        -> user gone, last event was 'deleted' or other
+      404            -> user gone AND no audit event
+    """
+    u = session.get(User, user_id)
+    evt = latest_event(session, entity_type="registration", entity_id=user_id)
+    if u is None and evt is None:
+        raise HTTPException(status_code=404, detail="unknown registration")
+    if u is not None:
+        if u.pending_approval:
+            state = "pending"
+        elif not u.is_active:
+            state = "inactive"
+        else:
+            state = f"approved:{u.role}"
+        entity_ref = u.username
+    else:
+        state = "rejected" if (evt and evt.action == "rejected") else "deleted"
+        entity_ref = evt.entity_ref if evt else None
+    return {
+        "state": state,
+        "entity_ref": entity_ref,
+        "last_action": {
+            "action": evt.action,
+            "detail": evt.detail,
+            "actor": evt.actor,
+            "at": evt.at.isoformat(),
+        } if evt else None,
+    }
 
 
 def _resolve_active_season_and_snapshot(session):

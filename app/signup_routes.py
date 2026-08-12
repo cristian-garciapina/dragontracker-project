@@ -27,6 +27,7 @@ from .auth import (
 )
 from .models import Member, User
 from .uploads import UploadError, delete_screenshot, save_screenshot
+from .audit import record_staff_event
 
 router = APIRouter(tags=["signup"])
 
@@ -254,6 +255,11 @@ async def approve_registration(
     u.is_active = True
     u.role = role
     u.signup_screenshot_path = None
+    record_staff_event(
+        db, entity_type="registration", entity_id=u.id,
+        entity_ref=u.username, action="approved",
+        detail=role, actor=f"web:{staff.username}",
+    )
     db.commit()
     delete_screenshot(screenshot)
     return RedirectResponse(url="/staff/registrations", status_code=303)
@@ -268,6 +274,11 @@ async def reject_registration(
     u = db.get(User, user_id)
     if u is not None and u.pending_approval:
         screenshot = u.signup_screenshot_path
+        record_staff_event(
+            db, entity_type="registration", entity_id=u.id,
+            entity_ref=u.username, action="rejected",
+            actor=f"web:{staff.username}",
+        )
         db.delete(u)
         db.commit()
         delete_screenshot(screenshot)

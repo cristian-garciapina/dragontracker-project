@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from .auth import get_db, require_staff
 from .models import Application, User
 from .uploads import UploadError, delete_screenshot, save_screenshot
+from .audit import record_staff_event
 
 router = APIRouter(tags=["recruitment"])
 
@@ -232,6 +233,13 @@ async def update_status(
             linked = db.scalar(select(User).where(User.character_id == app.player_id))
             if linked is not None and linked.role == "external":
                 linked.role = "member"
+        action = "migrated" if new_status == "migrated" else "status_change"
+        record_staff_event(
+            db, entity_type="application", entity_id=app.id,
+            entity_ref=app.reference, action=action,
+            detail=(None if action == "migrated" else new_status),
+            actor=f"web:{user.username}",
+        )
     if notes.strip():
         app.notes = notes.strip()
     db.commit()
@@ -267,6 +275,11 @@ async def reject_application(
     app.status_updated_at = now
     if notes.strip():
         app.notes = notes.strip()
+    record_staff_event(
+        db, entity_type="application", entity_id=app.id,
+        entity_ref=app.reference, action="rejected",
+        actor=f"web:{user.username}",
+    )
     db.commit()
     return RedirectResponse(url="/staff/applications", status_code=303)
 
@@ -282,6 +295,11 @@ async def delete_application(
     if app is None:
         return RedirectResponse(url="/staff/applications", status_code=303)
     screenshot = app.screenshot_path
+    record_staff_event(
+        db, entity_type="application", entity_id=app.id,
+        entity_ref=app.reference, action="deleted",
+        actor=f"web:{user.username}",
+    )
     db.delete(app)
     db.commit()
     delete_screenshot(screenshot)
@@ -300,6 +318,11 @@ async def update_notes(
     if app is None:
         return RedirectResponse(url="/staff/applications", status_code=303)
     app.notes = notes.strip() or None
+    record_staff_event(
+        db, entity_type="application", entity_id=app.id,
+        entity_ref=app.reference, action="notes_updated",
+        actor=f"web:{user.username}",
+    )
     db.commit()
     return RedirectResponse(
         url=f"/staff/applications?saved=notes#app-{app_id}",

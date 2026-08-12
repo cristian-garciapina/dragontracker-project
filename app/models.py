@@ -417,6 +417,28 @@ class User(Base):
     )
 
 
+class StaffEvent(Base):
+    """Audit log for staff actions on applications and registrations.
+
+    Polymorphic: entity_type is 'application' or 'registration', entity_id
+    references the row at the time of the action. entity_ref stores a human
+    identifier (reference / username) so post-delete lookups still show
+    something meaningful.
+    """
+    __tablename__ = "staff_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    entity_ref: Mapped[Optional[str]] = mapped_column(String(64))
+    action: Mapped[str] = mapped_column(String(24), nullable=False)
+    detail: Mapped[Optional[str]] = mapped_column(String(64))
+    actor: Mapped[str] = mapped_column(String(64), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__ = (
+        Index("ix_staff_events_lookup", "entity_type", "entity_id", "at"),
+    )
+
+
 class UserSession(Base):
     """Server-side session record. The session_id is the value stored in the
     httpOnly cookie sent to the browser.

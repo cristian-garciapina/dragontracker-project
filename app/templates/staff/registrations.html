@@ -1,5 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Pending registrations · Eternal Vanguard{% endblock %}
+{% block title %}Pending registrations · Eternal Vanguard
+<div id="screenshot-modal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 p-4"
+     role="dialog" aria-modal="true">
+  <button type="button" id="screenshot-modal-close"
+          class="absolute top-4 right-4 text-white text-3xl leading-none hover:text-cyan-300"
+          aria-label="Close">&times;</button>
+  <img id="screenshot-modal-img" src="" alt="signup proof"
+       class="max-h-[90vh] max-w-[95vw] object-contain rounded shadow-2xl">
+</div>
+<script>
+(function () {
+  const modal = document.getElementById('screenshot-modal');
+  const img = document.getElementById('screenshot-modal-img');
+  const close = document.getElementById('screenshot-modal-close');
+  function open(src) {
+    img.src = src;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function hide() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    img.src = '';
+  }
+  document.querySelectorAll('.js-open-screenshot').forEach(function (btn) {
+    btn.addEventListener('click', function () { open(btn.dataset.screenshotSrc); });
+  });
+  close.addEventListener('click', hide);
+  modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+})();
+</script>
+
+{% endblock %}
 {% block content %}
 <div class="max-w-6xl mx-auto px-6 py-12" data-page="staff-registrations">
 
@@ -28,6 +62,7 @@
             <th class="px-4 py-3 text-center">Rank</th>
             <th class="px-4 py-3 text-right">Server</th>
             <th class="px-4 py-3 text-left">Alliance</th>
+            <th class="px-4 py-3 text-center">Proof</th>
             <th class="px-4 py-3 text-center">Actions</th>
           </tr>
         </thead>
@@ -43,6 +78,19 @@
               <td class="px-4 py-3 text-center font-mono text-gold">{{ u.submitted_rank }}</td>
               <td class="px-4 py-3 text-right font-mono">{{ u.submitted_server }}</td>
               <td class="px-4 py-3 font-mono">{{ u.submitted_alliance_tag }}</td>
+              <td class="px-4 py-3 text-center">
+                {% if u.signup_screenshot_path %}
+                  <button type="button"
+                          data-screenshot-src="/staff/signup-screenshot/{{ u.id }}"
+                          class="js-open-screenshot inline-block border border-edge rounded overflow-hidden hover:border-cyan-500 transition-colors"
+                          title="Click to view full size">
+                    <img src="/staff/signup-screenshot/{{ u.id }}" alt="proof"
+                         class="block h-12 w-auto object-contain bg-black/40" loading="lazy">
+                  </button>
+                {% else %}
+                  <span class="text-xs text-rose-400">missing</span>
+                {% endif %}
+              </td>
               <td class="px-4 py-3 text-center">
                 <form method="post" action="/staff/registrations/{{ u.id }}/approve" class="inline">
                   <select name="grant_role"

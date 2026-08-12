@@ -12,8 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -26,6 +26,7 @@ from .auth import (
     require_staff,
 )
 from .models import Member, User
+from .uploads import UploadError, delete_screenshot, save_screenshot
 
 router = APIRouter(tags=["signup"])
 
@@ -78,6 +79,7 @@ async def signup_submit(
     alliance_tag: str = Form(...),
     password: str = Form(...),
     password_confirm: str = Form(...),
+    screenshot: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
     form = {
@@ -123,6 +125,8 @@ async def signup_submit(
         return _render_form(
             request, form, f"Password must be at least {MIN_PASSWORD_LEN} characters.", 400
         )
+    if not screenshot or not screenshot.filename:
+        return _render_form(request, form, "Profile screenshot is required.", 400)
 
     # --- Uniqueness / existence checks
     if db.scalar(select(User).where(User.username == username_clean)):
@@ -173,6 +177,14 @@ async def signup_submit(
     db.add(user)
     db.commit()
     db.refresh(user)
+    try:
+        screenshot_path = await save_screenshot(screenshot, "signups", str(user.id))
+    except UploadError as e:
+        db.delete(user)
+        db.commit()
+        return _render_form(request, form, str(e), 400)
+    user.signup_screenshot_path = screenshot_path
+    db.commit()
     try:
         from .bot_client import notify_new_signup
         await notify_new_signup({
@@ -237,10 +249,13 @@ async def approve_registration(
     if role == "owner" and staff.role != "owner":
         role = "staff"
 
+    screenshot = u.signup_screenshot_path
     u.pending_approval = False
     u.is_active = True
     u.role = role
+    u.signup_screenshot_path = None
     db.commit()
+    delete_screenshot(screenshot)
     return RedirectResponse(url="/staff/registrations", status_code=303)
 
 
@@ -252,6 +267,23 @@ async def reject_registration(
 ):
     u = db.get(User, user_id)
     if u is not None and u.pending_approval:
+        screenshot = u.signup_screenshot_path
         db.delete(u)
         db.commit()
+        delete_screenshot(screenshot)
     return RedirectResponse(url="/staff/registrations", status_code=303)
+
+
+@router.get("/staff/signup-screenshot/{user_id}")
+async def signup_screenshot_view(
+    user_id: int,
+    staff: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    u = db.get(User, user_id)
+    if u is None or not u.signup_screenshot_path:
+        return RedirectResponse(url="/staff/registrations", status_code=303)
+    path = Path(u.signup_screenshot_path)
+    if not path.is_file():
+        return RedirectResponse(url="/staff/registrations", status_code=303)
+    return FileResponse(str(path))

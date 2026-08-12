@@ -410,6 +410,7 @@ class User(Base):
     submitted_alliance_tag: Mapped[Optional[str]] = mapped_column(String(16))
     discord_id: Mapped[Optional[str]] = mapped_column(String(32), index=True)
     email: Mapped[Optional[str]] = mapped_column(String(120), unique=True, index=True)
+    signup_screenshot_path: Mapped[Optional[str]] = mapped_column(String(255))
 
     sessions: Mapped[list["UserSession"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -468,6 +469,7 @@ class Application(Base):
     reference: Mapped[Optional[str]] = mapped_column(String(20), unique=True)
     public_reason: Mapped[Optional[str]] = mapped_column(Text)
     status_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    screenshot_path: Mapped[Optional[str]] = mapped_column(String(255))
 
     __table_args__ = (
         Index("ix_app_status", "status"),

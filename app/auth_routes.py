@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from .ratelimit import hit as rl_hit, client_ip, format_retry
 from .auth import (
     COOKIE_NAME,
     _clear_cookie,
@@ -47,6 +48,14 @@ async def login_submit(
     next: str = Form("/dashboard"),
     db: Session = Depends(get_db),
 ):
+    ok, retry = rl_hit(f"login:{client_ip(request)}", 10, 60)
+    if not ok:
+        return templates.TemplateResponse(
+            request=request,
+            name="auth/login.html",
+            context={"next": next, "error": f"Too many attempts. Try again in {format_retry(retry)}.", "flash": None},
+            status_code=429,
+        )
     ident = (username or "").lower().strip()
     user = db.scalar(
         select(User).where(or_(User.username == ident, User.email == ident))

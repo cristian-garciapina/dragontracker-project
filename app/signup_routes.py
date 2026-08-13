@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .ratelimit import hit as rl_hit, client_ip, format_retry
 from .auth import (
     _set_cookie,
     create_session,
@@ -98,6 +99,9 @@ async def signup_submit(
     screenshot: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
+    ok, retry = rl_hit(f"signup:{client_ip(request)}", 3, 3600)
+    if not ok:
+        return _render_form(request, _empty_form(), f"Too many signup attempts. Try again in {format_retry(retry)}.", 429)
     form = {
         "username": username,
         "email": email,

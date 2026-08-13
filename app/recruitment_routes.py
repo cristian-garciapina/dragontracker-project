@@ -24,6 +24,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .ratelimit import hit as rl_hit, client_ip, format_retry
 from .auth import get_db, require_staff
 from .models import Application, User
 from .uploads import UploadError, delete_screenshot, save_screenshot
@@ -89,6 +90,14 @@ async def apply_submit(
     screenshot: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
+    ok, retry = rl_hit(f"apply:{client_ip(request)}", 3, 3600)
+    if not ok:
+        return templates.TemplateResponse(
+            request=request,
+            name="recruitment/apply.html",
+            context={"form": {"in_game_name": in_game_name, "player_id": player_id, "current_alliance": current_alliance, "server": server, "motivation": motivation, "discord_handle": discord_handle}, "error": f"Too many applications from this address. Try again in {format_retry(retry)}.", "submitted": False, "reference": None},
+            status_code=429,
+        )
     form = {
         "in_game_name": in_game_name,
         "player_id": player_id,

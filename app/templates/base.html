@@ -126,6 +126,62 @@
       white-space: nowrap;
     }
     .nav-link:hover { color: var(--color-cyan); }
+
+    .nav-dropdown { position: relative; }
+    .nav-dropdown-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .nav-dropdown-chev {
+      font-size: 0.7em;
+      transition: transform 0.2s ease;
+    }
+    .nav-dropdown:hover .nav-dropdown-chev,
+    .nav-dropdown:focus-within .nav-dropdown-chev {
+      transform: rotate(180deg);
+    }
+    .nav-dropdown-panel {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      right: 0;
+      min-width: 180px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      padding: 0.35rem 0;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+      z-index: 50;
+    }
+    .nav-dropdown:hover .nav-dropdown-panel,
+    .nav-dropdown:focus-within .nav-dropdown-panel {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s;
+    }
+    .nav-dropdown-item {
+      display: block;
+      padding: 0.5rem 1rem;
+      color: var(--color-text-secondary, #cbd5e1);
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+    .nav-dropdown-item:hover,
+    .nav-dropdown-item:focus-visible {
+      background: rgba(56, 189, 248, 0.08);
+      color: var(--color-cyan, #7dd3fc);
+      outline: none;
+    }
     .nav-cta {
       color: var(--color-gold);
       border-bottom: 1px dashed rgba(221, 184, 114, 0.4);
@@ -431,14 +487,21 @@
           <li><a href="/farms" class="nav-link">Farms</a></li>
           <li><a href="/profile" class="nav-link">Profile</a></li>
           {% if user.role in ['staff', 'owner'] %}
-          <li><a href="/staff/applications" class="nav-link">Apps</a></li>
-          <li><a href="/staff/registrations" class="nav-link">Pending</a></li>
-          <li><a href="/staff/users" class="nav-link">Users</a></li>
-          <li><a href="/staff/seasons" class="nav-link">Seasons</a></li>
-          <li><a href="/staff/events" class="nav-link">Events</a></li>
-          <li><a href="/staff/farming-windows" class="nav-link">Farming</a></li>
-          <li><a href="/staff/settings" class="nav-link">Settings</a></li>
-          <li><a href="/staff/audit" class="nav-link">Audit</a></li>
+          <li class="nav-dropdown">
+            <button type="button" class="nav-link nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+              Staff <span class="nav-dropdown-chev" aria-hidden="true">▾</span>
+            </button>
+            <div class="nav-dropdown-panel" role="menu">
+              <a href="/staff/applications" class="nav-dropdown-item" role="menuitem">Applications</a>
+              <a href="/staff/registrations" class="nav-dropdown-item" role="menuitem">Pending users</a>
+              <a href="/staff/users" class="nav-dropdown-item" role="menuitem">Users</a>
+              <a href="/staff/seasons" class="nav-dropdown-item" role="menuitem">Seasons</a>
+              <a href="/staff/events" class="nav-dropdown-item" role="menuitem">Events</a>
+              <a href="/staff/farming-windows" class="nav-dropdown-item" role="menuitem">Farming</a>
+              <a href="/staff/settings" class="nav-dropdown-item" role="menuitem">Settings</a>
+              <a href="/staff/audit" class="nav-dropdown-item" role="menuitem">Audit log</a>
+            </div>
+          </li>
           {% endif %}
           {% endif %}
         {% endif %}

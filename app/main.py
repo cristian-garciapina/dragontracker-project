@@ -39,6 +39,7 @@ from .farming_windows_routes import router as farming_windows_router
 from .player_routes import router as player_router
 from .discord_oauth import router as discord_oauth_router
 from .api_routes import router as api_router
+from .audit_routes import router as audit_router
 from .password_reset import router as password_reset_router
 from .models import User
 
@@ -67,6 +68,7 @@ app.include_router(discord_oauth_router)
 app.include_router(password_reset_router)
 app.include_router(seasons_router)
 app.include_router(api_router)
+app.include_router(audit_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

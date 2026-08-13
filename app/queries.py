@@ -1168,7 +1168,7 @@ def ensure_member_exists(db, character_id: int, name: str) -> bool:
     Returns True if a new member was created.
 
     Uses the ORM (not a raw SQL INSERT) so the Python-side column
-    defaults are applied — troop_tier, first_seen_at, last_seen_at
+    defaults are applied — first_seen_at, last_seen_at
     are NOT NULL with no SQL default, so a raw INSERT
     that omits them fails with an IntegrityError.
     """

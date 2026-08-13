@@ -260,58 +260,6 @@ async def discord_choose(request: Request):
     )
 
 
-@router.post("/auth/discord/create-external")
-async def discord_create_external(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    pending = request.cookies.get(PENDING_COOKIE, "")
-    if "|" not in pending:
-        return RedirectResponse(url="/login?error=discord_pending_missing", status_code=303)
-    parts = pending.split("|")
-    discord_user_id = parts[0] if len(parts) > 0 else ""
-    discord_username = parts[1] if len(parts) > 1 else ""
-    discord_email = parts[2].lower().strip() if len(parts) > 2 else ""
-
-    # Generate unique username derived from discord username
-    base = ("dc_" + discord_username).lower().strip()[:24] or "dc_user"
-    base = "".join(c for c in base if c.isalnum() or c in "_-") or "dc_user"
-    username = base
-    n = 0
-    while db.scalar(select(User).where(User.username == username)) is not None:
-        n += 1
-        username = f"{base}_{n}"[:32]
-
-    now = datetime.utcnow()
-    user = User(
-        username=username,
-        password_hash="!disabled!" + secrets.token_urlsafe(16),
-        role="external",
-        character_id=None,
-        is_active=True,
-        created_at=now,
-        pending_approval=False,
-        submitted_at=now,
-        submitted_in_game_name=discord_username or username,
-        discord_id=discord_user_id,
-        email=(discord_email if discord_email and not db.scalar(select(User).where(User.email == discord_email)) else None),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    await notify_verified_link(user.discord_id)
-
-    session = create_session(
-        db, user,
-        ip=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
-    )
-    resp = RedirectResponse(url="/apply", status_code=303)
-    _set_session_cookie(resp, session.session_id)
-    resp.delete_cookie(PENDING_COOKIE, path="/")
-    return resp
-
-
 @router.post("/profile/discord/unlink")
 async def discord_unlink(
     request: Request,

@@ -27,6 +27,8 @@ from .auth import (
 )
 from .models import Member, User
 from .uploads import UploadError, delete_screenshot, save_screenshot
+from .discord_oauth import PENDING_COOKIE
+from .bot_client import notify_verified_link
 from .audit import record_staff_event
 
 router = APIRouter(tags=["signup"])
@@ -53,16 +55,29 @@ def _empty_form() -> dict:
 
 
 def _render_form(request: Request, form: dict, error: Optional[str] = None,
-                 status_code: int = 200):
+                 status_code: int = 200, discord_pending: Optional[dict] = None):
     return templates.TemplateResponse(
         request=request,
         name="auth/signup.html",
-        context={"form": form, "error": error},
+        context={"form": form, "error": error, "discord_pending": discord_pending},
         status_code=status_code,
     )
 
 
 # --- Public signup --------------------------------------------------------
+
+def _read_discord_pending(request):
+    """Return (discord_id, username, email) or (None, None, None)."""
+    raw = request.cookies.get(PENDING_COOKIE, "")
+    if "|" not in raw:
+        return None, None, None
+    parts = raw.split("|")
+    did = parts[0] if len(parts) > 0 else ""
+    uname = parts[1] if len(parts) > 1 else ""
+    email = parts[2].lower().strip() if len(parts) > 2 else ""
+    return (did or None), (uname or None), (email or None)
+
+
 @router.get("/signup", response_class=HTMLResponse)
 async def signup_form(request: Request):
     return _render_form(request, _empty_form())
@@ -185,6 +200,9 @@ async def signup_submit(
         db.commit()
         return _render_form(request, form, str(e), 400)
     user.signup_screenshot_path = screenshot_path
+    did_pending, _, _ = _read_discord_pending(request)
+    if did_pending:
+        user.discord_id = did_pending
     db.commit()
     try:
         from .bot_client import notify_new_signup
@@ -200,11 +218,13 @@ async def signup_submit(
     except Exception:
         pass
 
-    return templates.TemplateResponse(
+    resp = templates.TemplateResponse(
         request=request,
         name="auth/signup_pending.html",
         context={"rank": rank_clean},
     )
+    resp.delete_cookie(PENDING_COOKIE, path="/")
+    return resp
 
 
 # --- Staff: pending registrations review ---------------------------------
@@ -262,6 +282,11 @@ async def approve_registration(
     )
     db.commit()
     delete_screenshot(screenshot)
+    if u.discord_id:
+        try:
+            await notify_verified_link(u.discord_id)
+        except Exception:
+            pass
     return RedirectResponse(url="/staff/registrations", status_code=303)
 
 

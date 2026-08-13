@@ -8,7 +8,6 @@
     <span class="font-mono text-primary">{{ discord_username }}</span>,
     but this Discord account is not linked to any site account yet.
   </p>
-
   <div class="space-y-4">
     <a href="/login"
        class="block px-4 py-4 border border-cyan-700 bg-cyan-950/20 hover:bg-cyan-900/30 rounded transition-colors">
@@ -17,17 +16,15 @@
         Sign in with your username and password. Your Discord will be linked automatically.
       </p>
     </a>
-
-    <form method="post" action="/auth/discord/create-external">
-      <button type="submit"
-              class="w-full text-left px-4 py-4 border border-edge bg-card hover:border-cyan-700 rounded transition-colors cursor-pointer">
-        <p class="font-display text-lg text-primary mb-1">Create a new account</p>
-        <p class="text-secondary text-sm">
-          Start a fresh account tied to your Discord. You will be redirected
-          to the alliance application form.
-        </p>
-      </button>
-    </form>
+    <a href="/signup"
+       class="block px-4 py-4 border border-edge bg-card hover:border-cyan-700 rounded transition-colors">
+      <p class="font-display text-lg text-primary mb-1">Continue to sign up</p>
+      <p class="text-secondary text-sm">
+        Fill in the normal signup form (screenshot required). Your Discord
+        (<span class="font-mono">{{ discord_username }}</span>) will be linked
+        automatically once staff approves your account.
+      </p>
+    </a>
   </div>
 </section>
 {% endblock %}

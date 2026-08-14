@@ -573,3 +573,25 @@ def event_rsvp_lists(
         (yes if rsvp.status == "yes" else no).append(entry)
 
     return {"event_id": event_id, "yes": yes, "no": no, "counts": {"yes": len(yes), "no": len(no)}}
+
+
+@router.post("/events/{event_id}/discord-message", dependencies=[Depends(require_api_key)])
+def event_set_discord_message(
+    event_id: int,
+    payload: dict = Body(...),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Called by the bot after posting the RSVP embed, to store Discord IDs."""
+    message_id = str(payload.get("message_id", "")).strip()
+    channel_id = str(payload.get("channel_id", "")).strip()
+    if not message_id or not channel_id:
+        raise HTTPException(status_code=400, detail="message_id and channel_id required")
+
+    event = session.get(Event, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    event.discord_message_id = message_id
+    event.discord_channel_id = channel_id
+    session.commit()
+    return {"ok": True, "event_id": event_id, "message_id": message_id, "channel_id": channel_id}

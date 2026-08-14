@@ -12,6 +12,7 @@ from .auth import get_db
 from .auth import require_staff
 from . import queries as q
 from .models import Event
+from . import bot_client
 
 router = APIRouter(prefix="/staff/events", tags=["events"])
 from pathlib import Path
@@ -30,7 +31,7 @@ def events_list(request: Request, user=Depends(require_staff), db: Session = Dep
 
 
 @router.post("/new")
-def create_event(
+async def create_event(
     name: str = Form(...),
     date_start: str = Form(...),
     date_end: str = Form(...),
@@ -57,6 +58,15 @@ def create_event(
     db.add(ev)
     db.commit()
     q.prefill_event_eligibility(db, ev.id, season.id)
+    # Fire-and-forget notify the bot; failure logged, does not block staff redirect
+    await bot_client.notify_new_event({
+        "event_id": ev.id,
+        "name": ev.name,
+        "date_start": ev.date_start.isoformat(),
+        "date_end": ev.date_end.isoformat(),
+        "season_id": ev.season_id,
+        "created_by": ev.created_by,
+    })
     return RedirectResponse(f"/staff/events/{ev.id}", status_code=303)
 
 

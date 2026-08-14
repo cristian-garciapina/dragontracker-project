@@ -542,6 +542,9 @@ class Event(Base):
     end_time: Mapped[Optional[time]] = mapped_column(Time)
     discord_message_id: Mapped[Optional[str]] = mapped_column(String(32))
     discord_channel_id: Mapped[Optional[str]] = mapped_column(String(32))
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="ranking")
+    event_time: Mapped[Optional[time]] = mapped_column(Time)
+    info_url: Mapped[Optional[str]] = mapped_column(String(512))
     # Legacy columns kept for NOT NULL constraint on old rows; not used by app.
     event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="event")
     event_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)

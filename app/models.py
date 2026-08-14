@@ -8,7 +8,7 @@ Schema design follows brief section 5.3:
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Optional
 
 from sqlalchemy import (
@@ -22,8 +22,9 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    CheckConstraint,
     Index,
-)
+    Time,)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -537,12 +538,19 @@ class Event(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text)
     created_by: Mapped[Optional[str]] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    start_time: Mapped[Optional[time]] = mapped_column(Time)
+    end_time: Mapped[Optional[time]] = mapped_column(Time)
+    discord_message_id: Mapped[Optional[str]] = mapped_column(String(32))
+    discord_channel_id: Mapped[Optional[str]] = mapped_column(String(32))
     # Legacy columns kept for NOT NULL constraint on old rows; not used by app.
     event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="event")
     event_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
 
     season: Mapped["Season"] = relationship()
     participations: Mapped[list["EventParticipation"]] = relationship(
+        back_populates="event", cascade="all, delete-orphan"
+    )
+    rsvps: Mapped[list["EventRsvp"]] = relationship(
         back_populates="event", cascade="all, delete-orphan"
     )
 
@@ -560,6 +568,29 @@ class EventParticipation(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     event: Mapped["Event"] = relationship(back_populates="participations")
+    member: Mapped["Member"] = relationship()
+
+
+class EventRsvp(Base):
+    __tablename__ = "event_rsvps"
+    __table_args__ = (
+        UniqueConstraint("event_id", "character_id", name="uq_event_rsvps_event_char"),
+        CheckConstraint("status IN ('yes','no')", name="ck_event_rsvps_status"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_id: Mapped[int] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    character_id: Mapped[int] = mapped_column(
+        ForeignKey("members.character_id"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(8), nullable=False)
+    responded_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    event: Mapped["Event"] = relationship(back_populates="rsvps")
     member: Mapped["Member"] = relationship()
 
 class SeasonFarmingWindow(Base):

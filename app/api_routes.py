@@ -8,9 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .db import get_session
-from datetime import datetime
+from datetime import datetime, date
 from fastapi import Body
-from .models import Application, Score, Season, User
+from .models import Application, Event, EventRsvp, Score, Season, User
 from .audit import record_staff_event, latest_event
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -447,3 +447,129 @@ def player_detail(character_id: int, session: Session = Depends(get_session)) ->
         payload["rank"] = ids.index(character_id) + 1
         payload["rank_total"] = len(ids)
     return payload
+
+
+# ============================================================================
+# EVENTS RSVP (bot -> site)
+# ============================================================================
+
+
+def _resolve_character_id(session: Session, discord_id: str) -> int:
+    """Discord ID -> character_id via users table. Raises HTTP if unresolvable."""
+    user = session.execute(
+        select(User).where(User.discord_id == discord_id)
+    ).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Discord account not linked to a site account")
+    if user.character_id is None:
+        raise HTTPException(status_code=409, detail="Site account not linked to an in-game character")
+    return user.character_id
+
+
+def _rsvp_counts(session: Session, event_id: int) -> dict:
+    from sqlalchemy import func
+    rows = session.execute(
+        select(EventRsvp.status, func.count(EventRsvp.id))
+        .where(EventRsvp.event_id == event_id)
+        .group_by(EventRsvp.status)
+    ).all()
+    d = {"yes": 0, "no": 0}
+    for status_val, cnt in rows:
+        if status_val in d:
+            d[status_val] = int(cnt)
+    return d
+
+
+@router.post("/events/{event_id}/rsvp", dependencies=[Depends(require_api_key)])
+def event_rsvp(
+    event_id: int,
+    payload: dict = Body(...),
+    session: Session = Depends(get_session),
+) -> dict:
+    discord_id = str(payload.get("discord_id", "")).strip()
+    status_val = str(payload.get("status", "")).strip().lower()
+    if not discord_id:
+        raise HTTPException(status_code=400, detail="discord_id required")
+    if status_val not in ("yes", "no"):
+        raise HTTPException(status_code=400, detail="status must be 'yes' or 'no'")
+
+    event = session.get(Event, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Freeze window: refuse RSVP after date_end passed
+    if event.date_end < date.today():
+        raise HTTPException(status_code=409, detail="RSVP window closed")
+
+    character_id = _resolve_character_id(session, discord_id)
+
+    existing = session.execute(
+        select(EventRsvp)
+        .where(EventRsvp.event_id == event_id)
+        .where(EventRsvp.character_id == character_id)
+    ).scalar_one_or_none()
+
+    if existing is None:
+        rsvp = EventRsvp(
+            event_id=event_id,
+            character_id=character_id,
+            status=status_val,
+            responded_at=datetime.utcnow(),
+        )
+        session.add(rsvp)
+        action = "created"
+    else:
+        existing.status = status_val
+        existing.responded_at = datetime.utcnow()
+        action = "updated"
+
+    session.commit()
+
+    counts = _rsvp_counts(session, event_id)
+    return {
+        "ok": True,
+        "action": action,
+        "character_id": character_id,
+        "status": status_val,
+        "counts": counts,
+    }
+
+
+@router.get("/events/{event_id}/rsvps/counts", dependencies=[Depends(require_api_key)])
+def event_rsvp_counts(
+    event_id: int,
+    session: Session = Depends(get_session),
+) -> dict:
+    event = session.get(Event, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _rsvp_counts(session, event_id)
+
+
+@router.get("/events/{event_id}/rsvps", dependencies=[Depends(require_api_key)])
+def event_rsvp_lists(
+    event_id: int,
+    session: Session = Depends(get_session),
+) -> dict:
+    from .models import Member
+    event = session.get(Event, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    rows = session.execute(
+        select(EventRsvp, Member.current_name)
+        .join(Member, Member.character_id == EventRsvp.character_id)
+        .where(EventRsvp.event_id == event_id)
+        .order_by(EventRsvp.responded_at.asc())
+    ).all()
+
+    yes, no = [], []
+    for rsvp, name in rows:
+        entry = {
+            "character_id": rsvp.character_id,
+            "name": name,
+            "responded_at": rsvp.responded_at.isoformat() if rsvp.responded_at else None,
+        }
+        (yes if rsvp.status == "yes" else no).append(entry)
+
+    return {"event_id": event_id, "yes": yes, "no": no, "counts": {"yes": len(yes), "no": len(no)}}

@@ -24,10 +24,10 @@
     <table class="w-full text-sm">
       <thead class="text-slate-400 text-xs uppercase tracking-wider bg-slate-900/60">
         <tr>
-          <th class="text-left py-3 px-4">Dates</th>
+          <th class="text-left py-3 px-4">When</th>
+          <th class="text-left px-4">Kind</th>
           <th class="text-left px-4">Name</th>
-          <th class="text-right px-4">Participants</th>
-          <th class="text-right px-4">Total pts</th>
+          <th class="text-right px-4">Attending</th>
           <th class="px-4"></th>
         </tr>
       </thead>
@@ -39,10 +39,21 @@
             {% if row.event.date_end != row.event.date_start %}
               <span class="text-slate-500">→</span> {{ row.event.date_end }}
             {% endif %}
+            {% if row.event.event_time %}
+              <span class="text-slate-500">·</span> {{ row.event.event_time.strftime('%H:%M') }}
+            {% endif %}
+          </td>
+          <td class="px-4 text-xs">
+            {% set k = row.event.kind or 'ranking' %}
+            <span class="px-2 py-0.5 rounded uppercase tracking-wider text-[10px]
+              {% if k == 'ranking' %}bg-cyan-900/40 text-cyan-300
+              {% elif k == 'behemoth' %}bg-rose-900/40 text-rose-300
+              {% elif k == 'gate' %}bg-amber-900/40 text-amber-300
+              {% elif k == 'spire' %}bg-violet-900/40 text-violet-300
+              {% else %}bg-slate-700/40 text-slate-300{% endif %}">{{ k }}</span>
           </td>
           <td class="px-4"><a href="/staff/events/{{ row.event.id }}" class="text-cyan-400 hover:underline">{{ row.event.name }}</a></td>
           <td class="px-4 text-right text-slate-300 font-mono tnum">{{ row.participant_count }}</td>
-          <td class="px-4 text-right text-slate-300 font-mono tnum">{{ "{:,}".format(row.total_points) }}</td>
           <td class="px-4 text-right">
             <a href="/staff/events/{{ row.event.id }}" class="text-xs text-slate-400 hover:text-cyan-400">Open →</a>
           </td>
@@ -58,22 +69,61 @@
 <dialog id="new-event-dlg" class="rounded-lg bg-slate-900 border border-slate-700 p-6 max-w-md w-full text-slate-200 backdrop:bg-black/60">
   <form id="new-event-form" method="post" action="/staff/events/new" class="space-y-4">
     <h2 class="font-display text-xl text-white">New event</h2>
+
+    <label class="block">
+      <span class="text-xs uppercase text-slate-400">Kind</span>
+      <select name="kind" id="ev-kind" required class="field-select w-full mt-1">
+        <option value="ranking">Ranking (points-based, multi-day)</option>
+        <option value="behemoth">Behemoth</option>
+        <option value="gate">Gate</option>
+        <option value="spire">Spire</option>
+      </select>
+    </label>
+
     <label class="block">
       <span class="text-xs uppercase text-slate-400">Name</span>
       <input name="name" required maxlength="128"
              class="field-input w-full mt-1"
              placeholder="e.g. Alliance mobilisation">
     </label>
-    <div class="grid grid-cols-2 gap-3">
+
+    <!-- Ranking-only: date range -->
+    <div data-group="ranking" class="grid grid-cols-2 gap-3">
       <label class="block">
-        <span class="text-xs uppercase text-slate-400">Start</span>
-        <input type="date" name="date_start" required class="field-input w-full mt-1">
+        <span class="text-xs uppercase text-slate-400">Start date</span>
+        <input type="date" name="date_start" class="field-input w-full mt-1">
       </label>
       <label class="block">
-        <span class="text-xs uppercase text-slate-400">End</span>
-        <input type="date" name="date_end" required class="field-input w-full mt-1">
+        <span class="text-xs uppercase text-slate-400">End date</span>
+        <input type="date" name="date_end" class="field-input w-full mt-1">
       </label>
     </div>
+
+    <!-- Non-ranking: single date + time -->
+    <div data-group="single" class="grid grid-cols-2 gap-3 hidden">
+      <label class="block">
+        <span class="text-xs uppercase text-slate-400">Date</span>
+        <input type="date" name="event_date" class="field-input w-full mt-1">
+      </label>
+      <label class="block">
+        <span class="text-xs uppercase text-slate-400">Time (UTC)</span>
+        <input type="time" name="event_time" class="field-input w-full mt-1">
+      </label>
+    </div>
+
+    <!-- Behemoth-only: YouTube URL -->
+    <label data-group="behemoth" class="block hidden">
+      <span class="text-xs uppercase text-slate-400">YouTube URL (optional)</span>
+      <input type="url" name="info_url" maxlength="512" class="field-input w-full mt-1"
+             placeholder="https://youtube.com/...">
+    </label>
+
+    <!-- Notes for behemoth/gate/spire -->
+    <label data-group="notes" class="block hidden">
+      <span class="text-xs uppercase text-slate-400">Notes / tactics (optional)</span>
+      <textarea name="notes" rows="3" class="field-input w-full mt-1"
+                placeholder="Short tactical brief..."></textarea>
+    </label>
   </form>
   <div class="flex justify-end gap-2 mt-6">
     <button type="button" onclick="document.getElementById('new-event-dlg').close()"
@@ -81,5 +131,38 @@
     <button type="submit" form="new-event-form" class="btn-primary">Create</button>
   </div>
 </dialog>
+
+<script>
+(function() {
+  const sel = document.getElementById('ev-kind');
+  const groups = {
+    ranking: document.querySelectorAll('[data-group="ranking"]'),
+    single: document.querySelectorAll('[data-group="single"]'),
+    behemoth: document.querySelectorAll('[data-group="behemoth"]'),
+    notes: document.querySelectorAll('[data-group="notes"]'),
+  };
+
+  function show(list) { list.forEach(el => el.classList.remove('hidden')); }
+  function hide(list) { list.forEach(el => el.classList.add('hidden')); }
+
+  function apply() {
+    const k = sel.value;
+    if (k === 'ranking') {
+      show(groups.ranking); hide(groups.single); hide(groups.behemoth); hide(groups.notes);
+      // Toggle required flags
+      groups.ranking.forEach(g => g.querySelectorAll('input').forEach(i => i.required = true));
+      groups.single.forEach(g => g.querySelectorAll('input').forEach(i => i.required = false));
+    } else {
+      hide(groups.ranking); show(groups.single);
+      show(groups.notes);
+      if (k === 'behemoth') show(groups.behemoth); else hide(groups.behemoth);
+      groups.ranking.forEach(g => g.querySelectorAll('input').forEach(i => i.required = false));
+      groups.single.forEach(g => g.querySelectorAll('input').forEach(i => i.required = true));
+    }
+  }
+  sel.addEventListener('change', apply);
+  apply();
+})();
+</script>
 {% endif %}
 {% endblock %}

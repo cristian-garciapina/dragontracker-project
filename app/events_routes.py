@@ -1,6 +1,6 @@
 """Alliance events (Mobilisation, Seuil de la Guerre) — staff-only routes."""
 from io import BytesIO
-from datetime import date
+from datetime import date, time
 
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -32,38 +32,79 @@ def events_list(request: Request, user=Depends(require_staff), db: Session = Dep
 
 @router.post("/new")
 async def create_event(
+    kind: str = Form("ranking"),
     name: str = Form(...),
-    date_start: str = Form(...),
-    date_end: str = Form(...),
+    date_start: str = Form(""),
+    date_end: str = Form(""),
+    event_date: str = Form(""),
+    event_time: str = Form(""),
+    info_url: str = Form(""),
+    notes: str = Form(""),
     user=Depends(require_staff),
     db: Session = Depends(get_db),
 ):
     season = q.get_active_season(db)
     if not season:
         raise HTTPException(400, "No active season")
-    try:
-        ds = date.fromisoformat(date_start.strip())
-        de = date.fromisoformat(date_end.strip())
-    except ValueError:
-        raise HTTPException(400, "Invalid date format (expected YYYY-MM-DD).")
-    if de < ds:
-        raise HTTPException(400, "End date must be on or after start date")
+
+    kind = (kind or "ranking").strip().lower()
+    if kind not in ("ranking", "behemoth", "gate", "spire"):
+        raise HTTPException(400, "Invalid kind")
+
+    ds = de = None
+    ev_time = None
+
+    if kind == "ranking":
+        if not date_start.strip() or not date_end.strip():
+            raise HTTPException(400, "Start and end dates required for ranking events")
+        try:
+            ds = date.fromisoformat(date_start.strip())
+            de = date.fromisoformat(date_end.strip())
+        except ValueError:
+            raise HTTPException(400, "Invalid date format (expected YYYY-MM-DD).")
+        if de < ds:
+            raise HTTPException(400, "End date must be on or after start date")
+    else:
+        if not event_date.strip():
+            raise HTTPException(400, "Date required")
+        if not event_time.strip():
+            raise HTTPException(400, "Time required")
+        try:
+            ds = date.fromisoformat(event_date.strip())
+            de = ds
+            ev_time = time.fromisoformat(event_time.strip())
+        except ValueError:
+            raise HTTPException(400, "Invalid date or time format")
+
+    info_url_val = info_url.strip() if kind == "behemoth" and info_url.strip() else None
+    notes_val = notes.strip() if kind != "ranking" and notes.strip() else None
+
     ev = Event(
         name=name.strip(),
+        kind=kind,
         date_start=ds,
         date_end=de,
+        event_time=ev_time,
+        info_url=info_url_val,
+        notes=notes_val,
         season_id=season.id,
         created_by=getattr(user, "username", None),
     )
     db.add(ev)
     db.commit()
-    q.prefill_event_eligibility(db, ev.id, season.id)
-    # Fire-and-forget notify the bot; failure logged, does not block staff redirect
+
+    if kind == "ranking":
+        q.prefill_event_eligibility(db, ev.id, season.id)
+
     await bot_client.notify_new_event({
         "event_id": ev.id,
+        "kind": ev.kind,
         "name": ev.name,
         "date_start": ev.date_start.isoformat(),
         "date_end": ev.date_end.isoformat(),
+        "event_time": ev.event_time.strftime("%H:%M") if ev.event_time else None,
+        "info_url": ev.info_url,
+        "notes": ev.notes,
         "season_id": ev.season_id,
         "created_by": ev.created_by,
     })

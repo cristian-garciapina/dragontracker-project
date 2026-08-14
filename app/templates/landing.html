@@ -69,14 +69,14 @@
     </p>
   </section>
 
+  {% if not user %}
   {# ================================================ TWO-PATH DECISION #}
   <section data-section="paths" class="pb-6">
-    <p class="text-xs tracking-[0.22em] uppercase text-muted font-mono mb-4">Choose your path</p>
     <div class="path-grid">
 
       <div class="path-card primary">
         <div>
-          <p class="kicker">Path 1 · In-game</p>
+          <p class="kicker">In-game</p>
           <p class="who">For players outside Eternal Vanguard</p>
           <h2>Apply to migrate to Kingdom 193</h2>
           <p>
@@ -90,7 +90,7 @@
 
       <div class="path-card secondary">
         <div>
-          <p class="kicker">Path 2 · This website</p>
+          <p class="kicker">This website</p>
           <p class="who">For existing Eternal Vanguard members</p>
           <h2>Create your site account</h2>
           <p>
@@ -104,18 +104,12 @@
 
     </div>
 
-    {% if not user %}
     <div class="members-strip">
       <span class="lbl">Already have a site account?</span>
       <a href="/login">Members log in →</a>
     </div>
-    {% else %}
-    <div class="members-strip">
-      <span class="lbl">Signed in as {{ user.username }}</span>
-      <a href="/dashboard">Open dashboard →</a>
-    </div>
-    {% endif %}
   </section>
+  {% endif %}
 
   {# ===================================================== THREE PILLARS #}
   <section data-section="pillars" class="grid md:grid-cols-3 gap-10 py-16">

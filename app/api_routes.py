@@ -357,6 +357,62 @@ def players_top(n: int = 10, session: Session = Depends(get_session)) -> list[di
     ]
 
 
+
+
+# Unicode normalization for search: strip decorations, folds fancy scripts to ASCII.
+# Handles stylized Discord/game nicknames like [ᴿᴵᴾðíabłoヤ] -> "ripdiabło" -> "ripdiablo".
+# Ligatures & multi-char folds (str.maketrans can't map to strings of len>1)
+_MULTI_FOLDS = [
+    ("Æ", "AE"), ("æ", "ae"),  # AE
+    ("Œ", "OE"), ("œ", "oe"),  # OE
+    ("ß", "ss"),                     # sharp s
+    ("ẞ", "SS"),                     # capital sharp s
+    ("Ĳ", "IJ"), ("ĳ", "ij"),  # Dutch IJ
+]
+
+_STYLE_MAP = str.maketrans({
+    "ᴀ": "A", "ᴇ": "E", "ɪ": "I", "ᴏ": "O", "ᴛ": "T",
+    "ᴬ": "A", "ᴮ": "B", "ᴰ": "D", "ᴱ": "E", "ᴳ": "G",
+    "ᴴ": "H", "ᴵ": "I", "ᴶ": "J", "ᴷ": "K", "ᴸ": "L",
+    "ᴹ": "M", "ᴺ": "N", "ᴼ": "O", "ᴾ": "P", "ᴿ": "R",
+    "ᵀ": "T", "ᵁ": "U", "ᵂ": "W",
+    "ᵃ": "a", "ᵇ": "b", "ᵈ": "d", "ᵉ": "e", "ᶠ": "f",
+    "ᵍ": "g", "ʰ": "h", "ⁱ": "i", "ʲ": "j", "ᵏ": "k",
+    "ˡ": "l", "ᵐ": "m", "ⁿ": "n", "ᵒ": "o", "ᵖ": "p",
+    "ʳ": "r", "ˢ": "s", "ᵗ": "t", "ᵘ": "u", "ʷ": "w",
+    "ˣ": "x", "ʸ": "y",
+    "ᴯ": "B", "ᴲ": "F",
+    # Latin letters NFKD misses:
+    "Ð": "D", "ð": "d",   # Eth
+    "Ł": "L", "ł": "l",   # L with stroke
+    "Ø": "O", "ø": "o",   # O with stroke
+    "Þ": "T", "þ": "t",   # Thorn
+    "Đ": "D", "đ": "d",   # D with stroke
+    "Ħ": "H", "ħ": "h",   # H with stroke
+    "Ŧ": "T", "ŧ": "t",   # T with stroke
+    "ʔ": "",                    # Glottal stop
+})
+
+def _normalize_name(s: str) -> str:
+    """Fold stylized unicode -> ASCII lowercase alnum. Empty if only decorations."""
+    if not s:
+        return ""
+    import unicodedata
+    # Step 1: expand multi-char ligatures first
+    for src_char, target in _MULTI_FOLDS:
+        s = s.replace(src_char, target)
+    # Step 2: Discord-style superscript / small caps + Latin extended
+    s = s.translate(_STYLE_MAP)
+    # Step 3: NFKD decomposition — separates diacritics (é -> e + acute)
+    nfkd = unicodedata.normalize("NFKD", s)
+    # Step 4: strip everything that's not ASCII letters or digits
+    out = []
+    for ch in nfkd:
+        if ch.isascii() and (ch.isalnum()):
+            out.append(ch.lower())
+    return "".join(out)
+
+
 @router.get("/players/search", dependencies=[Depends(require_api_key)])
 def players_search(q: str = "", session: Session = Depends(get_session)) -> list[dict]:
     from .models import Member, Score
@@ -366,14 +422,36 @@ def players_search(q: str = "", session: Session = Depends(get_session)) -> list
     season_id, snap_id = _resolve_active_season_and_snapshot(session)
     if season_id is None or snap_id is None:
         return []
-    # search: nom LIKE %q% (case-insensitive) OR character_id exact si q est numerique
-    conditions = [Member.current_name.ilike(f"%{q}%")]
+
+    # Numeric shortcut: exact character_id
     if q.isdigit():
-        conditions.append(Member.character_id == int(q))
-    from sqlalchemy import or_
-    members = session.execute(
-        select(Member).where(or_(*conditions)).limit(10)
-    ).scalars().all()
+        m = session.get(Member, int(q))
+        members = [m] if m else []
+    else:
+        # Fuzzy: normalize query + all names, match on normalized form
+        q_norm = _normalize_name(q)
+        if not q_norm:
+            return []
+        # Load in-alliance members first (higher signal); fall back to all if empty
+        all_members = session.execute(
+            select(Member).where(Member.current_name.is_not(None))
+        ).scalars().all()
+        # Rank: exact-substring match wins over partial; in-alliance wins tie
+        matches = []
+        for m in all_members:
+            name_norm = _normalize_name(m.current_name or "")
+            if not name_norm:
+                continue
+            if q_norm in name_norm:
+                # (in_alliance desc, len(name) asc, name asc) for stable ranking
+                matches.append((
+                    0 if m.in_alliance else 1,
+                    len(name_norm),
+                    m.current_name.lower(),
+                    m,
+                ))
+        matches.sort()
+        members = [t[3] for t in matches[:10]]
     if not members:
         return []
     cids = [m.character_id for m in members]

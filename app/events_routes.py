@@ -132,6 +132,37 @@ def event_detail(event_id: int, request: Request,
     })
 
 
+@router.get("/{event_id}/json")
+def event_detail_json(event_id: int,
+                      user=Depends(require_staff), db: Session = Depends(get_db)):
+    ev = q.get_event(db, event_id)
+    if not ev:
+        raise HTTPException(404)
+    participations = q.get_event_participations_ranked(db, event_id)
+    zero_count = sum(1 for p in participations if p["points"] == 0)
+    eligibility_rows = q.list_event_eligibility(db, event_id) if ev.kind == "ranking" else []
+    eligible_total = sum(1 for r in eligibility_rows if r["is_eligible"])
+    rsvps = q.get_event_rsvps(db, event_id)
+    def _iso(dt):
+        return dt.isoformat() if dt else None
+    return {
+        "coming": [{"character_id": r["character_id"], "name": r["name"],
+                    "responded_at": _iso(r["responded_at"])} for r in rsvps["yes"]],
+        "not_coming": [{"character_id": r["character_id"], "name": r["name"],
+                        "responded_at": _iso(r["responded_at"])} for r in rsvps["no"]],
+        "participations": [{"rank": p["rank"], "character_id": p["character_id"],
+                            "name": p["name"], "points": p["points"],
+                            "notes": p.get("notes")} for p in participations],
+        "counts": {
+            "coming": len(rsvps["yes"]),
+            "not_coming": len(rsvps["no"]),
+            "participants": len(participations),
+            "zero": zero_count,
+            "eligible": eligible_total,
+        },
+    }
+
+
 @router.post("/{event_id}/import")
 async def import_excel(
     event_id: int,

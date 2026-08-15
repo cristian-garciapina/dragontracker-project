@@ -16,7 +16,11 @@
     <div>
       <a href="/staff/events" class="text-xs text-slate-500 hover:text-cyan-400">← All events</a>
       <div class="flex items-center gap-3 mt-1">
-        <h1 class="font-display text-3xl text-white">{{ kind_icon }} {{ event.name }}</h1>
+        <h1 class="font-display text-3xl text-white flex items-center gap-3">{{ kind_icon }} {{ event.name }}
+          <span id="live-dot" class="inline-flex items-center gap-1 text-xs text-slate-500 font-normal">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>Live
+          </span>
+        </h1>
         <span class="px-2 py-0.5 rounded uppercase tracking-wider text-[10px]
           {% if k == 'ranking' %}bg-cyan-900/40 text-cyan-300
           {% elif k == 'behemoth' %}bg-rose-900/40 text-rose-300
@@ -58,10 +62,10 @@
 
   {# ---------------- ATTENDANCE (all kinds) ---------------- #}
   <div class="mb-8 grid md:grid-cols-2 gap-6">
-    <div class="p-5 rounded-lg bg-slate-900/60 border border-slate-800">
+    <div class="p-5 rounded-lg bg-slate-900/60 border border-slate-800" data-live-refresh="coming">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm uppercase text-slate-400 tracking-wider">
-          ✅ Coming <span class="text-slate-500 font-mono ml-2">{{ rsvps.yes|length }}</span>
+          ✅ Coming <span class="text-slate-500 font-mono ml-2" data-live-count="coming">{{ rsvps.yes|length }}</span>
         </h2>
       </div>
       {% if rsvps.yes %}
@@ -82,10 +86,10 @@
       {% endif %}
     </div>
 
-    <div class="p-5 rounded-lg bg-slate-900/60 border border-slate-800">
+    <div class="p-5 rounded-lg bg-slate-900/60 border border-slate-800" data-live-refresh="not_coming">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm uppercase text-slate-400 tracking-wider">
-          ❌ Skipping <span class="text-slate-500 font-mono ml-2">{{ rsvps.no|length }}</span>
+          ❌ Skipping <span class="text-slate-500 font-mono ml-2" data-live-count="not_coming">{{ rsvps.no|length }}</span>
         </h2>
       </div>
       {% if rsvps.no %}
@@ -130,15 +134,15 @@
       <dl class="text-sm space-y-2">
         <div class="flex justify-between">
           <dt class="text-slate-400">Participants</dt>
-          <dd class="font-mono tnum text-white">{{ participations|length }}</dd>
+          <dd class="font-mono tnum text-white" data-live-count="participants">{{ participations|length }}</dd>
         </div>
         <div class="flex justify-between">
           <dt class="text-slate-400">Zero-point entries</dt>
-          <dd class="font-mono tnum text-slate-300">{{ zero_count }}</dd>
+          <dd class="font-mono tnum text-slate-300" data-live-count="zero">{{ zero_count }}</dd>
         </div>
         <div class="flex justify-between">
           <dt class="text-slate-400">Eligible</dt>
-          <dd class="font-mono tnum text-white">{{ eligible_total }}</dd>
+          <dd class="font-mono tnum text-white" data-live-count="eligible">{{ eligible_total }}</dd>
         </div>
         <div class="pt-2">
           <button type="button" onclick="document.getElementById('elig-dlg').showModal()"
@@ -206,7 +210,7 @@
             <th class="text-left px-4">Notes</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-800">
+        <tbody class="divide-y divide-slate-800" data-live-refresh="ranking">
           {% for p in participations %}
           <tr class="hover:bg-slate-800/40 {% if p.points == 0 %}opacity-60{% endif %}">
             <td class="py-2 pl-4 pr-2 text-right font-mono tnum text-slate-400">{{ p.rank }}</td>
@@ -296,4 +300,96 @@
     <button type="submit" form="delete-event-form" class="btn-primary bg-red-600 hover:bg-red-500">Delete</button>
   </div>
 </dialog>
+
+
+<script>
+(function() {
+  const url = "/staff/events/{{ event.id }}/json";
+  const INTERVAL_MS = 8000;
+  const dot = document.getElementById("live-dot");
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+  function fmtDate(iso) {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      return mm + "-" + dd + " " + hh + ":" + mi;
+    } catch (e) { return ""; }
+  }
+
+  function renderRsvpList(container, entries, klass) {
+    const wrapper = container.querySelector("ul, p");
+    if (entries.length === 0) {
+      container.querySelector("ul, p")?.remove();
+      const p = document.createElement("p");
+      p.className = "text-slate-500 italic text-sm";
+      p.textContent = "No one yet.";
+      container.appendChild(p);
+      return;
+    }
+    const html = entries.map(r => {
+      const name = r.name
+        ? `<a href="/player/${r.character_id}" class="${klass}">${esc(r.name)}</a>`
+        : `<span class="text-slate-500 italic">#${r.character_id}</span>`;
+      return `<li class="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-800/40">${name}<span class="text-xs text-slate-500 font-mono">${esc(fmtDate(r.responded_at))}</span></li>`;
+    }).join("");
+    container.querySelector("ul, p")?.remove();
+    const ul = document.createElement("ul");
+    ul.className = "text-sm space-y-1 max-h-72 overflow-y-auto";
+    ul.innerHTML = html;
+    container.appendChild(ul);
+  }
+
+  function renderRanking(tbody, parts) {
+    if (parts.length === 0) return; // keep server-rendered empty state
+    tbody.innerHTML = parts.map(p => {
+      const dim = p.points === 0 ? "opacity-60" : "";
+      return `<tr class="hover:bg-slate-800/40 ${dim}">
+        <td class="py-2 pl-4 pr-2 text-right font-mono tnum text-slate-400">${p.rank}</td>
+        <td class="px-2 text-slate-200"><a href="/player/${p.character_id}" class="hover:text-cyan-400">${esc(p.name)}</a></td>
+        <td class="px-2 font-mono text-xs text-slate-500">${p.character_id}</td>
+        <td class="px-2 text-right"><input form="edit-existing-form" type="number" name="pts_${p.character_id}" value="${p.points}" min="0" class="field-input w-24 text-right font-mono tnum py-1"></td>
+        <td class="px-4 text-slate-400 text-xs">${esc(p.notes || "")}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  async function tick() {
+    if (document.visibilityState !== "visible") return;
+    try {
+      const res = await fetch(url, {headers: {"Accept": "application/json"}});
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const coming = document.querySelector('[data-live-refresh="coming"]');
+      const notComing = document.querySelector('[data-live-refresh="not_coming"]');
+      if (coming) renderRsvpList(coming, data.coming, "text-slate-200 hover:text-cyan-400");
+      if (notComing) renderRsvpList(notComing, data.not_coming, "text-slate-300 hover:text-cyan-400");
+
+      document.querySelectorAll("[data-live-count]").forEach(el => {
+        const key = el.dataset.liveCount;
+        if (data.counts[key] !== undefined) el.textContent = data.counts[key];
+      });
+
+      const rankingBody = document.querySelector('[data-live-refresh="ranking"]');
+      if (rankingBody) renderRanking(rankingBody, data.participations);
+
+      if (dot) dot.querySelector("span.rounded-full").className = "w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse";
+    } catch (e) {
+      if (dot) dot.querySelector("span.rounded-full").className = "w-1.5 h-1.5 rounded-full bg-slate-600";
+    }
+  }
+
+  setInterval(tick, INTERVAL_MS);
+})();
+</script>
+
 {% endblock %}

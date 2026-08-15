@@ -315,6 +315,20 @@ async def reject_registration(
     return RedirectResponse(url="/staff/registrations", status_code=303)
 
 
+@router.get("/staff/registrations/json")
+async def list_registrations_json(
+    staff: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    pending = db.scalars(
+        select(User).where(User.pending_approval == True).order_by(User.submitted_at.asc())
+    ).all()
+    return {
+        "total": len(pending),
+        "ids": [u.id for u in pending],
+    }
+
+
 @router.get("/staff/signup-screenshot/{user_id}")
 async def signup_screenshot_view(
     user_id: int,

@@ -339,6 +339,27 @@ async def update_notes(
     )
 
 
+@router.get("/staff/applications/json")
+async def list_applications_json(
+    status: str = "",
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    stmt = select(Application).order_by(Application.created_at.desc())
+    if status in ("new", "reviewing", "accepted", "migrated", "rejected"):
+        stmt = stmt.where(Application.status == status)
+    apps = list(db.scalars(stmt).all())
+    counts = {
+        st: db.scalar(select(func.count(Application.id)).where(Application.status == st)) or 0
+        for st in ("new", "reviewing", "accepted", "migrated", "rejected")
+    }
+    return {
+        "counts": counts,
+        "total": len(apps),
+        "ids": [a.id for a in apps],
+    }
+
+
 @router.get("/staff/application-screenshot/{app_id}")
 async def application_screenshot_view(
     app_id: int,

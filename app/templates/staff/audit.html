@@ -17,7 +17,7 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <header class="mb-8">
     <p class="text-xs uppercase tracking-widest text-cyan-300/70 font-mono">Staff · Accountability</p>
-    <h1 class="mt-1 text-4xl font-display text-white">Audit <span class="italic text-amber-300">log</span></h1>
+    <h1 class="mt-1 text-4xl font-display text-white">Audit <span class="italic text-amber-300">log</span> <span id="live-dot" class="inline-flex items-center gap-1.5 text-xs text-cyan-300 font-medium align-middle ml-2"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>Live</span></h1>
     <p class="mt-2 text-slate-400">Every staff action on applications, registrations, and users. <span class="text-slate-500">Total: {{ total }} event{{ '' if total == 1 else 's' }}.</span></p>
   </header>
 
@@ -109,4 +109,36 @@
   </div>
   {% endif %}
 </div>
+<script>window.__LIVE_URL__="/staff/audit/json"; window.__LIVE_KEY__="latest_ids";</script>
+
+<script>
+(function() {
+  const url = window.__LIVE_URL__;
+  const key = window.__LIVE_KEY__ || "total";
+  const dot = document.getElementById("live-dot");
+  const INTERVAL_MS = 8000;
+  let last = null;
+
+  async function tick() {
+    if (document.visibilityState !== "visible") return;
+    try {
+      const res = await fetch(url + window.location.search, {headers: {"Accept": "application/json"}});
+      if (!res.ok) return;
+      const data = await res.json();
+      const signature = JSON.stringify(data[key]);
+      if (last === null) {
+        last = signature;
+      } else if (signature !== last) {
+        last = signature;
+        window.location.reload();
+      }
+      if (dot) dot.querySelector("span.rounded-full").className = "w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse";
+    } catch (e) {
+      if (dot) dot.querySelector("span.rounded-full").className = "w-1.5 h-1.5 rounded-full bg-slate-600";
+    }
+  }
+  setInterval(tick, INTERVAL_MS);
+})();
+</script>
+
 {% endblock %}

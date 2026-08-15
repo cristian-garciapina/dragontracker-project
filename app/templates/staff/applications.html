@@ -18,7 +18,7 @@
 
   <section data-section="hero" class="mb-8">
     <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ kingdom }}</p>
-    <h1 class="font-display text-4xl mb-2">Applications</h1>
+    <h1 class="font-display text-4xl mb-2">Applications <span id="live-dot" class="inline-flex items-center gap-1.5 text-xs text-cyan-300 font-medium align-middle ml-2"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>Live</span></h1>
     <p class="text-secondary text-sm">Recruitment applications submitted via the public form.</p>
   </section>
 
@@ -231,6 +231,38 @@
   close.addEventListener('click', hide);
   modal.addEventListener('click', function (e) { if (e.target === modal) hide(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+})();
+</script>
+
+<script>window.__LIVE_URL__="/staff/applications/json"; window.__LIVE_KEY__="ids";</script>
+
+<script>
+(function() {
+  const url = window.__LIVE_URL__;
+  const key = window.__LIVE_KEY__ || "total";
+  const dot = document.getElementById("live-dot");
+  const INTERVAL_MS = 8000;
+  let last = null;
+
+  async function tick() {
+    if (document.visibilityState !== "visible") return;
+    try {
+      const res = await fetch(url + window.location.search, {headers: {"Accept": "application/json"}});
+      if (!res.ok) return;
+      const data = await res.json();
+      const signature = JSON.stringify(data[key]);
+      if (last === null) {
+        last = signature;
+      } else if (signature !== last) {
+        last = signature;
+        window.location.reload();
+      }
+      if (dot) dot.querySelector("span.rounded-full").className = "w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse";
+    } catch (e) {
+      if (dot) dot.querySelector("span.rounded-full").className = "w-1.5 h-1.5 rounded-full bg-slate-600";
+    }
+  }
+  setInterval(tick, INTERVAL_MS);
 })();
 </script>
 

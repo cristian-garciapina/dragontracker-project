@@ -96,3 +96,47 @@ async def audit_log(
             "user": actor_user,
         },
     )
+
+
+@router.get("/staff/audit/json")
+async def audit_log_json(
+    entity_type: str = Query(""),
+    action: str = Query(""),
+    actor: str = Query(""),
+    q: str = Query(""),
+    page: int = Query(1, ge=1),
+    actor_user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    count_stmt = select(func.count(StaffEvent.id))
+    stmt = select(StaffEvent)
+    if entity_type:
+        stmt = stmt.where(StaffEvent.entity_type == entity_type)
+        count_stmt = count_stmt.where(StaffEvent.entity_type == entity_type)
+    if action:
+        stmt = stmt.where(StaffEvent.action == action)
+        count_stmt = count_stmt.where(StaffEvent.action == action)
+    if actor:
+        stmt = stmt.where(StaffEvent.actor == actor)
+        count_stmt = count_stmt.where(StaffEvent.actor == actor)
+    if q:
+        needle = f"%{q.strip()}%"
+        stmt = stmt.where(StaffEvent.entity_ref.ilike(needle))
+        count_stmt = count_stmt.where(StaffEvent.entity_ref.ilike(needle))
+
+    total = db.execute(count_stmt).scalar_one()
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(page, total_pages)
+    offset = (page - 1) * PAGE_SIZE
+    events = db.scalars(
+        stmt.order_by(StaffEvent.at.desc(), StaffEvent.id.desc())
+        .offset(offset)
+        .limit(PAGE_SIZE)
+    ).all()
+    return {
+        "total": total,
+        "page": page,
+        "total_pages": total_pages,
+        "latest_ids": [e.id for e in events],
+        "latest_at": events[0].at.isoformat() if events else None,
+    }

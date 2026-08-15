@@ -6,13 +6,31 @@
     <div>
       <h1 class="font-display text-3xl text-white">Events</h1>
       <p class="text-slate-400 text-sm mt-1">
-        {% if season %}Season {{ season.name }}{% else %}No active season{% endif %}
+        {% if season %}
+          Season {{ season.name }}
+          {% if active_season_id and season.id != active_season_id %}
+            <span class="ml-1 text-xs uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-400">past</span>
+          {% endif %}
+        {% else %}No active season{% endif %}
       </p>
     </div>
-    {% if season %}
-    <button type="button" onclick="document.getElementById('new-event-dlg').showModal()"
-            class="btn-primary">+ New event</button>
-    {% endif %}
+    <div class="flex items-center gap-3">
+      {% if all_seasons and all_seasons|length > 1 %}
+      <label class="text-xs uppercase tracking-wider text-slate-400">Season</label>
+      <select id="season-picker" class="field-select text-sm"
+              onchange="window.location.href='/staff/events?season=' + this.value">
+        {% for s in all_seasons %}
+          <option value="{{ s.id }}" {% if season and s.id == season.id %}selected{% endif %}>
+            {{ s.name }}{% if s.id == active_season_id %} · active{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      {% if season and season.id == active_season_id %}
+      <button type="button" onclick="document.getElementById('new-event-dlg').showModal()"
+              class="btn-primary">+ New event</button>
+      {% endif %}
+    </div>
   </div>
 
   {% if not events %}
@@ -69,7 +87,7 @@
   {% endif %}
 </div>
 
-{% if season %}
+{% if season and season.id == active_season_id %}
 <dialog id="new-event-dlg" class="rounded-lg bg-slate-900 border border-slate-700 p-6 max-w-md w-full text-slate-200 backdrop:bg-black/60">
   <form id="new-event-form" method="post" action="/staff/events/new" class="space-y-4">
     <h2 class="font-display text-xl text-white">New event</h2>

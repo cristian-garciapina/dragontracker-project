@@ -2,6 +2,7 @@
 from io import BytesIO
 from datetime import date, time
 
+from typing import Optional
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -21,12 +22,26 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 @router.get("", response_class=HTMLResponse)
-def events_list(request: Request, user=Depends(require_staff), db: Session = Depends(get_db)):
-    season = q.get_active_season(db)
-    events = q.list_events_for_season(db, season.id) if season else []
+def events_list(
+    request: Request,
+    season: Optional[int] = None,
+    user=Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    all_seasons = q.list_seasons_for_picker(db)
+    season_id_qp = season
+    if season_id_qp is not None:
+        selected_season = next((s for s in all_seasons if s.id == season_id_qp), None)
+        if selected_season is None:
+            selected_season = q.get_active_season(db)
+    else:
+        selected_season = q.get_active_season(db)
+    events = q.list_events_for_season(db, selected_season.id) if selected_season else []
     return templates.TemplateResponse("staff/events_list.html", {
-        "request": request, "user": user, "season": season,
+        "request": request, "user": user, "season": selected_season,
         "events": events,
+        "all_seasons": all_seasons,
+        "active_season_id": (q.get_active_season(db).id if q.get_active_season(db) else None),
     })
 
 

@@ -105,6 +105,7 @@
 <script>
 (function () {
   const modal = document.getElementById('screenshot-modal');
+  if (modal && modal.parentNode !== document.body) document.body.appendChild(modal);
   const img = document.getElementById('screenshot-modal-img');
   const close = document.getElementById('screenshot-modal-close');
   function open(src) {

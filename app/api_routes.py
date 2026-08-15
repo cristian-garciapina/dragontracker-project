@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .db import get_session
 from datetime import datetime, date
 from fastapi import Body
-from .models import Application, Event, EventRsvp, Score, Season, User
+from .models import Application, Event, EventParticipation, EventRsvp, Score, Season, User
 from .audit import record_staff_event, latest_event
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -522,6 +522,26 @@ def event_rsvp(
         existing.status = status_val
         existing.responded_at = datetime.utcnow()
         action = "updated"
+
+    # For ranking events, mirror RSVP into event_participations:
+    # yes -> is_eligible=True, no -> is_eligible=False. Points stay untouched.
+    if event.kind == "ranking":
+        part = session.execute(
+            select(EventParticipation)
+            .where(EventParticipation.event_id == event_id)
+            .where(EventParticipation.character_id == character_id)
+        ).scalar_one_or_none()
+        eligible = (status_val == "yes")
+        if part is None:
+            part = EventParticipation(
+                event_id=event_id,
+                character_id=character_id,
+                points=0,
+                is_eligible=eligible,
+            )
+            session.add(part)
+        else:
+            part.is_eligible = eligible
 
     session.commit()
 

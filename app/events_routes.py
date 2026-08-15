@@ -119,14 +119,16 @@ def event_detail(event_id: int, request: Request,
         raise HTTPException(404)
     participations = q.get_event_participations_ranked(db, event_id)
     zero_count = sum(1 for p in participations if p["points"] == 0)
-    eligibility_rows = q.list_event_eligibility(db, event_id)
+    eligibility_rows = q.list_event_eligibility(db, event_id) if ev.kind == "ranking" else []
     eligible_total = sum(1 for r in eligibility_rows if r["is_eligible"])
+    rsvps = q.get_event_rsvps(db, event_id)
     return templates.TemplateResponse("staff/event_detail.html", {
         "request": request, "user": user, "event": ev,
         "participations": participations,
         "eligibility_rows": eligibility_rows,
         "eligible_total": eligible_total,
         "zero_count": zero_count,
+        "rsvps": rsvps,
     })
 
 

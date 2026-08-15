@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ event.name }} · Events{% endblock %}
 {% block content %}
+{% set k = event.kind or 'ranking' %}
+{% set kind_icon = {'ranking':'📊','behemoth':'🐉','gate':'🚪','spire':'🗼'}.get(k, '📅') %}
+{% set kind_color = {'ranking':'cyan','behemoth':'rose','gate':'amber','spire':'violet'}.get(k, 'slate') %}
+
 <div class="max-w-6xl mx-auto px-4 py-8">
   {% if request.query_params.get("flash") %}
     <div class="mb-6 p-3 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 text-sm">
@@ -11,14 +15,100 @@
   <div class="flex items-start justify-between mb-6">
     <div>
       <a href="/staff/events" class="text-xs text-slate-500 hover:text-cyan-400">← All events</a>
-      <h1 class="font-display text-3xl text-white mt-1">{{ event.name }}</h1>
-      <p class="text-slate-400 text-sm">
-        {{ event.date_start }}{% if event.date_end != event.date_start %} → {{ event.date_end }}{% endif %}
+      <div class="flex items-center gap-3 mt-1">
+        <h1 class="font-display text-3xl text-white">{{ kind_icon }} {{ event.name }}</h1>
+        <span class="px-2 py-0.5 rounded uppercase tracking-wider text-[10px]
+          {% if k == 'ranking' %}bg-cyan-900/40 text-cyan-300
+          {% elif k == 'behemoth' %}bg-rose-900/40 text-rose-300
+          {% elif k == 'gate' %}bg-amber-900/40 text-amber-300
+          {% elif k == 'spire' %}bg-violet-900/40 text-violet-300
+          {% else %}bg-slate-700/40 text-slate-300{% endif %}">{{ k }}</span>
+      </div>
+      <p class="text-slate-400 text-sm mt-1">
+        {% if k == 'ranking' %}
+          {{ event.date_start }}{% if event.date_end != event.date_start %} → {{ event.date_end }}{% endif %}
+        {% else %}
+          {{ event.date_start }}{% if event.event_time %} · {{ event.event_time.strftime('%H:%M') }} UTC{% endif %}
+        {% endif %}
       </p>
     </div>
     <button type="button" onclick="document.getElementById('delete-event-dlg').showModal()"
             class="btn-ghost text-red-400">Delete event</button>
   </div>
+
+  {# ---------------- INFO BLOCK for non-ranking ---------------- #}
+  {% if k != 'ranking' and (event.notes or event.info_url) %}
+  <div class="mb-6 p-5 rounded-lg bg-slate-900/60 border border-slate-800 space-y-3">
+    {% if event.notes %}
+    <div>
+      <h2 class="text-sm uppercase text-slate-400 tracking-wider mb-2">Notes / tactics</h2>
+      <p class="text-slate-200 text-sm whitespace-pre-wrap">{{ event.notes }}</p>
+    </div>
+    {% endif %}
+    {% if event.info_url %}
+    <div>
+      <a href="{{ event.info_url }}" target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 text-sm">
+        <span>▶</span> Watch tactical video
+      </a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ---------------- ATTENDANCE (all kinds) ---------------- #}
+  <div class="mb-8 grid md:grid-cols-2 gap-6">
+    <div class="p-5 rounded-lg bg-slate-900/60 border border-slate-800">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm uppercase text-slate-400 tracking-wider">
+          ✅ Coming <span class="text-slate-500 font-mono ml-2">{{ rsvps.yes|length }}</span>
+        </h2>
+      </div>
+      {% if rsvps.yes %}
+        <ul class="text-sm space-y-1 max-h-72 overflow-y-auto">
+          {% for r in rsvps.yes %}
+          <li class="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-800/40">
+            {% if r.name %}
+              <a href="/player/{{ r.character_id }}" class="text-slate-200 hover:text-cyan-400">{{ r.name }}</a>
+            {% else %}
+              <span class="text-slate-500 italic">#{{ r.character_id }}</span>
+            {% endif %}
+            <span class="text-xs text-slate-500 font-mono">{{ r.responded_at.strftime('%m-%d %H:%M') if r.responded_at else '' }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-slate-500 italic text-sm">No one yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="p-5 rounded-lg bg-slate-900/60 border border-slate-800">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm uppercase text-slate-400 tracking-wider">
+          ❌ Skipping <span class="text-slate-500 font-mono ml-2">{{ rsvps.no|length }}</span>
+        </h2>
+      </div>
+      {% if rsvps.no %}
+        <ul class="text-sm space-y-1 max-h-72 overflow-y-auto">
+          {% for r in rsvps.no %}
+          <li class="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-800/40">
+            {% if r.name %}
+              <a href="/player/{{ r.character_id }}" class="text-slate-300 hover:text-cyan-400">{{ r.name }}</a>
+            {% else %}
+              <span class="text-slate-500 italic">#{{ r.character_id }}</span>
+            {% endif %}
+            <span class="text-xs text-slate-500 font-mono">{{ r.responded_at.strftime('%m-%d %H:%M') if r.responded_at else '' }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-slate-500 italic text-sm">No one yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ---------------- RANKING-ONLY: Excel + participants + ranking ---------------- #}
+  {% if k == 'ranking' %}
 
   <div class="grid md:grid-cols-2 gap-6 mb-8">
     <div class="p-5 rounded-lg bg-slate-900/60 border border-slate-800">
@@ -58,7 +148,6 @@
     </div>
   </div>
 
-  {# ---------------- ADD PARTICIPANT MANUALLY ---------------- #}
   <div class="mb-8 p-5 rounded-lg bg-slate-900/60 border border-slate-800">
     <h2 class="text-sm uppercase text-slate-400 tracking-wider mb-3">Add participant manually</h2>
     <p class="text-xs text-slate-500 mb-4 leading-relaxed">
@@ -94,7 +183,6 @@
     </form>
   </div>
 
-  {# ------------------------------ RANKING ------------------------------ #}
   <div class="mb-10">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-display text-xl text-white">Ranking</h2>
@@ -143,9 +231,11 @@
     {% endif %}
   </div>
 
+  {% endif %}{# end ranking-only block #}
 
 </div>
 
+{% if k == 'ranking' %}
 <dialog id="elig-dlg" class="rounded-lg bg-slate-900 border border-slate-700 p-0 max-w-2xl w-full text-slate-200 backdrop:bg-black/60">
   <form id="elig-form" method="post" action="/staff/events/{{ event.id }}/eligibility" class="flex flex-col max-h-[80vh]">
     <div class="p-6 border-b border-slate-800">
@@ -192,12 +282,13 @@
     </div>
   </form>
 </dialog>
+{% endif %}
 
 <dialog id="delete-event-dlg" class="rounded-lg bg-slate-900 border border-slate-700 p-6 max-w-md w-full text-slate-200 backdrop:bg-black/60">
   <form id="delete-event-form" method="post" action="/staff/events/{{ event.id }}/delete" style="display:contents"></form>
   <h2 class="font-display text-xl text-white">Delete event?</h2>
   <p class="text-slate-400 text-sm mt-2">
-    All {{ participations|length }} participation(s) will be lost. This can't be undone.
+    All attendance and participation data will be lost. This can't be undone.
   </p>
   <div class="flex justify-end gap-2 mt-6">
     <button type="button" onclick="document.getElementById('delete-event-dlg').close()"

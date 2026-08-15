@@ -1323,3 +1323,25 @@ def get_default_roster_ordering(db, season_id: int, snapshot_id: int) -> list:
             -(r.mp_ratio if r.mp_ratio is not None else -1.0),
         ),
     )
+
+
+def get_event_rsvps(db: Session, event_id: int) -> dict:
+    """Return {'yes': [{character_id, name, responded_at}], 'no': [...]}.
+    Ordered by responded_at ascending. Missing member row -> name=None."""
+    from .models import EventRsvp, Member
+    stmt = (
+        select(
+            EventRsvp.character_id,
+            EventRsvp.status,
+            EventRsvp.responded_at,
+            Member.current_name,
+        )
+        .join(Member, Member.character_id == EventRsvp.character_id, isouter=True)
+        .where(EventRsvp.event_id == event_id)
+        .order_by(EventRsvp.responded_at.asc())
+    )
+    yes, no = [], []
+    for cid, status_val, responded_at, name in db.execute(stmt).all():
+        row = {"character_id": cid, "name": name, "responded_at": responded_at}
+        (yes if status_val == "yes" else no).append(row)
+    return {"yes": yes, "no": no}

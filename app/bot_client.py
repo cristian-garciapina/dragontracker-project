@@ -6,6 +6,7 @@ running every 15 minutes will eventually assign @Verified anyway.
 """
 from __future__ import annotations
 
+import base64
 import logging
 import os
 from typing import Optional
@@ -85,12 +86,26 @@ async def notify_new_application(payload: dict) -> None:
 
 
 async def notify_new_signup(payload: dict) -> None:
-    """Notify the bot that a new signup requires staff approval."""
+    """Notify the bot that a new signup requires staff approval.
+    Reads the screenshot file and includes it as base64 in the payload."""
     cfg = _config()
     if cfg is None:
         return
     base_url, api_key = cfg
     url = f"{base_url}/internal/notify-signup"
+
+    # Read screenshot file and encode as base64 (small files, ~1-2 MB max)
+    screenshot_path = payload.pop("screenshot_path", None)
+    if screenshot_path:
+        try:
+            from pathlib import Path as _Path
+            p = _Path(screenshot_path)
+            if p.is_file():
+                with p.open("rb") as f:
+                    payload["screenshot_b64"] = base64.b64encode(f.read()).decode("ascii")
+                payload["screenshot_filename"] = p.name
+        except Exception as exc:  # noqa: BLE001
+            log.warning("notify_new_signup: read screenshot failed: %s", exc)
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
             resp = await client.post(

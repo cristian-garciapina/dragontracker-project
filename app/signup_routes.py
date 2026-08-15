@@ -214,6 +214,7 @@ async def signup_submit(
             "id": user.id,
             "username": user.username,
             "email": user.email,
+            "screenshot_path": user.signup_screenshot_path,
             "submitted_in_game_name": user.submitted_in_game_name,
             "submitted_rank": user.submitted_rank,
             "submitted_server": user.submitted_server,

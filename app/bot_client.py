@@ -126,3 +126,25 @@ async def notify_new_event(payload: dict) -> None:
         log.warning("notify_new_event: timeout")
     except Exception as exc:  # noqa: BLE001
         log.warning("notify_new_event: %s", exc)
+
+
+async def notify_event_deleted(payload: dict) -> None:
+    """Notify the bot that an event was deleted — bot removes the #events embed."""
+    cfg = _config()
+    if cfg is None:
+        return
+    base_url, api_key = cfg
+    url = f"{base_url}/internal/delete-event"
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+            resp = await client.post(
+                url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+            )
+            if resp.status_code >= 400:
+                log.warning("notify_event_deleted -> %s: %s", resp.status_code, resp.text[:200])
+    except httpx.TimeoutException:
+        log.warning("notify_event_deleted: timeout")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("notify_event_deleted: %s", exc)

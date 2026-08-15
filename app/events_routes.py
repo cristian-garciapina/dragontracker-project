@@ -197,9 +197,20 @@ async def save_manual(
 
 
 @router.post("/{event_id}/delete")
-def delete_event_route(event_id: int,
-                       user=Depends(require_staff), db: Session = Depends(get_db)):
+async def delete_event_route(event_id: int,
+                             user=Depends(require_staff), db: Session = Depends(get_db)):
+    ev = q.get_event(db, event_id)
+    if ev is None:
+        return RedirectResponse("/staff/events", status_code=303)
+    # Capture Discord message coords before deletion
+    msg_id = ev.discord_message_id
+    ch_id = ev.discord_channel_id
     q.delete_event(db, event_id)
+    if msg_id and ch_id:
+        await bot_client.notify_event_deleted({
+            "message_id": msg_id,
+            "channel_id": ch_id,
+        })
     return RedirectResponse("/staff/events", status_code=303)
 
 

@@ -696,3 +696,26 @@ def event_set_discord_message(
     event.discord_channel_id = channel_id
     session.commit()
     return {"ok": True, "event_id": event_id, "message_id": message_id, "channel_id": channel_id}
+
+@router.get("/events/active", dependencies=[Depends(require_api_key)])
+def events_active(session: Session = Depends(get_session)) -> list[dict]:
+    """Events with date_end >= today. Bot uses this for reminder loop + freeze."""
+    today = date.today()
+    rows = session.execute(
+        select(Event).where(Event.date_end >= today).order_by(Event.date_start.asc(), Event.id.asc())
+    ).scalars().all()
+    out = []
+    for e in rows:
+        out.append({
+            "id": e.id,
+            "kind": e.kind,
+            "name": e.name,
+            "date_start": e.date_start.isoformat() if e.date_start else None,
+            "date_end": e.date_end.isoformat() if e.date_end else None,
+            "event_time": e.event_time.strftime("%H:%M") if e.event_time else None,
+            "info_url": e.info_url,
+            "discord_message_id": e.discord_message_id,
+            "discord_channel_id": e.discord_channel_id,
+        })
+    return out
+

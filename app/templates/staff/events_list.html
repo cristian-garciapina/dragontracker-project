@@ -55,7 +55,11 @@
           <td class="px-4"><a href="/staff/events/{{ row.event.id }}" class="text-cyan-400 hover:underline">{{ row.event.name }}</a></td>
           <td class="px-4 text-right text-slate-300 font-mono tnum">{{ row.participant_count }}</td>
           <td class="px-4 text-right">
-            <a href="/staff/events/{{ row.event.id }}" class="text-xs text-slate-400 hover:text-cyan-400">Open →</a>
+            <div class="inline-flex items-center gap-3">
+              <a href="/staff/events/{{ row.event.id }}" class="text-xs text-slate-300 hover:text-cyan-300">Open →</a>
+              <button type="button" data-del-event="{{ row.event.id }}" data-del-name="{{ row.event.name }}"
+                      class="text-xs text-slate-500 hover:text-red-400 transition" title="Delete event">✕</button>
+            </div>
           </td>
         </tr>
         {% endfor %}
@@ -165,4 +169,33 @@
 })();
 </script>
 {% endif %}
+
+
+<dialog id="row-del-dlg" class="rounded-lg bg-slate-900 border border-slate-700 p-6 max-w-md w-full text-slate-200 backdrop:bg-black/60">
+  <form id="row-del-form" method="post" style="display:contents"></form>
+  <h2 class="font-display text-xl text-white">Delete event?</h2>
+  <p class="text-slate-400 text-sm mt-2">
+    Delete <span id="row-del-name" class="text-white font-semibold"></span>? All attendance and participation data will be lost.
+  </p>
+  <div class="flex justify-end gap-2 mt-6">
+    <button type="button" onclick="document.getElementById('row-del-dlg').close()" class="btn-ghost">Cancel</button>
+    <button type="submit" form="row-del-form" class="btn-primary bg-red-600 hover:bg-red-500">Delete</button>
+  </div>
+</dialog>
+
+<script>
+(function() {
+  const dlg = document.getElementById("row-del-dlg");
+  const form = document.getElementById("row-del-form");
+  const nameEl = document.getElementById("row-del-name");
+  document.querySelectorAll("[data-del-event]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      form.action = `/staff/events/${btn.dataset.delEvent}/delete`;
+      nameEl.textContent = btn.dataset.delName || "this event";
+      dlg.showModal();
+    });
+  });
+})();
+</script>
+
 {% endblock %}

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .db import get_session
 from datetime import datetime, date
 from fastapi import Body
-from .models import Application, Event, EventParticipation, EventRsvp, Score, Season, User
+from .models import Application, Event, EventParticipation, EventRsvp, Member, Score, Season, User
 from .audit import record_staff_event, latest_event
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -42,8 +42,10 @@ def players_grades(session: Session = Depends(get_session)) -> list[dict]:
             Score.grade,
             Score.status,
             Score.is_farm_account,
+            Member.current_name,
         )
         .join(Score, Score.character_id == User.character_id)
+        .join(Member, Member.character_id == User.character_id, isouter=True)
         .where(User.discord_id.is_not(None))
         .where(Score.season_id == active_season.id)
     ).all()
@@ -55,6 +57,7 @@ def players_grades(session: Session = Depends(get_session)) -> list[dict]:
             "grade": r.grade,
             "status": r.status,
             "is_farm_account": bool(r.is_farm_account),
+            "current_name": r.current_name,
         }
         for r in rows
     ]

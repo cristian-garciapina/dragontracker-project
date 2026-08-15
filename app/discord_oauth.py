@@ -83,8 +83,16 @@ def _set_session_cookie(resp: RedirectResponse, session_id: str) -> None:
     )
 
 
+from .ratelimit import hit as rl_hit, client_ip
+
+
 @router.get("/auth/discord/start")
 async def discord_start(request: Request, next: str = "/dashboard"):
+    # RL_DISCORD_START: 20/10min per IP
+    ok, _ = rl_hit(f"disc_start:{client_ip(request)}", 20, 600)
+    if not ok:
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse("Too many requests. Try again in a few minutes.", status_code=429)
     if not _oauth_configured():
         return RedirectResponse(
             url="/login?error=discord_not_configured",

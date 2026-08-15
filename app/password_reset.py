@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from argon2 import PasswordHasher
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -33,6 +33,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 _hasher = PasswordHasher()
 
 TOKEN_TTL = timedelta(hours=1)
+
+
+from .ratelimit import hit as rl_hit, client_ip
 
 
 def _generic_forgot_response(request: Request) -> HTMLResponse:
@@ -62,6 +65,10 @@ def forgot_submit(
     email: str = Form(...),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
+    # RL_FORGOT: 5/hour per IP
+    ok, _ = rl_hit(f"forgot:{client_ip(request)}", 5, 3600)
+    if not ok:
+        return _generic_forgot_response(request)
     email_clean = (email or "").strip().lower()
     if not email_clean or "@" not in email_clean:
         return templates.TemplateResponse(
@@ -154,6 +161,13 @@ def reset_submit(
     password_confirm: str = Form(...),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
+    # RL_RESET: 10/hour IP + 5/hour token
+    ok, _ = rl_hit(f"reset_ip:{client_ip(request)}", 10, 3600)
+    if not ok:
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+    ok, _ = rl_hit(f"reset_tok:{token}", 5, 3600)
+    if not ok:
+        raise HTTPException(status_code=429, detail="Too many attempts on this link.")
     reset_token, user = _load_valid_token(db, token)
     if reset_token is None or user is None:
         return templates.TemplateResponse(

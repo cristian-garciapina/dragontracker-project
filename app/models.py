@@ -79,7 +79,6 @@ class Member(Base):
     current_name: Mapped[str] = mapped_column(String(64), nullable=False)
     alliance_id: Mapped[Optional[int]] = mapped_column(ForeignKey("alliances.id"))
     in_alliance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    discord_id: Mapped[Optional[str]] = mapped_column(String(32))
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

@@ -12,6 +12,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel, Field
+
 from .api_routes import require_api_key
 from .db import SessionLocal, get_session
 from .farlight_client import decode_jwt_payload, jwt_expiry, validate_jwt_shape
@@ -22,7 +24,7 @@ from .farlight_pull import (
     run_pull,
 )
 from .models import Score, Snapshot
-from .secrets_store import get_secret, get_secret_meta
+from .secrets_store import get_secret, get_secret_meta, set_secret
 
 logger = logging.getLogger(__name__)
 
@@ -142,3 +144,58 @@ def _background_pull() -> None:
 def farlight_pull_now(background_tasks: BackgroundTasks) -> dict:
     background_tasks.add_task(_background_pull)
     return {"status": "accepted", "message": "Pull queued; result will be posted to Discord."}
+
+
+# ============================================================================
+# POST /api/farlight/rotate-token
+# ============================================================================
+
+
+class RotateTokenBody(BaseModel):
+    token: str = Field(..., min_length=100, max_length=4096, description="Farlight JWT (no 'Bearer ' prefix)")
+    updated_by: str = Field(..., min_length=1, max_length=64, description="Who requested the rotation (Discord username)")
+
+
+@router.post("/rotate-token", dependencies=[Depends(require_api_key)])
+def farlight_rotate_token(body: RotateTokenBody, session: Session = Depends(get_session)) -> dict:
+    """Store a new Farlight JWT. Validates locally before persisting.
+
+    Called by the Discord bot after the owner DMs a fresh token.
+    The bot has already done a coarse detection; here we do the strict check.
+    Returns exp info so the bot can confirm to the user.
+    """
+    token = body.token.strip()
+    try:
+        payload = decode_jwt_payload(token)
+        validate_jwt_shape(payload)
+    except Exception as e:  # FarlightAuthError, catch-all safe here
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid JWT: {e}",
+        )
+    exp = jwt_expiry(payload)
+    meta = {
+        "account": payload.get("account"),
+        "jti": payload.get("jti"),
+        "iss": payload.get("iss"),
+        "aud": payload.get("aud"),
+        "client_id": payload.get("client_id"),
+        "iat": payload.get("iat"),
+        "exp": payload.get("exp"),
+    }
+    set_secret(
+        session, SECRET_KEY_JWT, token,
+        expires_at=exp, metadata=meta, updated_by=body.updated_by[:64],
+    )
+    days_left = (exp - datetime.utcnow()).days
+    logger.info(
+        "farlight_rotate_token: stored new JWT account=%s exp=%s (%dd) by=%s",
+        payload.get("account"), exp.isoformat(), days_left, body.updated_by,
+    )
+    return {
+        "status": "stored",
+        "account": payload.get("account"),
+        "expires_at": exp.isoformat(),
+        "expires_in_days": days_left,
+    }
+

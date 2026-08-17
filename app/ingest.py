@@ -2,14 +2,13 @@
 
 Source: cod-game-tools.farlightgames.com/topn (official beta portal).
 
-The portal lets users tick which columns to include in the export.
-This parser is therefore tolerant: any subset of known columns is accepted,
-provided the minimal identity columns are present (character_id, name, power,
-merits_total).
+Two entrypoints share the same core:
+- `_ingest_upload` — xlsx uploaded via the staff seasons wizard.
+- `ingest_rows` — pure function called by the xlsx path AND by the
+  Farlight API auto-pull (see app/farlight_pull.py).
 
-Entrypoint: `_ingest_upload` — called by the staff seasons upload wizard
-(seasons_routes.py). The former `/api/ingest` HTTP endpoint (openpyxl-based
-pipeline B) was removed as unused.
+Both funnel through `ingest_rows`, which handles snapshot dedup,
+member upsert, stat insert, and in_alliance sync.
 """
 from __future__ import annotations
 
@@ -17,12 +16,13 @@ import logging
 import re
 import unicodedata
 from datetime import date, datetime
+from typing import Iterable, Mapping
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .models import Season, Setting, Snapshot
+from .models import Member, Score, Season, Setting, Snapshot, Stat
 
 logger = logging.getLogger(__name__)
 
@@ -110,58 +110,225 @@ def _detect_overlap(session: Session, season_id: int, date_start: date, date_end
     return None
 
 
+# ============================================================================
+# CORE: pure ingestion function
+# ============================================================================
+
+
+def ingest_rows(
+    session: Session,
+    rows: Iterable[Mapping[str, object]],
+    *,
+    source_filename: str,
+    date_start: date,
+    date_end: date,
+    ingested_by: str,
+    replace: bool = False,
+) -> dict:
+    """Ingest a batch of already-parsed member rows into a new snapshot.
+
+    Called by both the xlsx upload path and the Farlight API auto-pull.
+    All heavy source-format parsing (Excel / JSON / whatever) happens
+    upstream; this function only cares about a normalized list of dicts.
+
+    Args:
+        session: SQLAlchemy session. This function commits on success and
+                 leaves rollback to the caller on failure.
+        rows: iterable of dicts with keys matching HEADER_MAP values
+              (character_id, current_name, power, merits_total, ...).
+              Values may be int, str, None — coerced via _parse_int.
+        source_filename: unique-ish tag for this batch. For xlsx uploads,
+              the original filename. For API pulls, a synthetic name like
+              "farlight_api_YYYY-MM-DD_YYYY-MM-DD.json".
+        date_start / date_end: temporal window this batch covers.
+              date_start == date_end → daily snapshot.
+              date_start < date_end → cumulative snapshot (season-to-date).
+        ingested_by: audit trail (username or "farlight-cron").
+        replace: if True and a snapshot with the same
+                 (source_filename, date_start, date_end) already exists,
+                 wipe it (with its stats + scores) and re-insert. Used by
+                 the nightly cron so re-runs are idempotent.
+                 Never allowed for a season's start_snapshot_id — raises.
+
+    Returns:
+        dict with snapshot_id, filename, rows, dropped, replaced_previous.
+
+    Raises:
+        ValueError: dup snapshot (when replace=False), overlap detected,
+                    or attempted replace of a season start snapshot.
+        HTTPException: no active season.
+    """
+    rows = list(rows)  # materialize (we iterate twice)
+    season = _get_active_season(session)
+
+    replaced_previous = False
+    existing = session.scalar(
+        select(Snapshot)
+        .where(Snapshot.source_filename == source_filename)
+        .where(Snapshot.date_start == date_start)
+        .where(Snapshot.date_end == date_end)
+    )
+    if existing is not None:
+        if not replace:
+            raise ValueError(f"Snapshot already ingested (id={existing.id}).")
+        # Guard: never wipe a snapshot that anchors a season's start.
+        anchoring = session.scalar(
+            select(Season.id).where(Season.start_snapshot_id == existing.id)
+        )
+        if anchoring:
+            raise ValueError(
+                f"Cannot replace snapshot {existing.id}: "
+                f"it anchors season {anchoring} as start_snapshot_id."
+            )
+        session.execute(delete(Score).where(Score.snapshot_id == existing.id))
+        session.execute(delete(Stat).where(Stat.snapshot_id == existing.id))
+        session.delete(existing)
+        session.flush()
+        replaced_previous = True
+        logger.info(
+            "Ingest %s: replaced previous snapshot id=%d for (%s..%s)",
+            source_filename, existing.id, date_start, date_end,
+        )
+
+    if date_start != date_end and _get_setting_bool(
+        session, "ingest.reject_overlapping_periods", default=True
+    ):
+        overlap = _detect_overlap(session, season.id, date_start, date_end)
+        if overlap:
+            raise ValueError("Overlapping snapshot period detected.")
+
+    snap = Snapshot(
+        season_id=season.id,
+        date_start=date_start,
+        date_end=date_end,
+        source_filename=source_filename,
+        row_count=len(rows),
+        ingested_at=datetime.utcnow(),
+        ingested_by=ingested_by,
+    )
+    session.add(snap)
+    session.flush()
+
+    rows_inserted = 0
+    skipped = 0
+    present_ids: set[int] = set()
+    now = datetime.utcnow()
+
+    for row in rows:
+        if not REQUIRED_FIELDS.issubset(row.keys()):
+            skipped += 1
+            continue
+        try:
+            cid = _parse_int(row["character_id"])
+        except Exception:
+            skipped += 1
+            continue
+        if not cid:
+            skipped += 1
+            continue
+
+        name = str(row["current_name"])[:64]
+        member = session.get(Member, cid)
+        if member is None:
+            member = Member(
+                character_id=cid,
+                current_name=name,
+                in_alliance=True,
+                last_seen_at=now,
+            )
+            session.add(member)
+        else:
+            member.current_name = name
+            # Throttle last_seen_at writes to at most once per snapshot day.
+            if member.last_seen_at is None or member.last_seen_at.date() < date_end:
+                member.last_seen_at = now
+
+        stat = Stat(
+            snapshot_id=snap.id,
+            character_id=cid,
+            rank=_parse_int(row["rank"]) if row.get("rank") else None,
+            power=_parse_int(row.get("power", 0)),
+            peak_power=_parse_int(row["peak_power"]) if row.get("peak_power") else None,
+            deaths_t45=_parse_int(row.get("deaths_t45", 0)),
+            destruction_time=_parse_int(row.get("destruction_time", 0)),
+            merits_total=_parse_int(row.get("merits_total", 0)),
+            merits_infantry=_parse_int(row.get("merits_infantry", 0)),
+            merits_cavalry=_parse_int(row.get("merits_cavalry", 0)),
+            merits_archers=_parse_int(row.get("merits_archers", 0)),
+            merits_magic=_parse_int(row.get("merits_magic", 0)),
+            merits_other=_parse_int(row.get("merits_other", 0)),
+            healing_t45=_parse_int(row.get("healing_t45", 0)),
+            harvest=_parse_int(row.get("harvest", 0)),
+            build_time=_parse_int(row.get("build_time", 0)),
+            alliance_donations=_parse_int(row.get("alliance_donations", 0)),
+            behemoth_victories=_parse_int(row.get("behemoth_victories", 0)),
+        )
+        session.add(stat)
+        present_ids.add(cid)
+        rows_inserted += 1
+
+    # --- in_alliance sync (unchanged rule) -------------------------------
+    # A cumulative export of the ACTIVE season lists every current member.
+    # Members currently in_alliance=True but absent from this export have
+    # left the alliance → flip to False. Guarded on non-empty rows.
+    dropped: list[tuple[int, str]] = []
+    is_cumulative = date_start != date_end
+    is_active_season = season.is_active
+    if present_ids and is_cumulative and is_active_season:
+        stale = session.execute(
+            select(Member).where(
+                Member.in_alliance == True,  # noqa: E712
+                Member.character_id.not_in(present_ids),
+            )
+        ).scalars().all()
+        for m in stale:
+            m.in_alliance = False
+            dropped.append((m.character_id, m.current_name))
+        if dropped:
+            logger.info(
+                "Ingest %s: %d member(s) absent from cumulative → in_alliance=False: %s",
+                source_filename, len(dropped), dropped,
+            )
+    elif present_ids and not (is_cumulative and is_active_season):
+        logger.info(
+            "Ingest %s: skipping in_alliance sync (cumulative=%s, active_season=%s)",
+            source_filename, is_cumulative, is_active_season,
+        )
+
+    session.commit()
+    return {
+        "snapshot_id": snap.id,
+        "filename": source_filename,
+        "rows": rows_inserted,
+        "skipped": skipped,
+        "dropped": len(dropped),
+        "replaced_previous": replaced_previous,
+        "is_cumulative": is_cumulative,
+    }
+
+
+# ============================================================================
+# XLSX UPLOAD WRAPPER (used by staff seasons upload wizard)
+# ============================================================================
+
+
 async def _ingest_upload(
     session,
     file,
     *,
     ingested_by: str,
 ) -> dict:
-    """Reusable ingestion entrypoint used by the staff seasons upload wizard
-    (seasons_routes.py). Returns a dict with snapshot_id, filename, rows.
-    """
+    """Xlsx upload path. Parses the file with pandas, delegates to ingest_rows."""
     from io import BytesIO
     import pandas as pd
-    from sqlalchemy import select as _select
-    from .models import Snapshot as _Snapshot, Stat as _Stat, Member as _Member
 
     raw = await file.read()
     if not file.filename:
         raise ValueError("Missing filename.")
     date_start, date_end = _extract_dates_from_filename(file.filename)
 
-    season = _get_active_season(session)
-    if season is None:
-        raise ValueError("No active season.")
-
-    existing = session.scalar(
-        _select(_Snapshot)
-        .where(_Snapshot.source_filename == file.filename)
-        .where(_Snapshot.date_start == date_start)
-        .where(_Snapshot.date_end == date_end)
-    )
-    if existing is not None:
-        raise ValueError(f"Snapshot already ingested (id={existing.id}).")
-
-    if date_start != date_end and _get_setting_bool(
-        session, "ingest.reject_overlapping_periods", default=True
-    ):
-        if _detect_overlap(session, season.id, date_start, date_end):
-            raise ValueError("Overlapping snapshot period detected.")
-
     df = pd.read_excel(BytesIO(raw))
     df.columns = [_normalize(c) for c in df.columns]
-
-    snap = _Snapshot(
-        season_id=season.id,
-        date_start=date_start,
-        date_end=date_end,
-        source_filename=file.filename,
-        row_count=len(df),
-        ingested_at=datetime.utcnow(),
-        ingested_by=ingested_by,
-    )
-    session.add(snap)
-    session.flush()
 
     unmapped = sorted({c for c in df.columns if c and c not in HEADER_MAP})
     if unmapped:
@@ -170,103 +337,20 @@ async def _ingest_upload(
             file.filename, len(unmapped), unmapped,
         )
 
-    rows_inserted = 0
-    present_ids: set[int] = set()  # character_ids seen in this export
+    rows: list[dict] = []
     for _, row in df.iterrows():
-        mapped = {}
+        d: dict = {}
         for col_value, field in HEADER_MAP.items():
             if col_value in row.index:
-                mapped[field] = row[col_value]
-        if not REQUIRED_FIELDS.issubset(mapped.keys()):
-            continue
+                d[field] = row[col_value]
+        rows.append(d)
 
-        try:
-            cid = _parse_int(mapped["character_id"])
-        except Exception:
-            continue
-
-        member = session.get(_Member, cid)
-        if member is None:
-            member = _Member(
-                character_id=cid,
-                current_name=str(mapped["current_name"])[:64],
-                in_alliance=True,
-                last_seen_at=datetime.utcnow(),
-            )
-            session.add(member)
-        else:
-            member.current_name = str(mapped["current_name"])[:64]
-            # Throttle last_seen_at: write at most once per snapshot day.
-            # Avoids ~300 UPDATEs per ingestion on a column that only needs
-            # day-level granularity.
-            if member.last_seen_at is None or member.last_seen_at.date() < date_end:
-                member.last_seen_at = datetime.utcnow()
-
-        stat = _Stat(
-            snapshot_id=snap.id,
-            character_id=cid,
-            rank=_parse_int(mapped.get("rank", 0)) if mapped.get("rank") else None,
-            power=_parse_int(mapped.get("power", 0)),
-            peak_power=_parse_int(mapped.get("peak_power", 0)) if mapped.get("peak_power") else None,
-            deaths_t45=_parse_int(mapped.get("deaths_t45", 0)),
-            destruction_time=_parse_int(mapped.get("destruction_time", 0)),
-            merits_total=_parse_int(mapped.get("merits_total", 0)),
-            merits_infantry=_parse_int(mapped.get("merits_infantry", 0)),
-            merits_cavalry=_parse_int(mapped.get("merits_cavalry", 0)),
-            merits_archers=_parse_int(mapped.get("merits_archers", 0)),
-            merits_magic=_parse_int(mapped.get("merits_magic", 0)),
-            merits_other=_parse_int(mapped.get("merits_other", 0)),
-            healing_t45=_parse_int(mapped.get("healing_t45", 0)),
-            harvest=_parse_int(mapped.get("harvest", 0)),
-            build_time=_parse_int(mapped.get("build_time", 0)),
-            alliance_donations=_parse_int(mapped.get("alliance_donations", 0)),
-            behemoth_victories=_parse_int(mapped.get("behemoth_victories", 0)),
-        )
-        session.add(stat)
-        present_ids.add(cid)
-        rows_inserted += 1
-
-    # --- Sync in_alliance with the export --------------------------------
-    # A season export lists EVERY current alliance member, so a member who
-    # is currently in_alliance=True but absent from this file has left the
-    # alliance. Flip those to False. Members already in_alliance=False
-    # (past ex-members, external farms) are deliberately left untouched.
-    # Guarded on a non-empty export so a garbage/empty upload can never
-    # wipe the whole roster.
-    dropped: list[tuple[int, str]] = []
-    # Only flip in_alliance based on cumulative exports of the ACTIVE season.
-    # Rationale:
-    #   - Cumulatives of past seasons cannot inform current membership
-    #     (a member may have joined after that snapshot was captured).
-    #   - Daily exports (date_start == date_end) reflect a top-N of the day
-    #     and can transiently drop inactive members — false positives.
-    is_cumulative = date_start != date_end
-    is_active_season = season.is_active
-    if present_ids and is_cumulative and is_active_season:
-        stale = session.execute(
-            _select(_Member).where(
-                _Member.in_alliance == True,  # noqa: E712
-                _Member.character_id.not_in(present_ids),
-            )
-        ).scalars().all()
-        for m in stale:
-            m.in_alliance = False
-            dropped.append((m.character_id, m.current_name))
-        if dropped:
-            logger.info(
-                "Ingest(upload) %s: %d member(s) absent from cumulative export → in_alliance=False: %s",
-                file.filename, len(dropped), dropped,
-            )
-    elif present_ids and not (is_cumulative and is_active_season):
-        logger.info(
-            "Ingest(upload) %s: skipping in_alliance sync (cumulative=%s, active_season=%s)",
-            file.filename, is_cumulative, is_active_season,
-        )
-
-    session.commit()
-    return {
-        "snapshot_id": snap.id,
-        "filename": file.filename,
-        "rows": rows_inserted,
-        "dropped": len(dropped),
-    }
+    return ingest_rows(
+        session,
+        rows,
+        source_filename=file.filename,
+        date_start=date_start,
+        date_end=date_end,
+        ingested_by=ingested_by,
+        replace=False,
+    )

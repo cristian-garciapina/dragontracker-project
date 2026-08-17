@@ -16,7 +16,7 @@ import logging
 import re
 import unicodedata
 from datetime import date, datetime
-from typing import Iterable, Mapping
+from typing import Iterable, Literal, Mapping
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, select
@@ -123,7 +123,8 @@ def ingest_rows(
     date_start: date,
     date_end: date,
     ingested_by: str,
-    replace: bool = False,
+    on_conflict: Literal["fail", "replace"] = "fail",
+    replace: bool | None = None,
 ) -> dict:
     """Ingest a batch of already-parsed member rows into a new snapshot.
 
@@ -161,17 +162,38 @@ def ingest_rows(
     rows = list(rows)  # materialize (we iterate twice)
     season = _get_active_season(session)
 
+    # Backward compat: `replace=True` shim -> `on_conflict="replace"`.
+    # New code should use on_conflict directly. Kept for callers not yet
+    # migrated (e.g. older CLI scripts) to avoid a hard break.
+    if replace is not None:
+        import warnings
+        warnings.warn(
+            "ingest_rows: `replace=` is deprecated, use `on_conflict=` instead.",
+            DeprecationWarning, stacklevel=2,
+        )
+        on_conflict = "replace" if replace else "fail"
+
     replaced_previous = False
+    replaced_snapshot_meta: dict | None = None
+
+    # Semantic conflict lookup: any snapshot for the SAME
+    # (season, date_start, date_end) — regardless of filename — is the
+    # same logical dataset. This is what lets a Farlight-API auto pull
+    # supersede a stale manual xlsx (and vice versa via /confirm-replace).
     existing = session.scalar(
         select(Snapshot)
-        .where(Snapshot.source_filename == source_filename)
+        .where(Snapshot.season_id == season.id)
         .where(Snapshot.date_start == date_start)
         .where(Snapshot.date_end == date_end)
     )
     if existing is not None:
-        if not replace:
-            raise ValueError(f"Snapshot already ingested (id={existing.id}).")
-        # Guard: never wipe a snapshot that anchors a season's start.
+        if on_conflict == "fail":
+            raise ValueError(
+                f"Snapshot already ingested (id={existing.id}, "
+                f"source={existing.source_filename!r}, "
+                f"ingested_by={existing.ingested_by!r})."
+            )
+        # on_conflict == "replace" — guard against wiping season anchors.
         anchoring = session.scalar(
             select(Season.id).where(Season.start_snapshot_id == existing.id)
         )
@@ -180,14 +202,23 @@ def ingest_rows(
                 f"Cannot replace snapshot {existing.id}: "
                 f"it anchors season {anchoring} as start_snapshot_id."
             )
+        # Preserve metadata of the wiped snapshot for the return payload,
+        # so callers can log/audit what was overwritten.
+        replaced_snapshot_meta = {
+            "id": existing.id,
+            "source_filename": existing.source_filename,
+            "ingested_by": existing.ingested_by,
+            "ingested_at": existing.ingested_at.isoformat() if existing.ingested_at else None,
+        }
         session.execute(delete(Score).where(Score.snapshot_id == existing.id))
         session.execute(delete(Stat).where(Stat.snapshot_id == existing.id))
         session.delete(existing)
         session.flush()
         replaced_previous = True
         logger.info(
-            "Ingest %s: replaced previous snapshot id=%d for (%s..%s)",
-            source_filename, existing.id, date_start, date_end,
+            "Ingest %s: replaced snapshot id=%d (was %s by %s) for (%s..%s)",
+            source_filename, existing.id, existing.source_filename,
+            existing.ingested_by, date_start, date_end,
         )
 
     if date_start != date_end and _get_setting_bool(
@@ -303,6 +334,7 @@ def ingest_rows(
         "skipped": skipped,
         "dropped": len(dropped),
         "replaced_previous": replaced_previous,
+        "replaced_snapshot": replaced_snapshot_meta,
         "is_cumulative": is_cumulative,
     }
 
@@ -352,5 +384,5 @@ async def _ingest_upload(
         date_start=date_start,
         date_end=date_end,
         ingested_by=ingested_by,
-        replace=False,
+        on_conflict="fail",
     )

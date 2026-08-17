@@ -175,13 +175,13 @@ def run_pull(session, *, jwt: Optional[str] = None) -> dict[str, Any]:
             session, daily_rows,
             source_filename=f"farlight_api_{server_id}_{end}_{end}.json",
             date_start=end, date_end=end,
-            ingested_by=INGESTED_BY, replace=True,
+            ingested_by=INGESTED_BY, on_conflict="replace",
         )
         cum_report = ingest_rows(
             session, cum_rows,
             source_filename=f"farlight_api_{server_id}_{cum_start}_{end}.json",
             date_start=cum_start, date_end=end,
-            ingested_by=INGESTED_BY, replace=True,
+            ingested_by=INGESTED_BY, on_conflict="replace",
         )
         score_report = recompute_scores_for_active_season(session)
     except Exception as e:

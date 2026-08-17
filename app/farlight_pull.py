@@ -199,6 +199,49 @@ def run_pull(session, *, jwt: Optional[str] = None) -> dict[str, Any]:
     return summary
 
 
+
+
+# ============================================================================
+# Bot notification (fire-and-forget POST to the bot's internal HTTP server)
+# ============================================================================
+
+BOT_WEBHOOK_URL = "http://127.0.0.1:8100/internal/notify-farlight-pull"
+
+
+def notify_bot(summary: dict) -> None:
+    """POST the summary to the bot's internal webhook.
+
+    Fire-and-forget: any error here MUST NOT change the pull outcome.
+    The pull already committed to the DB; failing to notify Discord is
+    a soft failure (logged, not raised).
+    """
+    import os
+    api_key = os.environ.get("EV_API_KEY")
+    if not api_key:
+        logger.warning("notify_bot: EV_API_KEY missing, skipping notification")
+        return
+    try:
+        import httpx
+        with httpx.Client(timeout=3.0) as client:
+            resp = client.post(
+                BOT_WEBHOOK_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=summary,
+            )
+        if resp.status_code >= 400:
+            logger.warning(
+                "notify_bot: bot returned HTTP %d: %s",
+                resp.status_code, resp.text[:200],
+            )
+        else:
+            logger.info("notify_bot: posted (status=%s)", summary.get("status"))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("notify_bot: POST failed: %s", e)
+
+
 def main() -> int:
     """CLI entrypoint. Prints JSON summary to stdout, returns exit code."""
     logging.basicConfig(
@@ -207,6 +250,7 @@ def main() -> int:
     )
     with SessionLocal() as session:
         result = run_pull(session)
+    notify_bot(result)
     print(json.dumps(result, default=str, indent=2))
 
     status = result.get("status")

@@ -19,6 +19,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -620,4 +621,28 @@ class PasswordResetToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+# ============================================================================
+# SECRETS (Fernet-encrypted key/value store for external API tokens)
+# ============================================================================
+
+
+class Secret(Base):
+    """Encrypted key/value store for external secrets (Farlight JWT, etc.).
+
+    Values are encrypted at rest with Fernet (EV_SECRETS_KEY in env).
+    Callers must go through app/secrets_store.py, never touch this table
+    directly to read/write values.
+    """
+
+    __tablename__ = "secrets"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value_encrypted: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    secret_metadata: Mapped[Optional[dict]] = mapped_column(JSON)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+    updated_by: Mapped[Optional[str]] = mapped_column(String(64))
 

@@ -1,0 +1,16 @@
+[Unit]
+Description=Eternal Vanguard — nightly Farlight API pull (schedule)
+Documentation=https://github.com/cristian-garciapina/eternal-vanguard-site
+
+[Timer]
+# 03:15 UTC every day. CoD server reset is 00:00 UTC; 3h15 gives Farlight
+# ample time to consolidate the previous day's stats before we fetch.
+OnCalendar=*-*-* 03:15:00 UTC
+Persistent=true
+# If the machine was off at 03:15, run on next boot (Persistent=true).
+# Randomize by up to 5 min to be a polite API citizen.
+RandomizedDelaySec=5min
+Unit=farlight-pull.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,45 @@
+[Unit]
+Description=Eternal Vanguard — nightly Farlight API pull
+Documentation=https://github.com/cristian-garciapina/eternal-vanguard-site
+After=network-online.target
+Wants=network-online.target
+# Skip if the site service is down — no active season lookup possible anyway
+Requires=eternal-vanguard.service
+
+[Service]
+Type=oneshot
+User=cod-app
+Group=cod-app
+WorkingDirectory=/opt/dashboard/app
+EnvironmentFile=/etc/eternal-vanguard.env
+Environment=PYTHONPATH=/opt/dashboard/app
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/dashboard/venv/bin/python -m app.farlight_pull
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/dashboard/data
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+
+# Timeouts and retries — one shot, no restart on failure (timer will retry tomorrow)
+TimeoutStartSec=120
+
+# Non-zero exit codes must NOT mask the failure. The timer's OnFailure
+# doesn't fire on oneshot exit codes, so we rely on the exit code + logs.
+SuccessExitStatus=0
+
+[Install]
+WantedBy=multi-user.target

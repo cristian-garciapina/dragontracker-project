@@ -17,6 +17,10 @@ log = logging.getLogger(__name__)
 
 DEFAULT_BOT_URL = "http://127.0.0.1:8100"
 TIMEOUT_SECONDS = 2.0
+# Signup notif carries a base64-encoded screenshot (~200-500 KiB). At 2s the
+# bot can time out under load, sending a truncated body -> aiohttp rejects
+# with HTTP 400 "invalid json" and the notif is lost.
+SIGNUP_TIMEOUT_SECONDS = 10.0
 
 
 def _config() -> Optional[tuple[str, str]]:
@@ -107,7 +111,7 @@ async def notify_new_signup(payload: dict) -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("notify_new_signup: read screenshot failed: %s", exc)
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=SIGNUP_TIMEOUT_SECONDS) as client:
             resp = await client.post(
                 url,
                 headers={"Authorization": f"Bearer {api_key}"},

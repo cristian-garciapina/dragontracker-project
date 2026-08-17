@@ -1,0 +1,226 @@
+"""Farlight API auto-pull orchestrator.
+
+Runs nightly via systemd timer (see systemd/farlight-pull.{service,timer}).
+Also callable programmatically after a token rotation to smoke-test the
+freshly stored JWT before returning success to the caller.
+
+Per-run flow:
+  1. Load JWT from encrypted secrets store (unless caller supplies one).
+  2. Validate JWT locally (shape + not-yet-expired).
+  3. Compute date window:
+       - daily:      start = end = yesterday UTC
+       - cumulative: start = active_season.start_date, end = yesterday UTC
+     Cron runs at 03:15 UTC, after Farlight has frozen the previous day
+     at 00:00 UTC, so "yesterday" is always a complete window.
+  4. Fetch both windows from /api/topn.
+  5. Ingest via ingest_rows(replace=True) — re-runs the same day are
+     idempotent (previous snapshot with the same filename gets wiped
+     and re-inserted). Never replaces a season's anchor snapshot
+     (ingest_rows guards against that).
+  6. Recompute scores for the active season.
+  7. Return a summary dict for the CLI stdout / Discord bot embed.
+
+The function never raises for expected failure modes — it encodes them
+in `status` and `error` so bot/CLI can format uniformly. Unexpected
+exceptions inside ingest/scoring bubble up as status="ingest_error".
+
+CLI exit codes:
+  0 ok                  — everything committed, scores recomputed
+  1 jwt_missing/invalid — need rotation, DM Cristian
+  2 api_auth_rejected   — token dead on the server side, DM Cristian
+  3 api_error           — transient (5xx / network / business code)
+  4 ingest_error        — data-shape problem, needs investigation
+  5 no_active_season / season_not_started — config problem
+"""
+from __future__ import annotations
+
+import json
+import logging
+import sys
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Optional
+
+from sqlalchemy import select
+
+from .db import SessionLocal
+from .farlight_client import (
+    FarlightAPIError,
+    FarlightAuthError,
+    decode_jwt_payload,
+    fetch_topn,
+    jwt_expiry,
+    map_api_rows,
+    validate_jwt_shape,
+)
+from .ingest import ingest_rows
+from .models import Alliance, Season
+from .scoring import recompute_scores_for_active_season
+from .secrets_store import get_secret
+
+logger = logging.getLogger(__name__)
+
+SECRET_KEY_JWT = "farlight_jwt"
+DEFAULT_SERVER_ID = 193
+WARN_EXPIRY_DAYS = 7
+INGESTED_BY = "farlight-cron"
+
+
+def _yesterday_utc() -> date:
+    return (datetime.now(tz=timezone.utc) - timedelta(days=1)).date()
+
+
+def _get_server_id(session) -> int:
+    """Pull kingdom_number from the first Alliance row, fallback to 193."""
+    alliance = session.execute(select(Alliance)).scalars().first()
+    if alliance:
+        return alliance.kingdom_number
+    return DEFAULT_SERVER_ID
+
+
+def _get_active_season(session) -> Season:
+    season = session.execute(
+        select(Season).where(Season.is_active.is_(True))
+    ).scalar_one_or_none()
+    if season is None:
+        raise RuntimeError("No active season.")
+    return season
+
+
+def run_pull(session, *, jwt: Optional[str] = None) -> dict[str, Any]:
+    """Execute a full nightly pull. See module docstring for semantics."""
+    summary: dict[str, Any] = {
+        "started_at": datetime.utcnow().isoformat(),
+        "status": "unknown",
+    }
+
+    # ---- Load + validate JWT --------------------------------------------
+    if jwt is None:
+        jwt = get_secret(session, SECRET_KEY_JWT)
+    if not jwt:
+        summary["status"] = "jwt_missing"
+        summary["error"] = f"No secret {SECRET_KEY_JWT!r} in store."
+        return summary
+    try:
+        payload = decode_jwt_payload(jwt)
+        validate_jwt_shape(payload)
+    except FarlightAuthError as e:
+        summary["status"] = "jwt_invalid"
+        summary["error"] = str(e)
+        return summary
+
+    exp = jwt_expiry(payload)
+    days_left = (exp - datetime.utcnow()).days
+    summary["jwt_account"] = payload.get("account")
+    summary["jwt_expires_at"] = exp.isoformat()
+    summary["jwt_expires_in_days"] = days_left
+    summary["jwt_expiring_soon"] = days_left < WARN_EXPIRY_DAYS
+
+    # ---- Determine dates ------------------------------------------------
+    try:
+        season = _get_active_season(session)
+    except RuntimeError as e:
+        summary["status"] = "no_active_season"
+        summary["error"] = str(e)
+        return summary
+    server_id = _get_server_id(session)
+    end = _yesterday_utc()
+    cum_start = season.start_date
+    if cum_start > end:
+        summary["status"] = "season_not_started"
+        summary["error"] = f"Season start {cum_start} > yesterday {end}."
+        return summary
+    summary.update({
+        "server_id": server_id,
+        "season_id": season.id,
+        "season_name": season.name,
+        "daily_date": end.isoformat(),
+        "cum_start": cum_start.isoformat(),
+        "cum_end": end.isoformat(),
+    })
+
+    # ---- Fetch daily + cumulative ---------------------------------------
+    try:
+        daily_data = fetch_topn(
+            jwt,
+            start_date=end.isoformat(),
+            end_date=end.isoformat(),
+            server_id=server_id,
+        )
+        cum_data = fetch_topn(
+            jwt,
+            start_date=cum_start.isoformat(),
+            end_date=end.isoformat(),
+            server_id=server_id,
+        )
+    except FarlightAuthError as e:
+        summary["status"] = "api_auth_rejected"
+        summary["error"] = str(e)
+        return summary
+    except FarlightAPIError as e:
+        summary["status"] = "api_error"
+        summary["error"] = str(e)
+        return summary
+
+    daily_rows = map_api_rows(daily_data)
+    cum_rows = map_api_rows(cum_data)
+    summary["daily_rows_fetched"] = len(daily_rows)
+    summary["cum_rows_fetched"] = len(cum_rows)
+
+    # ---- Ingest both windows, then recompute scores --------------------
+    # NOTE: ingest_rows commits per call. If cumulative ingest fails after
+    # daily commit, we keep the daily and the scoring will see yesterday's
+    # cumulative (stale but not broken). Next nightly run recovers.
+    try:
+        daily_report = ingest_rows(
+            session, daily_rows,
+            source_filename=f"farlight_api_{server_id}_{end}_{end}.json",
+            date_start=end, date_end=end,
+            ingested_by=INGESTED_BY, replace=True,
+        )
+        cum_report = ingest_rows(
+            session, cum_rows,
+            source_filename=f"farlight_api_{server_id}_{cum_start}_{end}.json",
+            date_start=cum_start, date_end=end,
+            ingested_by=INGESTED_BY, replace=True,
+        )
+        score_report = recompute_scores_for_active_season(session)
+    except Exception as e:
+        session.rollback()
+        summary["status"] = "ingest_error"
+        summary["error"] = f"{type(e).__name__}: {e}"
+        logger.exception("farlight_pull: ingest/scoring failed")
+        return summary
+
+    summary["daily"] = daily_report
+    summary["cumulative"] = cum_report
+    summary["scoring"] = score_report
+    summary["status"] = "ok"
+    summary["completed_at"] = datetime.utcnow().isoformat()
+    return summary
+
+
+def main() -> int:
+    """CLI entrypoint. Prints JSON summary to stdout, returns exit code."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    with SessionLocal() as session:
+        result = run_pull(session)
+    print(json.dumps(result, default=str, indent=2))
+
+    status = result.get("status")
+    return {
+        "ok": 0,
+        "jwt_missing": 1,
+        "jwt_invalid": 1,
+        "api_auth_rejected": 2,
+        "api_error": 3,
+        "ingest_error": 4,
+        "no_active_season": 5,
+        "season_not_started": 5,
+    }.get(status, 4)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

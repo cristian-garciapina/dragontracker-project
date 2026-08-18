@@ -109,9 +109,9 @@
   </div>
   {% endif %}
 </div>
-<script>window.__LIVE_URL__="/staff/audit/json"; window.__LIVE_KEY__="latest_ids";</script>
+<script nonce="{{ request.state.csp_nonce }}">window.__LIVE_URL__="/staff/audit/json"; window.__LIVE_KEY__="latest_ids";</script>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
   const url = window.__LIVE_URL__;
   const key = window.__LIVE_KEY__ || "total";

@@ -102,7 +102,7 @@
   <img id="screenshot-modal-img" src="" alt="signup proof"
        class="max-h-[90vh] max-w-[95vw] object-contain rounded shadow-2xl">
 </div>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function () {
   const modal = document.getElementById('screenshot-modal');
   if (modal && modal.parentNode !== document.body) document.body.appendChild(modal);
@@ -126,9 +126,9 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
 })();
 </script>
-<script>window.__LIVE_URL__="/staff/registrations/json"; window.__LIVE_KEY__="ids";</script>
+<script nonce="{{ request.state.csp_nonce }}">window.__LIVE_URL__="/staff/registrations/json"; window.__LIVE_KEY__="ids";</script>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
   const url = window.__LIVE_URL__;
   const key = window.__LIVE_KEY__ || "total";

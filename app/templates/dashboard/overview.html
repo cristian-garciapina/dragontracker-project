@@ -453,7 +453,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   (function () {
     const table = document.querySelector('[data-section="top-performers"] table');
     if (!table) return;

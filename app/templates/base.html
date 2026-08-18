@@ -413,7 +413,7 @@
 
   {% block head_extra %}{% endblock %}
 
-  <script>
+  <script nonce="{{ request.state.csp_nonce }}">
     // Cross-platform clipboard copy. Must be called SYNCHRONOUSLY
     // inside a user gesture (click/tap) for iOS Safari to allow it.
     // Returns true on success, false on failure.
@@ -636,7 +636,7 @@
     </div>
   </footer>
 
-  <script>
+  <script nonce="{{ request.state.csp_nonce }}">
     (function () {
       var openBtn   = document.querySelector('[data-action="open-menu"]');
       var drawer    = document.getElementById('mobile-drawer');

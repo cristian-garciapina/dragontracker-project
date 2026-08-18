@@ -88,7 +88,7 @@
       <a href="/" class="text-cyan-400 hover:text-cyan-300 text-sm">← Back to home</a>
     </div>
 
-    <script>
+    <script nonce="{{ request.state.csp_nonce }}">
       document.addEventListener('DOMContentLoaded', function () {
         var el = document.getElementById('ref-value');
         if (!el) return;

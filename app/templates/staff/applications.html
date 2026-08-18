@@ -210,7 +210,7 @@
   <img id="screenshot-modal-img" src="" alt="application proof"
        class="max-h-[90vh] max-w-[95vw] object-contain rounded shadow-2xl">
 </div>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function () {
   const modal = document.getElementById('screenshot-modal');
   const img = document.getElementById('screenshot-modal-img');
@@ -234,9 +234,9 @@
 })();
 </script>
 
-<script>window.__LIVE_URL__="/staff/applications/json"; window.__LIVE_KEY__="ids";</script>
+<script nonce="{{ request.state.csp_nonce }}">window.__LIVE_URL__="/staff/applications/json"; window.__LIVE_KEY__="ids";</script>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
   const url = window.__LIVE_URL__;
   const key = window.__LIVE_KEY__ || "total";

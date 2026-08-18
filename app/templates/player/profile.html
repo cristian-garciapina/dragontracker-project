@@ -83,7 +83,7 @@
         </span>
       {% endif %}
     </div>
-    <script>
+    <script nonce="{{ request.state.csp_nonce }}">
     (function () {
       const prev = {{ prev_cid | tojson }};
       const next = {{ next_cid | tojson }};
@@ -424,7 +424,7 @@
   </div>
 </section>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
   const m = window.location.pathname.match(/\/player\/(\d+)/);
   const cid = m ? m[1] : null;
@@ -620,7 +620,7 @@
   }
   #burn-delete-dialog::backdrop { background: rgba(6,9,18,0.75); backdrop-filter: blur(4px); }
 </style>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function () {
     var dlg = document.getElementById('burn-delete-dialog');
     if (!dlg) return;
@@ -667,7 +667,7 @@
   </div>
 </dialog>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.id-copy').forEach(function (el) {
       el.style.userSelect = 'all';

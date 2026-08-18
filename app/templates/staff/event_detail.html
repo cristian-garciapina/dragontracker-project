@@ -302,7 +302,7 @@
 </dialog>
 
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
   const url = "/staff/events/{{ event.id }}/json";
   const INTERVAL_MS = 8000;

@@ -154,7 +154,7 @@
   </div>
 </dialog>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
   const sel = document.getElementById('ev-kind');
   const groups = {
@@ -201,7 +201,7 @@
   </div>
 </dialog>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 (function() {
   const dlg = document.getElementById("row-del-dlg");
   const form = document.getElementById("row-del-form");

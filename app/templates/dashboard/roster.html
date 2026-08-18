@@ -511,7 +511,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   (function () {
     const table = document.querySelector('[data-table="roster"]');
     if (!table) return;

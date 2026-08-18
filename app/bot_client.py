@@ -167,3 +167,26 @@ async def notify_event_deleted(payload: dict) -> None:
         log.warning("notify_event_deleted: timeout")
     except Exception as exc:  # noqa: BLE001
         log.warning("notify_event_deleted: %s", exc)
+
+
+async def notify_snapshot_replaced(payload: dict) -> None:
+    """Notify the bot that staff replaced a snapshot via the confirm-replace flow.
+    Payload: {season_name, date_start, date_end, replaced: {...}, new: {...}}."""
+    cfg = _config()
+    if cfg is None:
+        return
+    base_url, api_key = cfg
+    url = f"{base_url}/internal/notify-snapshot-replaced"
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+            resp = await client.post(
+                url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+            )
+            if resp.status_code >= 400:
+                log.warning("notify_snapshot_replaced -> %s: %s", resp.status_code, resp.text[:200])
+    except httpx.TimeoutException:
+        log.warning("notify_snapshot_replaced: timeout")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("notify_snapshot_replaced: %s", exc)

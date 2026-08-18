@@ -332,6 +332,26 @@ async def confirm_replace_post(
     )
     db.commit()
 
+    # B2.5: audit notif to #audit-log (fire-and-forget).
+    try:
+        import asyncio
+        from .bot_client import notify_snapshot_replaced
+        season = _active_season(db)
+        asyncio.create_task(notify_snapshot_replaced({
+            "season_name": season.name if season else "?",
+            "date_start": consumed.date_start.isoformat(),
+            "date_end": consumed.date_end.isoformat(),
+            "replaced": result.get("replaced_snapshot") or {},
+            "new": {
+                "id": result["snapshot_id"],
+                "source_filename": result["filename"],
+                "ingested_by": user.username,
+                "rows": result["rows"],
+            },
+        }))
+    except Exception:
+        pass  # never let notif failure break the response
+
     recompute_info = recompute_scores_for_active_season(db)
     return _render(
         request, db, user,

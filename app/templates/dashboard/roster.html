@@ -165,6 +165,17 @@
   .roster-grid tbody tr.is-selected td.col-pin { background-color: #14253A; }
   .roster-grid tbody tr.is-selected td.col-pin-1 { box-shadow: inset 2px 0 0 var(--color-cyan); }
   .roster-grid tbody tr.is-selected td.col-pin-3 { box-shadow: 1px 0 0 var(--color-cyan); }
+  @media (max-width: 640px) {
+    .roster-grid .col-pin-2 { min-width: 8rem; width: 8rem; }
+    .roster-grid .col-pin-3 {
+      position: static;
+      left: auto;
+      min-width: 5.5rem;
+      width: 5.5rem;
+      box-shadow: none !important;
+    }
+    .roster-grid tbody tr.is-selected td.col-pin-3 { box-shadow: none !important; }
+  }
 </style>
 {% endblock %}
 

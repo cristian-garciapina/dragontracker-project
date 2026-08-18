@@ -114,14 +114,14 @@ def farlight_status(session: Session = Depends(get_session)) -> dict:
     }
 
 
-def _background_pull() -> None:
+def _background_pull(force: bool = False) -> None:
     """Runs in a FastAPI BackgroundTask. Independent Session, posts result
     to the bot via notify_bot() exactly like the cron does.
     """
-    logger.info("pull-now: starting background pull")
+    logger.info("pull-now: starting background pull (force=%s)", force)
     try:
         with SessionLocal() as session:
-            result = run_pull(session)
+            result = run_pull(session, force=force)
     except Exception as e:  # noqa: BLE001
         logger.exception("pull-now: run_pull crashed")
         result = {
@@ -141,9 +141,17 @@ def _background_pull() -> None:
     status_code=status.HTTP_202_ACCEPTED,
     dependencies=[Depends(require_api_key)],
 )
-def farlight_pull_now(background_tasks: BackgroundTasks) -> dict:
-    background_tasks.add_task(_background_pull)
-    return {"status": "accepted", "message": "Pull queued; result will be posted to Discord."}
+def farlight_pull_now(background_tasks: BackgroundTasks, force: bool = False) -> dict:
+    background_tasks.add_task(_background_pull, force)
+    return {
+        "status": "accepted",
+        "force": force,
+        "message": (
+            "Pull queued (force=True; will overwrite manual snapshots); result will be posted to Discord."
+            if force
+            else "Pull queued; result will be posted to Discord."
+        ),
+    }
 
 
 # ============================================================================

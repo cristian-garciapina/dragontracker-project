@@ -52,7 +52,7 @@ from .farlight_client import (
     map_api_rows,
     validate_jwt_shape,
 )
-from .ingest import ingest_rows
+from .ingest import find_conflicting_snapshot, ingest_rows
 from .models import Alliance, Season
 from .scoring import recompute_scores_for_active_season
 from .secrets_store import get_secret
@@ -86,7 +86,7 @@ def _get_active_season(session) -> Season:
     return season
 
 
-def run_pull(session, *, jwt: Optional[str] = None) -> dict[str, Any]:
+def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict[str, Any]:
     """Execute a full nightly pull. See module docstring for semantics."""
     summary: dict[str, Any] = {
         "started_at": datetime.utcnow().isoformat(),
@@ -166,24 +166,27 @@ def run_pull(session, *, jwt: Optional[str] = None) -> dict[str, Any]:
     summary["daily_rows_fetched"] = len(daily_rows)
     summary["cum_rows_fetched"] = len(cum_rows)
 
-    # ---- Ingest both windows, then recompute scores --------------------
-    # NOTE: ingest_rows commits per call. If cumulative ingest fails after
-    # daily commit, we keep the daily and the scoring will see yesterday's
-    # cumulative (stale but not broken). Next nightly run recovers.
+    # ---- Ingest both windows with per-window manual-snapshot skip -------
+    # B2.3: if a snapshot for the same (season, date_start, date_end)
+    # already exists AND it was ingested by staff (not farlight-cron),
+    # skip that window unless force=True. Prevents auto-pull from
+    # silently wiping a manual upload.
     try:
-        daily_report = ingest_rows(
+        daily_report, daily_skip = _handle_window(
             session, daily_rows,
             source_filename=f"farlight_api_{server_id}_{end}_{end}.json",
             date_start=end, date_end=end,
-            ingested_by=INGESTED_BY, on_conflict="replace",
+            force=force,
         )
-        cum_report = ingest_rows(
+        cum_report, cum_skip = _handle_window(
             session, cum_rows,
             source_filename=f"farlight_api_{server_id}_{cum_start}_{end}.json",
             date_start=cum_start, date_end=end,
-            ingested_by=INGESTED_BY, on_conflict="replace",
+            force=force,
         )
-        score_report = recompute_scores_for_active_season(session)
+        score_report = None
+        if daily_report is not None or cum_report is not None:
+            score_report = recompute_scores_for_active_season(session)
     except Exception as e:
         session.rollback()
         summary["status"] = "ingest_error"
@@ -192,11 +195,59 @@ def run_pull(session, *, jwt: Optional[str] = None) -> dict[str, Any]:
         return summary
 
     summary["daily"] = daily_report
+    summary["daily_skipped_manual"] = daily_skip
     summary["cumulative"] = cum_report
+    summary["cum_skipped_manual"] = cum_skip
     summary["scoring"] = score_report
-    summary["status"] = "ok"
+    summary["force"] = force
+
+    if daily_skip and cum_skip:
+        summary["status"] = "skipped_manual"
+    else:
+        summary["status"] = "ok"
     summary["completed_at"] = datetime.utcnow().isoformat()
     return summary
+
+
+def _handle_window(
+    session,
+    rows,
+    *,
+    source_filename: str,
+    date_start: date,
+    date_end: date,
+    force: bool,
+) -> tuple[Optional[dict], Optional[dict]]:
+    """Ingest one window unless a manual (staff-ingested) snapshot exists
+    for the same (season, date_start, date_end).
+
+    Returns (ingest_report | None, skip_info | None). Exactly one of the
+    two is non-None.
+    """
+    conflict = find_conflicting_snapshot(session, date_start, date_end)
+    if conflict is not None and conflict.ingested_by != INGESTED_BY and not force:
+        skip_info = {
+            "conflict_snapshot_id": conflict.id,
+            "conflict_source_filename": conflict.source_filename,
+            "conflict_ingested_by": conflict.ingested_by,
+            "conflict_ingested_at": conflict.ingested_at.isoformat() if conflict.ingested_at else None,
+            "date_start": date_start.isoformat(),
+            "date_end": date_end.isoformat(),
+            "reason": "Manual staff snapshot present; auto-pull refuses to overwrite. Retry with force=true if intentional.",
+        }
+        logger.info(
+            "farlight_pull: skipping window %s..%s (manual snapshot #%d by %s)",
+            date_start, date_end, conflict.id, conflict.ingested_by,
+        )
+        return None, skip_info
+
+    report = ingest_rows(
+        session, rows,
+        source_filename=source_filename,
+        date_start=date_start, date_end=date_end,
+        ingested_by=INGESTED_BY, on_conflict="replace",
+    )
+    return report, None
 
 
 

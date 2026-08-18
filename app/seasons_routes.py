@@ -24,8 +24,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .auth import get_db, require_staff
-from .ingest import _ingest_upload, _extract_dates_from_filename
+from .ingest import (
+    _ingest_upload,
+    _extract_dates_from_filename,
+    find_conflicting_snapshot,
+    ingest_rows,
+    parse_xlsx_bytes,
+)
 from .models import AuditLog, Season, Snapshot, User
+from .pending_uploads import (
+    TOKEN_TTL_SECONDS,
+    ConsumedUpload,
+    TokenExpired,
+    TokenInvalid,
+    TokenNotFound,
+    cancel_pending_upload,
+    consume_pending_upload,
+    create_pending_upload,
+)
 from .scoring import recompute_scores_for_active_season
 
 router = APIRouter(tags=["staff-seasons"])
@@ -114,8 +130,57 @@ async def seasons_upload(
     if season is None:
         return _render(request, db, user, error="No active season. Start one first.")
 
+    # Read + parse first so we can peek at (date_start, date_end) BEFORE
+    # deciding whether to ingest directly or stash for confirm-replace.
+    raw = await file.read()
     try:
-        result = await _ingest_upload(db, file, ingested_by=user.username)
+        rows, date_start, date_end = parse_xlsx_bytes(raw, file.filename or "")
+    except Exception as exc:
+        return _render(request, db, user, error=f"Upload failed: {exc}")
+
+    conflict = find_conflicting_snapshot(db, date_start, date_end)
+
+    if conflict is not None:
+        # Guard: cannot replace a snapshot that anchors a season. Bail
+        # early with a clear message rather than staging a doomed pending.
+        anchoring = db.scalar(
+            select(Season.id).where(Season.start_snapshot_id == conflict.id)
+        )
+        if anchoring:
+            return _render(
+                request, db, user,
+                error=(
+                    f"Cannot replace snapshot #{conflict.id}: it anchors "
+                    f"season {anchoring} as start_snapshot_id."
+                ),
+            )
+
+        token = create_pending_upload(
+            db,
+            filename=file.filename or "upload.xlsx",
+            content=raw,
+            season_id=season.id,
+            date_start=date_start,
+            date_end=date_end,
+            conflict_snapshot_id=conflict.id,
+            uploaded_by=user.username,
+        )
+        db.commit()
+        return RedirectResponse(
+            url=f"/staff/seasons/upload/confirm-replace?token={token}",
+            status_code=303,
+        )
+
+    # No conflict: go straight through the normal path.
+    try:
+        result = ingest_rows(
+            db, rows,
+            source_filename=file.filename,
+            date_start=date_start,
+            date_end=date_end,
+            ingested_by=user.username,
+            on_conflict="fail",
+        )
     except Exception as exc:
         return _render(request, db, user, error=f"Upload failed: {exc}")
 
@@ -123,11 +188,154 @@ async def seasons_upload(
            None, {"file": result["filename"], "rows": result["rows"]})
     db.commit()
 
-    # Recompute scores so the new data takes effect immediately.
     recompute_info = recompute_scores_for_active_season(db)
     return _render(
         request, db, user,
         success=f"Ingested {result['rows']} rows from {result['filename']} and recomputed scores.",
+        recompute_info=recompute_info,
+    )
+
+
+# --- Confirm-replace flow (B2.2) ----------------------------------------
+def _render_confirm(request, db, user, *, conflict, pending, token, error=None):
+    return templates.TemplateResponse(
+        request=request,
+        name="staff/seasons_upload_conflict.html",
+        context={
+            "user": user,
+            "kingdom": 193,
+            "conflict": {
+                "id": conflict.id,
+                "date_start": conflict.date_start,
+                "date_end": conflict.date_end,
+                "source_filename": conflict.source_filename,
+                "ingested_by": conflict.ingested_by,
+                "ingested_at": conflict.ingested_at.isoformat(sep=" ", timespec="seconds") if conflict.ingested_at else "",
+                "row_count": conflict.row_count,
+            },
+            "pending": pending,
+            "token": token,
+            "error": error,
+        },
+    )
+
+
+@router.get("/staff/seasons/upload/confirm-replace", response_class=HTMLResponse)
+async def confirm_replace_get(
+    request: Request,
+    token: str,
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    """Render the confirmation page. We peek at the pending upload via
+    consume, but DO NOT delete it — so we run consume+cancel dance? No:
+    we look up by hash directly without consuming."""
+    from .pending_uploads import _hash_token, _serializer  # controlled internal use
+    from itsdangerous import BadSignature, SignatureExpired
+    ser = _serializer()
+    try:
+        raw = ser.loads(token, max_age=TOKEN_TTL_SECONDS)
+    except SignatureExpired:
+        return _render(request, db, user, error="Upload confirmation link has expired. Please re-upload.")
+    except BadSignature:
+        return _render(request, db, user, error="Upload confirmation link is invalid.")
+
+    from .models import PendingUpload
+    row = db.scalar(select(PendingUpload).where(PendingUpload.token_hash == _hash_token(raw)))
+    if row is None:
+        return _render(request, db, user, error="Pending upload not found. It may have been consumed or expired.")
+
+    conflict = db.get(Snapshot, row.conflict_snapshot_id) if row.conflict_snapshot_id else None
+    if conflict is None:
+        # The conflicting snapshot was deleted while we were waiting.
+        # Re-ingesting is now a normal insert; consume + do it.
+        consumed = consume_pending_upload(db, token)
+        rows, _ds, _de = parse_xlsx_bytes(consumed.content, consumed.filename)
+        try:
+            result = ingest_rows(
+                db, rows,
+                source_filename=consumed.filename,
+                date_start=consumed.date_start,
+                date_end=consumed.date_end,
+                ingested_by=user.username,
+                on_conflict="fail",
+            )
+        except Exception as exc:
+            return _render(request, db, user, error=f"Ingest failed: {exc}")
+        _audit(db, user, "ingest", "snapshot", str(result["snapshot_id"]),
+               None, {"file": result["filename"], "rows": result["rows"], "via": "pending-upload-auto"})
+        db.commit()
+        recompute_info = recompute_scores_for_active_season(db)
+        return _render(
+            request, db, user,
+            success=f"Ingested {result['rows']} rows from {result['filename']} (previous conflict resolved).",
+            recompute_info=recompute_info,
+        )
+
+    age_seconds = (datetime.utcnow() - row.created_at).total_seconds()
+    ttl_left = max(0, int((TOKEN_TTL_SECONDS - age_seconds) // 60))
+    pending = {
+        "filename": row.filename,
+        "size_kb": f"{row.content_size / 1024:.1f}",
+        "date_start": row.date_start,
+        "date_end": row.date_end,
+        "ttl_minutes": ttl_left,
+    }
+    return _render_confirm(request, db, user, conflict=conflict, pending=pending, token=token)
+
+
+@router.post("/staff/seasons/upload/confirm-replace")
+async def confirm_replace_post(
+    request: Request,
+    token: str = Form(...),
+    action: str = Form(...),
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    if action == "cancel":
+        cancel_pending_upload(db, token)
+        db.commit()
+        return _render(request, db, user, error="Upload cancelled. No changes made.")
+
+    if action != "replace":
+        return _render(request, db, user, error=f"Unknown action: {action!r}")
+
+    try:
+        consumed: ConsumedUpload = consume_pending_upload(db, token)
+    except TokenExpired:
+        db.commit()
+        return _render(request, db, user, error="Upload confirmation token has expired. Please re-upload.")
+    except TokenInvalid:
+        return _render(request, db, user, error="Upload confirmation token is invalid.")
+    except TokenNotFound:
+        db.commit()
+        return _render(request, db, user, error="Pending upload not found. It may have been consumed or expired.")
+
+    try:
+        rows, _ds, _de = parse_xlsx_bytes(consumed.content, consumed.filename)
+        result = ingest_rows(
+            db, rows,
+            source_filename=consumed.filename,
+            date_start=consumed.date_start,
+            date_end=consumed.date_end,
+            ingested_by=user.username,
+            on_conflict="replace",
+        )
+    except Exception as exc:
+        db.commit()  # persist the pending row deletion
+        return _render(request, db, user, error=f"Replace failed: {exc}")
+
+    _audit(
+        db, user, "ingest", "snapshot", str(result["snapshot_id"]),
+        {"replaced": result.get("replaced_snapshot")},
+        {"file": result["filename"], "rows": result["rows"], "via": "confirm-replace"},
+    )
+    db.commit()
+
+    recompute_info = recompute_scores_for_active_season(db)
+    return _render(
+        request, db, user,
+        success=f"Replaced existing snapshot with {result['rows']} rows from {result['filename']}.",
         recompute_info=recompute_info,
     )
 

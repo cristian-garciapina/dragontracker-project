@@ -646,3 +646,37 @@ class Secret(Base):
     )
     updated_by: Mapped[Optional[str]] = mapped_column(String(64))
 
+# ============================================================================
+# PENDING UPLOADS (staff xlsx conflict resolution)
+# ============================================================================
+class PendingUpload(Base):
+    """Cached xlsx uploads awaiting staff confirmation to replace an existing
+    snapshot on the same (season_id, date_start, date_end) key.
+
+    The blob is stored in DB rather than /tmp so the whole flow is atomic,
+    transactional, backed up by the nightly dump, and immune to orphaned
+    files. Tokens are stored HASHED (SHA-256); the raw signed token lives
+    only in the redirect URL / staff cookie. Rows expire ~30 minutes after
+    creation; expired rows are pruned lazily on consume + optional cron.
+    """
+
+    __tablename__ = "pending_uploads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    content_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    season_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False
+    )
+    date_start: Mapped[date] = mapped_column(Date, nullable=False)
+    date_end: Mapped[date] = mapped_column(Date, nullable=False)
+    conflict_snapshot_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("snapshots.id", ondelete="SET NULL"), nullable=True
+    )
+    uploaded_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+

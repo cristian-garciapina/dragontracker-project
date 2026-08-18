@@ -340,24 +340,24 @@ def ingest_rows(
 
 
 # ============================================================================
-# XLSX UPLOAD WRAPPER (used by staff seasons upload wizard)
+# HELPERS: pure xlsx parser + conflict lookup (used by upload conflict flow)
 # ============================================================================
 
 
-async def _ingest_upload(
-    session,
-    file,
-    *,
-    ingested_by: str,
-) -> dict:
-    """Xlsx upload path. Parses the file with pandas, delegates to ingest_rows."""
+def parse_xlsx_bytes(
+    raw: bytes, filename: str
+) -> tuple[list[dict], date, date]:
+    """Pure xlsx -> (rows, date_start, date_end). No session, no I/O.
+
+    Shared by the direct upload path and by the pending-upload consume
+    path (B2.2 confirm-replace flow), so both parse the blob identically.
+    """
     from io import BytesIO
     import pandas as pd
 
-    raw = await file.read()
-    if not file.filename:
+    if not filename:
         raise ValueError("Missing filename.")
-    date_start, date_end = _extract_dates_from_filename(file.filename)
+    date_start, date_end = _extract_dates_from_filename(filename)
 
     df = pd.read_excel(BytesIO(raw))
     df.columns = [_normalize(c) for c in df.columns]
@@ -365,8 +365,8 @@ async def _ingest_upload(
     unmapped = sorted({c for c in df.columns if c and c not in HEADER_MAP})
     if unmapped:
         logger.warning(
-            "Ingest(upload) %s: %d unmapped column(s) ignored: %s",
-            file.filename, len(unmapped), unmapped,
+            "parse_xlsx_bytes %s: %d unmapped column(s) ignored: %s",
+            filename, len(unmapped), unmapped,
         )
 
     rows: list[dict] = []
@@ -377,6 +377,45 @@ async def _ingest_upload(
                 d[field] = row[col_value]
         rows.append(d)
 
+    return rows, date_start, date_end
+
+
+def find_conflicting_snapshot(
+    session: Session, date_start: date, date_end: date
+) -> Snapshot | None:
+    """Return the snapshot for (active_season, date_start, date_end) if any.
+
+    This is the semantic dedup key: same season + same window = same
+    logical dataset, regardless of source (xlsx vs Farlight API) or
+    filename. Caller uses this to decide whether to stash the upload
+    into pending_uploads instead of calling ingest_rows(on_conflict="fail").
+    """
+    season = _get_active_season(session)
+    return session.scalar(
+        select(Snapshot)
+        .where(Snapshot.season_id == season.id)
+        .where(Snapshot.date_start == date_start)
+        .where(Snapshot.date_end == date_end)
+    )
+
+
+# ============================================================================
+# XLSX UPLOAD WRAPPER (used by staff seasons upload wizard)
+# ============================================================================
+
+
+async def _ingest_upload(
+    session,
+    file,
+    *,
+    ingested_by: str,
+    on_conflict: Literal["fail", "replace"] = "fail",
+) -> dict:
+    """Xlsx upload path. Reads the file bytes, delegates to parse_xlsx_bytes
+    then ingest_rows. `on_conflict` is forwarded so the B2 confirm-replace
+    flow can call this with "replace" once the staff confirms."""
+    raw = await file.read()
+    rows, date_start, date_end = parse_xlsx_bytes(raw, file.filename or "")
     return ingest_rows(
         session,
         rows,
@@ -384,5 +423,5 @@ async def _ingest_upload(
         date_start=date_start,
         date_end=date_end,
         ingested_by=ingested_by,
-        on_conflict="fail",
+        on_conflict=on_conflict,
     )

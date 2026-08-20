@@ -45,6 +45,7 @@ from .password_reset import router as password_reset_router
 from .csp_report import router as csp_report_router
 from .csp_middleware import CSPNonceMiddleware
 from .models import User
+from .manual_routes import router as manual_router
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -76,6 +77,7 @@ app.include_router(api_router)
 app.include_router(farlight_router)
 app.include_router(audit_router)
 app.include_router(csp_report_router)
+app.include_router(manual_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.db import get_db
+from .auth import get_db
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")

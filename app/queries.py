@@ -609,6 +609,7 @@ ROSTER_SORTABLE_COLUMNS: dict[str, object] = {
     "merits_total": Stat.merits_total,
     "merits_net": Score.merits_effective,
     "power": Stat.power,
+    "start_power": Score.start_power,
     "peak_power": Stat.peak_power,
     "deaths": Stat.deaths_t45,
     "healing": Stat.healing_t45,

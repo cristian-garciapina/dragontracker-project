@@ -368,6 +368,7 @@
             <th class="text-right" data-col="merits_net">{{ sort_link('merits_net', 'Net merits') }}</th>
             <th class="text-right" data-col="deduction">{{ sort_link('deduction', 'Farming deduction') }}</th>
             <th class="text-right" data-col="power">{{ sort_link('power', 'Power') }}</th>
+            <th class="text-right" data-col="start_power">{{ sort_link('start_power', 'Start power') }}</th>
             <th class="text-right" data-col="peak_power">{{ sort_link('peak_power', 'Peak power') }}</th>
             <th class="text-right" data-col="deaths">{{ sort_link('deaths', 'Deaths T4/T5') }}</th>
             <th class="text-right" data-col="healing">{{ sort_link('healing', 'Healing T4/T5') }}</th>
@@ -469,6 +470,7 @@
             </td>
             <td class="text-right font-mono {% if row.merits_farmed_deduction > 0 %}text-amber-300{% else %}text-muted{% endif %}">{% if row.merits_farmed_deduction > 0 %}−{{ row.merits_farmed_deduction_short }}{% else %}—{% endif %}</td>
             <td class="text-right font-mono">{{ row.power_short }}</td>
+            <td class="text-right font-mono text-muted">{{ row.start_power_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.peak_power_short }}</td>
             <td class="text-right font-mono">{{ row.deaths_t45_short }}</td>
             <td class="text-right font-mono">{{ row.healing_t45_short }}</td>

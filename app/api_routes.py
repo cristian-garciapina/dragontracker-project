@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from sqlalchemy import and_, desc, select
 from sqlalchemy.orm import Session
 
 from .db import get_session
@@ -719,3 +719,66 @@ def events_active(session: Session = Depends(get_session)) -> list[dict]:
         })
     return out
 
+# --- /lookup rang support (bot) ---
+VALID_GRADES = {"S", "A", "B", "C", "D", "FARM"}
+
+
+@router.get("/scores/by-grade")
+def scores_by_grade(
+    grade: str = Query(..., description="S, A, B, C, D or FARM"),
+    _: None = Depends(require_api_key),
+    session: Session = Depends(get_session),
+):
+    grade_upper = grade.strip().upper()
+    if grade_upper not in VALID_GRADES:
+        raise HTTPException(400, f"Invalid grade '{grade}'")
+
+    active = session.execute(
+        select(Season).where(Season.is_active.is_(True)).limit(1)
+    ).scalar_one_or_none()
+    if not active:
+        raise HTTPException(404, "No active season")
+
+    if grade_upper == "FARM":
+        conds = [Score.season_id == active.id, Score.is_farm_account.is_(True)]
+    else:
+        conds = [
+            Score.season_id == active.id,
+            Score.grade == grade_upper,
+            Score.is_farm_account.is_(False),
+        ]
+
+    rows = session.execute(
+        select(
+            Score.character_id,
+            Member.current_name,
+            Score.mp_ratio,
+            Score.start_power,
+            Score.end_power,
+            Score.merits_cumulative,
+        )
+        .join(Member, Member.character_id == Score.character_id)
+        .where(and_(*conds))
+        .order_by(desc(Score.mp_ratio))
+    ).all()
+
+    players = [
+        {
+            "rank": i + 1,
+            "character_id": r.character_id,
+            "name": r.current_name,
+            "mp_ratio": float(r.mp_ratio) if r.mp_ratio is not None else 0.0,
+            "start_power": r.start_power,
+            "end_power": r.end_power,
+            "merits_cumulative": r.merits_cumulative,
+        }
+        for i, r in enumerate(rows)
+    ]
+
+    return {
+        "grade": grade_upper,
+        "season_id": active.id,
+        "season_name": active.name,
+        "count": len(players),
+        "players": players,
+    }

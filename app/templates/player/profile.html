@@ -177,7 +177,7 @@
             <th class="text-center px-4 py-3">Grade</th>
             {% if is_staff %}<th class="text-center px-4 py-3">Status</th>{% endif %}
             <th class="text-right px-4 py-3">Merits</th>
-            <th class="text-right px-4 py-3">Power (end)</th>
+            <th class="text-right px-4 py-3">Power (start)</th>
           </tr>
         </thead>
         <tbody>
@@ -196,7 +196,7 @@
             <td class="text-center"><span class="status-pill status-{{ h.status }}">{{ h.status }}</span></td>
             {% endif %}
             <td class="text-right font-mono text-secondary">{{ '{:,}'.format(h.merits_cumulative).replace(',', ' ') }}</td>
-            <td class="text-right font-mono text-secondary">{{ '{:,}'.format(h.end_power).replace(',', ' ') }}</td>
+            <td class="text-right font-mono text-secondary">{{ '{:,}'.format(h.start_power).replace(',', ' ') }}</td>
           </tr>
           {% endfor %}
         </tbody>

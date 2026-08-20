@@ -286,7 +286,8 @@ def recompute_scores_for_active_season(session: Session) -> dict:
             counts["FARM"] += 1
         else:
             deduction = deductions.get(cid, 0)
-            merits_eff = max(0, merits - deduction)
+            burn_ded = burn_deductions.get(cid, 0)
+            merits_eff = max(0, merits - deduction - burn_ded)
             mp = (merits_eff / sp) * 100.0 if sp > 0 else 0.0
             grade = _grade_from_ratio(mp, thr)
             status = _status_from_grade(grade)

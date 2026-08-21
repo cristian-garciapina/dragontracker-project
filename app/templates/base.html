@@ -476,16 +476,19 @@
       <ul class="nav-links items-center gap-6" data-nav="primary">
         <li><a href="/" class="nav-link">Home</a></li>
         {% if not user %}
+          <li><a href="/manual" class="nav-link">Handbook</a></li>
         {% endif %}
         {% if user %}
           {% if user.role == 'external' %}
             <li><a href="/apply" class="nav-link">Apply</a></li>
             <li><a href="/profile" class="nav-link">Profile</a></li>
+            <li><a href="/manual" class="nav-link">Handbook</a></li>
           {% else %}
           <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
           <li><a href="/roster" class="nav-link">Roster</a></li>
           <li><a href="/farms" class="nav-link">Farms</a></li>
           <li><a href="/profile" class="nav-link">Profile</a></li>
+          <li><a href="/manual" class="nav-link">Handbook</a></li>
           {% if user.role in ['staff', 'owner'] %}
           <li class="nav-dropdown">
             <button type="button" class="nav-link nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
@@ -574,16 +577,19 @@
       <p class="drawer-section-label">Navigate</p>
       <a href="/" class="drawer-item"><span>Home</span><span class="chev">›</span></a>
       {% if not user %}
+        <a href="/manual" class="drawer-item"><span>Handbook</span><span class="chev">›</span></a>
       {% endif %}
       {% if user %}
         {% if user.role == 'external' %}
           <a href="/apply" class="drawer-item"><span>Apply</span><span class="chev">›</span></a>
           <a href="/profile" class="drawer-item"><span>Profile</span><span class="chev">›</span></a>
+          <a href="/manual" class="drawer-item"><span>Handbook</span><span class="chev">›</span></a>
         {% else %}
         <a href="/dashboard" class="drawer-item"><span>Dashboard</span><span class="chev">›</span></a>
         <a href="/roster" class="drawer-item"><span>Roster</span><span class="chev">›</span></a>
         <a href="/farms" class="drawer-item"><span>Farms</span><span class="chev">›</span></a>
         <a href="/profile" class="drawer-item"><span>Profile</span><span class="chev">›</span></a>
+        <a href="/manual" class="drawer-item"><span>Handbook</span><span class="chev">›</span></a>
 
         {% if user.role in ['staff', 'owner'] %}
         <p class="drawer-section-label">Staff</p>

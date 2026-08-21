@@ -24,8 +24,21 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
+def _get_setting_num(db: Session, key: str, default: float) -> str:
+    """Fetch a numeric setting, return formatted str (drops trailing .0)."""
+    try:
+        row = db.execute(
+            text("SELECT value FROM settings WHERE key = :k LIMIT 1"),
+            {"k": key},
+        ).fetchone()
+        val = float(row[0]) if row and row[0] is not None else float(default)
+    except Exception:
+        val = float(default)
+    return str(int(val)) if val == int(val) else str(val)
+
+
 def _get_setting_int(db: Session, key: str, default: int) -> int:
-    """Fetch a numeric setting by key, defaulting on any failure."""
+    """Kept for callers that need a plain int (e.g. farm cutoff in bytes)."""
     try:
         row = db.execute(
             text("SELECT value FROM settings WHERE key = :k LIMIT 1"),
@@ -60,10 +73,10 @@ async def manual(request: Request, db: Session = Depends(get_db)):
     ctx = {
         "request": request,
         "season_name": season_name,
-        "threshold_s": _get_setting_int(db, "scoring.threshold.s", 10),
-        "threshold_a": _get_setting_int(db, "scoring.threshold.a", 7),
-        "threshold_b": _get_setting_int(db, "scoring.threshold.b", 4),
-        "threshold_c": _get_setting_int(db, "scoring.threshold.c", 1),
+        "threshold_s": _get_setting_num(db, "scoring.threshold.s", 10),
+        "threshold_a": _get_setting_num(db, "scoring.threshold.a", 7),
+        "threshold_b": _get_setting_num(db, "scoring.threshold.b", 4),
+        "threshold_c": _get_setting_num(db, "scoring.threshold.c", 1),
         "farm_threshold_m": farm_m,
     }
     return templates.TemplateResponse("manual.html", ctx)

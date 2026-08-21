@@ -476,7 +476,6 @@
       <ul class="nav-links items-center gap-6" data-nav="primary">
         <li><a href="/" class="nav-link">Home</a></li>
         {% if not user %}
-          <li><a href="/manual" class="nav-link">Handbook</a></li>
         {% endif %}
         {% if user %}
           {% if user.role == 'external' %}
@@ -577,7 +576,6 @@
       <p class="drawer-section-label">Navigate</p>
       <a href="/" class="drawer-item"><span>Home</span><span class="chev">›</span></a>
       {% if not user %}
-        <a href="/manual" class="drawer-item"><span>Handbook</span><span class="chev">›</span></a>
       {% endif %}
       {% if user %}
         {% if user.role == 'external' %}

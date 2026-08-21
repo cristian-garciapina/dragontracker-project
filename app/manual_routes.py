@@ -20,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .auth import get_db
+from .auth import get_db, require_user
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -81,7 +81,7 @@ def _get_active_season_name(db: Session, default: str = "the current season") ->
 
 
 @router.get("/manual", response_class=HTMLResponse)
-async def manual(request: Request, db: Session = Depends(get_db)):
+async def manual(request: Request, db: Session = Depends(get_db), _user = Depends(require_user)):
     season_name = _get_active_season_name(db)
 
     farm_bytes = _get_setting_int(db, "scoring.farm_account_power_threshold", 15_000_000)

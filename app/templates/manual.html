@@ -1,1242 +1,792 @@
-{% extends "base.html" %}
-
-{% block title %}The Handbook · Eternal Vanguard{% endblock %}
-
-{% block head_extra %}
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Handbook · Eternal Vanguard</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  /* ============================================================
-     Handbook — scoped styles (page-only)
-     Inherits site tokens from base.html:
-     --color-bg-base, --color-bg-card, --color-bg-elevated,
-     --color-border, --color-text-primary/secondary/muted,
-     --color-cyan, --color-gold, --color-violet,
-     --font-display, --font-body, --font-mono
-  ============================================================ */
-
   :root {
-    --hb-content-max: 720px;
-    --hb-toc-width: 240px;
-    --hb-gap: 3rem;
-    --hb-side: 1.75rem;
-    --font-display-alt: 'Cormorant Garamond', 'Cormorant', Georgia, serif;
+    --bg: #0a0e1a;
+    --bg-elevated: #111827;
+    --bg-subtle: #131b2f;
+    --bg-hover: #1a2340;
+    --border: #1e2a4a;
+    --border-strong: #2a3a5f;
+    --text: #e8f1ff;
+    --text-secondary: #a3b3d1;
+    --text-muted: #6b7ea0;
+    --cyan: #67e8f9;
+    --cyan-dim: #22d3ee;
+    --gold: #f6d55c;
+    --gold-dim: #d4a933;
+    --violet: #a78bfa;
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+    --sidebar-width: 260px;
+    --content-max: 720px;
+    --page-pad: 3rem;
   }
 
-  .handbook {
-    position: relative;
-    z-index: 1;
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 0 var(--hb-side);
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 2rem; }
 
-  .handbook-layout {
-    display: grid;
-    grid-template-columns: var(--hb-toc-width) minmax(0, 1fr);
-    gap: var(--hb-gap);
-    align-items: start;
-  }
-
-  /* ---------- TOC ---------- */
-  .handbook-toc {
-    position: sticky;
-    top: 5rem;
-    max-height: calc(100vh - 6rem);
-    overflow-y: auto;
-    padding: 1.5rem 0.5rem 1.5rem 0;
-    border-right: 1px solid var(--color-border);
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
-  }
-
-  .toc-toggle {
-    display: none;
-    width: 100%;
-    background: var(--color-bg-elevated);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
+  body {
+    background: var(--bg);
+    color: var(--text);
     font-family: var(--font-body);
-    font-size: 0.875rem;
-    font-weight: 500;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    align-items: center;
-    justify-content: space-between;
-    text-align: left;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(103, 232, 249, 0.04) 0%, transparent 40%),
+      radial-gradient(circle at 80% 60%, rgba(246, 213, 92, 0.03) 0%, transparent 40%);
   }
 
-  .toc-toggle .chev {
-    font-size: 0.75rem;
-    color: var(--color-cyan);
-    transition: transform 0.2s;
+  .shell { display: grid; grid-template-columns: var(--sidebar-width) 1fr; min-height: 100vh; }
+
+  .sidebar {
+    position: sticky; top: 0; height: 100vh;
+    background: linear-gradient(180deg, #0d1224 0%, #0a0e1a 100%);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1.5rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+  .brand { padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+
+  .brand-back {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--font-body); font-size: 0.72rem; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted); text-decoration: none;
+    margin-bottom: 0.9rem;
+    border-bottom: 1px solid transparent; padding-bottom: 1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .brand-back:hover { color: var(--cyan); border-bottom-color: var(--cyan); }
+  .brand-back .arrow { font-size: 0.9rem; line-height: 1; }
+
+  .brand-mark { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; line-height: 1.1; color: var(--text); }
+  .brand-mark em { font-style: italic; color: var(--gold); }
+  .brand-sub {
+    display: block; font-family: var(--font-body); font-size: 0.7rem; font-weight: 500;
+    letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-muted); margin-top: 0.4rem;
   }
 
-  .handbook-toc.expanded .toc-toggle .chev {
-    transform: rotate(180deg);
+  .nav-group { margin-bottom: 1.75rem; }
+  .nav-title {
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--cyan-dim); margin-bottom: 0.6rem; padding-left: 0.5rem;
   }
-
-  .toc-title {
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--color-cyan);
-    padding-left: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .toc-nav ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .toc-nav li { margin: 0; }
-
-  .toc-nav a {
-    display: block;
-    padding: 0.4rem 0.75rem;
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    font-size: 0.875rem;
-    border-left: 2px solid transparent;
-    margin-left: -2px;
-    border-radius: 0 4px 4px 0;
+  .nav-link {
+    display: block; padding: 0.4rem 0.75rem;
+    color: var(--text-secondary); text-decoration: none; border-radius: 4px;
+    font-size: 0.875rem; border-left: 2px solid transparent; margin-left: -2px;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
+  .nav-link:hover { color: var(--text); background: var(--bg-hover); }
+  .nav-link.active { color: var(--cyan); border-left-color: var(--cyan); }
 
-  .toc-nav a:hover {
-    color: var(--color-text-primary);
-    background: rgba(34, 211, 238, 0.06);
+  .main { padding: var(--page-pad); max-width: calc(var(--content-max) + 2 * var(--page-pad)); margin: 0 auto; width: 100%; min-width: 0; }
+
+  .hero { padding: 3rem 0 4rem; border-bottom: 1px solid var(--border); margin-bottom: 3rem; }
+  .hero-eyebrow {
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--cyan); margin-bottom: 1rem;
+  }
+  .hero-title {
+    font-family: var(--font-display); font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 500; line-height: 1.05; color: var(--text);
+    margin-bottom: 1rem; letter-spacing: -0.01em;
+  }
+  .hero-title em { font-style: italic; color: var(--gold); font-weight: 500; }
+  .hero-lead { font-size: 1.05rem; color: var(--text-secondary); max-width: 55ch; margin-bottom: 2.5rem; }
+  .hero-shields { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+  .hero-shield-label {
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-right: 1rem; align-self: center;
   }
 
-  .toc-nav a.active {
-    color: var(--color-cyan);
-    border-left-color: var(--color-cyan);
-  }
-
-  /* ---------- Content ---------- */
-  .handbook-content {
-    max-width: var(--hb-content-max);
-    padding: 1.5rem 0 4rem;
-  }
-
-  /* Hero */
-  .hb-hero {
-    padding: 2rem 0 3rem;
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: 2.5rem;
-  }
-
-  .hb-eyebrow {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--color-cyan);
-    margin-bottom: 1rem;
-  }
-
-  .hb-h1 {
-    font-family: var(--font-display-alt);
-    font-size: clamp(2.25rem, 5vw, 3.5rem);
-    font-weight: 500;
-    line-height: 1.08;
-    color: var(--color-text-primary);
-    margin-bottom: 1rem;
-    letter-spacing: -0.005em;
-  }
-
-  .hb-h1 em {
-    font-style: italic;
-    color: var(--color-gold);
-    font-weight: 500;
-  }
-
-  .hb-lead {
-    font-size: 1.05rem;
-    color: var(--color-text-secondary);
-    max-width: 55ch;
-    line-height: 1.65;
-    margin-bottom: 2rem;
-  }
-
-  .hb-lead a {
-    color: var(--color-cyan);
-    text-decoration: none;
-    border-bottom: 1px solid rgba(34, 211, 238, 0.4);
-  }
-
-  .hb-lead a:hover { border-bottom-color: var(--color-cyan); }
-
-  .hb-shields {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .hb-shields-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    margin-right: 0.75rem;
-    align-self: center;
-    font-family: var(--font-body);
-  }
-
-  .shield {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .shield-svg { width: 40px; height: 48px; }
-  .shield-svg.large { width: 64px; height: 76px; }
-
+  .shield { display: inline-flex; flex-direction: column; align-items: center; gap: 0.4rem; font-family: var(--font-display); }
+  .shield-svg { width: 44px; height: 52px; }
+  .shield-svg.large { width: 72px; height: 84px; }
   .shield-name {
-    font-size: 0.6rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    font-family: var(--font-body);
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-muted); font-family: var(--font-body);
   }
 
-  /* Sections */
-  .hb-section {
-    padding: 2.5rem 0;
-    border-bottom: 1px solid var(--color-border);
+  section { padding: 2.5rem 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+
+  .section-eyebrow {
+    display: flex; align-items: center; gap: 0.75rem;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--cyan); margin-bottom: 1rem;
+  }
+  .section-eyebrow::before { content: ''; display: inline-block; width: 1.5rem; height: 1px; background: var(--cyan); }
+
+  h2 {
+    font-family: var(--font-display); font-size: 2.25rem; font-weight: 500;
+    line-height: 1.15; color: var(--text); margin-bottom: 1.5rem; letter-spacing: -0.01em;
+  }
+  h2 em { font-style: italic; color: var(--gold); font-weight: 500; }
+
+  h3 {
+    font-family: var(--font-display); font-size: 1.5rem; font-weight: 600;
+    color: var(--text); margin: 2rem 0 0.75rem; letter-spacing: -0.005em;
   }
 
-  .hb-section:last-of-type { border-bottom: none; }
-
-  .hb-section-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--color-cyan);
-    margin-bottom: 0.75rem;
+  h4 {
+    font-family: var(--font-body); font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin: 1.5rem 0 0.5rem;
   }
 
-  .hb-section-eyebrow::before {
-    content: '';
-    display: inline-block;
-    width: 1.5rem;
-    height: 1px;
-    background: var(--color-cyan);
+  p { color: var(--text-secondary); margin-bottom: 1rem; }
+  p.lead { font-size: 1.1rem; color: var(--text); margin-bottom: 1.5rem; }
+
+  a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.15s; word-break: break-word; }
+  a:hover { border-bottom-color: var(--cyan); }
+
+  strong { color: var(--text); font-weight: 600; }
+  em { color: var(--text); font-style: italic; }
+
+  ol.steps { list-style: none; counter-reset: step; margin: 1.5rem 0; }
+  ol.steps > li {
+    counter-increment: step; padding-left: 3rem; position: relative;
+    margin-bottom: 1.25rem; color: var(--text-secondary);
+  }
+  ol.steps > li::before {
+    content: counter(step, decimal-leading-zero); position: absolute; left: 0; top: 0;
+    font-family: var(--font-mono); font-size: 0.8rem; font-weight: 500;
+    color: var(--cyan); letter-spacing: 0.05em; padding-top: 0.15rem;
+  }
+  ol.steps > li strong { display: block; color: var(--text); margin-bottom: 0.25rem; font-weight: 600; }
+
+  ul.plain { list-style: none; margin: 1rem 0; }
+  ul.plain > li {
+    padding-left: 1.5rem; position: relative; margin-bottom: 0.65rem; color: var(--text-secondary);
+  }
+  ul.plain > li::before { content: ''; position: absolute; left: 0; top: 0.7rem; width: 0.5rem; height: 1px; background: var(--gold); }
+
+  .commands { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; margin: 1.5rem 0; overflow: hidden; }
+  .commands-header {
+    padding: 0.5rem 1rem; background: var(--bg-subtle); border-bottom: 1px solid var(--border);
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .command-row {
+    display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 1.5rem;
+    padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); align-items: baseline;
+  }
+  .command-row:last-child { border-bottom: none; }
+  .command-name { font-family: var(--font-mono); font-size: 0.85rem; color: var(--cyan); font-weight: 500; word-break: break-word; }
+  .command-desc { font-size: 0.9rem; color: var(--text-secondary); }
+  .command-desc .who {
+    display: inline-block; padding: 0.1rem 0.5rem; background: var(--bg-hover); border-radius: 3px;
+    font-size: 0.7rem; font-weight: 500; color: var(--gold); margin-right: 0.5rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
   }
 
-  .hb-h2 {
-    font-family: var(--font-display-alt);
-    font-size: clamp(1.75rem, 3.5vw, 2.25rem);
-    font-weight: 500;
-    line-height: 1.15;
-    color: var(--color-text-primary);
-    margin-bottom: 1.25rem;
-    letter-spacing: -0.005em;
+  .callout {
+    display: flex; gap: 1rem;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-left: 3px solid var(--cyan);
+    padding: 1rem 1.25rem; border-radius: 0 4px 4px 0; margin: 1.5rem 0; align-items: flex-start;
+  }
+  .callout.warn { border-left-color: var(--gold); }
+  .callout.tip { border-left-color: var(--violet); }
+  .callout-icon {
+    font-family: var(--font-display); font-style: italic; font-weight: 600;
+    font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cyan); flex-shrink: 0; padding-top: 0.15rem; min-width: 3rem;
+  }
+  .callout.warn .callout-icon { color: var(--gold); }
+  .callout.tip .callout-icon { color: var(--violet); }
+  .callout-body { flex: 1; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+  .callout-body p:last-child { margin-bottom: 0; }
+
+  .grades-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 2rem 0; }
+  .grade-card {
+    display: flex; gap: 1rem; padding: 1.25rem;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; align-items: flex-start;
+  }
+  .grade-card-body { flex: 1; min-width: 0; }
+  .grade-card-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; }
+  .grade-card-threshold { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; letter-spacing: 0.02em; }
+  .grade-card-meaning { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+
+  .features { display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1.5rem 0; }
+  .feature-row {
+    display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem;
+    padding: 1rem 0; border-bottom: 1px dashed var(--border); align-items: baseline;
+  }
+  .feature-row:last-child { border-bottom: none; }
+  .feature-path { font-family: var(--font-mono); font-size: 0.85rem; color: var(--gold); font-weight: 500; word-break: break-word; }
+  .feature-path a { color: inherit; border-bottom: 1px dotted rgba(246, 213, 92, 0.4); }
+  .feature-path a:hover { border-bottom-color: var(--gold); }
+  .feature-desc { color: var(--text-secondary); font-size: 0.925rem; }
+  .feature-desc strong { color: var(--text); }
+
+  .example { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; margin: 1rem 0; font-size: 0.9rem; }
+  .example-label { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.35rem; }
+  .example-body { color: var(--text-secondary); font-family: var(--font-body); }
+  .example-body .math { font-family: var(--font-mono); color: var(--cyan); font-size: 0.9em; }
+
+  code {
+    font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-subtle);
+    padding: 0.1rem 0.4rem; border-radius: 3px; color: var(--cyan);
+    border: 1px solid var(--border); word-break: break-word;
   }
 
-  .hb-h2 em {
-    font-style: italic;
-    color: var(--color-gold);
-    font-weight: 500;
+  footer { padding: 3rem 0 4rem; margin-top: 2rem; text-align: center; }
+  footer p { font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-body); }
+  footer p em { font-family: var(--font-display); font-style: italic; color: var(--gold); font-size: 1rem; }
+
+  /* Mobile hamburger (top-right, mobile only) */
+  .menu-toggle {
+    display: none; position: fixed; top: 0.85rem; right: 0.85rem; z-index: 100;
+    background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
+    width: 44px; height: 44px; border-radius: 6px; cursor: pointer;
+    align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   }
 
-  .hb-h3 {
-    font-family: var(--font-display-alt);
-    font-size: 1.35rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 2rem 0 0.75rem;
-    letter-spacing: -0.005em;
-  }
-
-  .hb-h4 {
-    font-family: var(--font-body);
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--color-gold);
-    margin: 1.5rem 0 0.5rem;
-  }
-
-  .hb-p {
-    color: var(--color-text-secondary);
-    font-size: 0.95rem;
-    line-height: 1.7;
-    margin-bottom: 1rem;
-  }
-
-  .hb-p.lead {
-    font-size: 1.05rem;
-    color: var(--color-text-primary);
-    margin-bottom: 1.5rem;
-  }
-
-  .hb-p a, .hb-li a {
-    color: var(--color-cyan);
-    text-decoration: none;
-    border-bottom: 1px solid rgba(34, 211, 238, 0.35);
-    word-break: break-word;
-  }
-
-  .hb-p a:hover, .hb-li a:hover { border-bottom-color: var(--color-cyan); }
-
-  .hb-p strong, .hb-li strong { color: var(--color-text-primary); font-weight: 600; }
-  .hb-p em, .hb-li em { color: var(--color-text-primary); font-style: italic; }
-
-  /* Steps */
-  .hb-steps {
-    list-style: none;
-    counter-reset: step;
-    margin: 1.5rem 0;
-    padding: 0;
-  }
-
-  .hb-steps > li {
-    counter-increment: step;
-    padding-left: 2.5rem;
-    position: relative;
-    margin-bottom: 1.25rem;
-    color: var(--color-text-secondary);
-    font-size: 0.95rem;
-    line-height: 1.7;
-  }
-
-  .hb-steps > li::before {
-    content: counter(step, decimal-leading-zero);
-    position: absolute;
-    left: 0;
-    top: 0.15rem;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--color-cyan);
-    letter-spacing: 0.05em;
-  }
-
-  .hb-steps > li strong {
-    display: block;
-    color: var(--color-text-primary);
-    margin-bottom: 0.35rem;
-    font-weight: 600;
-  }
-
-  /* Plain list */
-  .hb-ul {
-    list-style: none;
-    margin: 1rem 0;
-    padding: 0;
-  }
-
-  .hb-ul > li {
-    padding-left: 1.25rem;
-    position: relative;
-    margin-bottom: 0.6rem;
-    color: var(--color-text-secondary);
-    font-size: 0.95rem;
-    line-height: 1.6;
-  }
-
-  .hb-ul > li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0.7rem;
-    width: 0.5rem;
-    height: 1px;
-    background: var(--color-gold);
-  }
-
-  /* Commands block */
-  .hb-cmds {
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    margin: 1.25rem 0;
-    overflow: hidden;
-  }
-
-  .hb-cmds-header {
-    padding: 0.5rem 1rem;
-    background: rgba(0, 0, 0, 0.25);
-    border-bottom: 1px solid var(--color-border);
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    font-family: var(--font-body);
-  }
-
-  .hb-cmd-row {
-    display: grid;
-    grid-template-columns: minmax(180px, 1fr) 2fr;
-    gap: 1.5rem;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--color-border);
-    align-items: baseline;
-  }
-
-  .hb-cmd-row:last-child { border-bottom: none; }
-
-  .hb-cmd-name {
-    font-family: var(--font-mono);
-    font-size: 0.825rem;
-    color: var(--color-cyan);
-    font-weight: 500;
-    word-break: break-word;
-  }
-
-  .hb-cmd-desc {
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-    line-height: 1.55;
-  }
-
-  .hb-cmd-desc .who {
-    display: inline-block;
-    padding: 0.1rem 0.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
-    font-size: 0.65rem;
-    font-weight: 500;
-    color: var(--color-gold);
-    margin-right: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-family: var(--font-body);
-  }
-
-  /* Callout */
-  .hb-callout {
-    display: flex;
-    gap: 1rem;
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-left: 3px solid var(--color-cyan);
-    padding: 0.9rem 1.1rem;
-    border-radius: 0 4px 4px 0;
-    margin: 1.25rem 0;
-    align-items: flex-start;
-  }
-
-  .hb-callout.warn { border-left-color: var(--color-gold); }
-  .hb-callout.tip { border-left-color: var(--color-violet); }
-
-  .hb-callout-icon {
-    font-family: var(--font-display-alt);
-    font-style: italic;
-    font-weight: 600;
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-cyan);
-    flex-shrink: 0;
-    padding-top: 0.1rem;
-    min-width: 3rem;
-  }
-
-  .hb-callout.warn .hb-callout-icon { color: var(--color-gold); }
-  .hb-callout.tip .hb-callout-icon { color: var(--color-violet); }
-
-  .hb-callout-body {
-    flex: 1;
-    color: var(--color-text-secondary);
-    font-size: 0.9rem;
-    line-height: 1.6;
-  }
-
-  /* Grade cards */
-  .hb-grades {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 0.85rem;
-    margin: 1.75rem 0;
-  }
-
-  .hb-grade-card {
-    display: flex;
-    gap: 1rem;
-    padding: 1.1rem;
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    align-items: flex-start;
-  }
-
-  .hb-grade-body { flex: 1; min-width: 0; }
-
-  .hb-grade-title {
-    font-family: var(--font-display-alt);
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: 0.1rem;
-    line-height: 1.2;
-  }
-
-  .hb-grade-threshold {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    margin-bottom: 0.5rem;
-    letter-spacing: 0.02em;
-  }
-
-  .hb-grade-meaning {
-    font-size: 0.85rem;
-    color: var(--color-text-secondary);
-    line-height: 1.5;
-  }
-
-  /* Feature rows (site sections) */
-  .hb-features {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0;
-    margin: 1.25rem 0;
-  }
-
-  .hb-feature {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    gap: 1.5rem;
-    padding: 1rem 0;
-    border-bottom: 1px dashed var(--color-border);
-    align-items: baseline;
-  }
-
-  .hb-feature:last-child { border-bottom: none; }
-
-  .hb-feature-path {
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
-    color: var(--color-gold);
-    font-weight: 500;
-    word-break: break-word;
-  }
-
-  .hb-feature-path a {
-    color: inherit;
-    text-decoration: none;
-    border-bottom: 1px dotted rgba(221, 184, 114, 0.4);
-  }
-
-  .hb-feature-path a:hover { border-bottom-color: var(--color-gold); }
-
-  .hb-feature-desc {
-    color: var(--color-text-secondary);
-    font-size: 0.9rem;
-    line-height: 1.6;
-  }
-
-  .hb-feature-desc strong { color: var(--color-text-primary); }
-
-  /* Worked example */
-  .hb-example {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    padding: 0.9rem 1.1rem;
-    margin: 1rem 0;
-    font-size: 0.9rem;
-  }
-
-  .hb-example-label {
-    font-size: 0.6rem;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--color-gold);
-    margin-bottom: 0.35rem;
-    font-family: var(--font-body);
-  }
-
-  .hb-example-body {
-    color: var(--color-text-secondary);
-    font-family: var(--font-body);
-    line-height: 1.65;
-  }
-
-  .hb-example-body .math {
-    font-family: var(--font-mono);
-    color: var(--color-cyan);
-    font-size: 0.9em;
-    background: rgba(34, 211, 238, 0.06);
-    padding: 0.05rem 0.35rem;
-    border-radius: 3px;
-  }
-
-  /* Inline code */
-  .hb code, .handbook code {
-    font-family: var(--font-mono);
-    font-size: 0.82em;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    color: var(--color-cyan);
-    border: 1px solid var(--color-border);
-    word-break: break-word;
-  }
-
-  /* Bottom sign-off */
-  .hb-signoff {
-    padding: 3rem 0 1rem;
-    margin-top: 1rem;
-    text-align: center;
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-  }
-
-  .hb-signoff em {
-    font-family: var(--font-display-alt);
-    font-style: italic;
-    color: var(--color-gold);
-    font-size: 1rem;
-  }
-
-  .hb-signoff .meta {
-    display: block;
-    margin-top: 0.35rem;
-    font-size: 0.75rem;
-    font-family: var(--font-mono);
-  }
-
-  /* ============================================================
-     MOBILE — < 900px
-  ============================================================ */
+  /* Mobile: sidebar becomes drawer, grades stack, callouts stack */
   @media (max-width: 900px) {
-    :root {
-      --hb-side: 1rem;
-      --hb-gap: 0;
+    :root { --page-pad: 1.25rem; }
+
+    .shell { grid-template-columns: 1fr; }
+
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: min(85vw, 300px); height: 100vh; z-index: 90;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      padding: 1.5rem 1.25rem;
     }
+    .sidebar.open { transform: translateX(0); box-shadow: 0 0 40px rgba(0, 0, 0, 0.7); }
 
-    .handbook-layout {
-      grid-template-columns: 1fr;
+    .sidebar-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.55); z-index: 85;
+      opacity: 0; transition: opacity 0.2s ease;
     }
+    .sidebar-backdrop.open { display: block; opacity: 1; }
 
-    .handbook-toc {
-      position: static;
-      max-height: none;
-      overflow: visible;
-      border-right: none;
-      border-bottom: 1px solid var(--color-border);
-      padding: 1rem 0;
-    }
+    .menu-toggle { display: flex; }
 
-    .handbook-toc .toc-title { display: none; }
-    .handbook-toc .toc-toggle { display: flex; }
+    .main { padding: 3.5rem var(--page-pad) 2rem; }
 
-    .handbook-toc .toc-nav {
-      display: none;
-      padding-top: 0.75rem;
-    }
+    .hero { padding: 1.5rem 0 2.5rem; margin-bottom: 2rem; }
+    .hero-shields { gap: 0.6rem; }
+    .hero-shield-label { width: 100%; margin-right: 0; margin-bottom: 0.4rem; align-self: flex-start; }
+    .shield-svg { width: 38px; height: 44px; }
+    .shield-svg.large { width: 56px; height: 66px; }
 
-    .handbook-toc.expanded .toc-nav { display: block; }
+    section { padding: 2rem 0; }
 
-    .toc-nav a {
-      padding: 0.55rem 0.75rem;
-      font-size: 0.95rem;
-    }
+    h2 { font-size: 1.65rem; margin-bottom: 1rem; }
+    h3 { font-size: 1.25rem; }
 
-    .handbook-content {
-      padding: 1.5rem 0 3rem;
-    }
+    .grades-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+    .grade-card { padding: 1rem; gap: 0.85rem; }
 
-    .hb-hero { padding: 1.5rem 0 2.5rem; margin-bottom: 2rem; }
+    .command-row { grid-template-columns: 1fr; gap: 0.35rem; }
+    .feature-row { grid-template-columns: 1fr; gap: 0.35rem; padding: 0.9rem 0; }
 
-    .hb-shields {
-      gap: 0.5rem;
-      justify-content: flex-start;
-    }
+    .callout { flex-direction: column; gap: 0.4rem; padding: 0.85rem 1rem; }
+    .callout-icon { padding-top: 0; min-width: 0; }
 
-    .hb-shields-label {
-      width: 100%;
-      margin-right: 0;
-      margin-bottom: 0.5rem;
-      align-self: flex-start;
-    }
-
-    .shield-svg { width: 36px; height: 42px; }
-
-    .hb-section { padding: 2rem 0; }
-
-    .hb-h3 { font-size: 1.2rem; }
-
-    .hb-grades {
-      grid-template-columns: 1fr;
-      gap: 0.75rem;
-    }
-
-    .hb-grade-card {
-      padding: 1rem;
-      gap: 0.85rem;
-    }
-
-    .shield-svg.large { width: 52px; height: 62px; }
-
-    .hb-cmd-row {
-      grid-template-columns: 1fr;
-      gap: 0.35rem;
-      padding: 0.85rem 1rem;
-    }
-
-    .hb-feature {
-      grid-template-columns: 1fr;
-      gap: 0.35rem;
-      padding: 0.9rem 0;
-    }
-
-    .hb-callout {
-      flex-direction: column;
-      gap: 0.35rem;
-      padding: 0.85rem 1rem;
-    }
-
-    .hb-callout-icon { padding-top: 0; }
-
-    .hb-steps > li { padding-left: 2rem; }
+    ol.steps > li { padding-left: 2rem; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
   }
-
-  html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
 </style>
-{% endblock %}
+</head>
+<body>
 
+<button class="menu-toggle" onclick="_hbToggle()" aria-label="Open menu">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
 
-{% block content %}
-<div class="handbook">
-  <div class="handbook-layout">
+<div class="sidebar-backdrop" onclick="_hbClose()"></div>
 
-    <!-- ==================== TOC ==================== -->
-    <aside class="handbook-toc" id="hb-toc">
-      <button type="button" class="toc-toggle" data-action="toggle-toc" aria-expanded="false" aria-controls="hb-toc-nav">
-        On this page <span class="chev" aria-hidden="true">▾</span>
-      </button>
-      <div class="toc-title">On this page</div>
-      <nav class="toc-nav" id="hb-toc-nav">
-        <ul>
-          <li><a href="#platform">The platform</a></li>
-          <li><a href="#getting-started">Getting started</a></li>
-          <li><a href="#your-grade">Your grade</a></li>
-          <li><a href="#site">The website</a></li>
-          <li><a href="#your-profile">Your profile</a></li>
-          <li><a href="#bot-commands">Discord commands</a></li>
-          <li><a href="#translations">Translations</a></li>
-          <li><a href="#events">Events</a></li>
-          <li><a href="#staff">Staff duties</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="#help">Getting help</a></li>
-        </ul>
-      </nav>
-    </aside>
+<div class="shell">
+  <aside class="sidebar" id="hb-sidebar">
+    <div class="brand">
+      <a href="/dashboard" class="brand-back"><span class="arrow">←</span> Back to site</a>
+      <div class="brand-mark">Eternal <em>Vanguard</em></div>
+      <span class="brand-sub">The Handbook</span>
+    </div>
 
-    <!-- ==================== CONTENT ==================== -->
-    <main class="handbook-content">
+    <div class="nav-group">
+      <div class="nav-title">Foundation</div>
+      <a href="#platform" class="nav-link">The platform</a>
+      <a href="#getting-started" class="nav-link">Getting started</a>
+    </div>
 
-      <!-- Hero -->
-      <div class="hb-hero">
-        <div class="hb-eyebrow">The Handbook</div>
-        <h1 class="hb-h1">How the alliance <em>operates</em>.</h1>
-        <p class="hb-lead">Everything you need to use the Eternal Vanguard tools: the website at <a href="/">eternal-vanguard.com</a>, the Discord bot, and the grading system that keeps the alliance accountable. Written for members, not engineers.</p>
-        <div class="hb-shields">
-          <span class="hb-shields-label">The five grades</span>
-          <span class="shield">
-            <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <filter id="glow-s-mini" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="1.5" result="blur"/>
-                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-              </defs>
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(229,228,226,0.08)" stroke="#e5e4e2" stroke-width="1.5" filter="url(#glow-s-mini)"/>
-              <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#e5e4e2">S</text>
-            </svg>
-            <span class="shield-name">Platinum</span>
-          </span>
-          <span class="shield">
-            <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"/>
-              <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#ffd700">A</text>
-            </svg>
-            <span class="shield-name">Gold</span>
-          </span>
-          <span class="shield">
-            <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(192,192,192,0.05)" stroke="#c0c0c0" stroke-width="1.5"/>
-              <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#c0c0c0">B</text>
-            </svg>
-            <span class="shield-name">Silver</span>
-          </span>
-          <span class="shield">
-            <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(205,127,50,0.05)" stroke="#cd7f32" stroke-width="1.5"/>
-              <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#cd7f32">C</text>
-            </svg>
-            <span class="shield-name">Bronze</span>
-          </span>
-          <span class="shield">
-            <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(71,85,105,0.15)" stroke="#475569" stroke-width="1.5"/>
-              <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#94a3b8">D</text>
-            </svg>
-            <span class="shield-name">Matte</span>
-          </span>
+    <div class="nav-group">
+      <div class="nav-title">Understanding</div>
+      <a href="#your-grade" class="nav-link">Your grade</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Using the site</div>
+      <a href="#site" class="nav-link">Site sections</a>
+      <a href="#your-profile" class="nav-link">Your profile</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Using Discord</div>
+      <a href="#bot-commands" class="nav-link">Slash commands</a>
+      <a href="#translations" class="nav-link">Translations</a>
+      <a href="#events" class="nav-link">Events &amp; responses</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Staff</div>
+      <a href="#staff" class="nav-link">Staff duties</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Support</div>
+      <a href="#faq" class="nav-link">FAQ</a>
+      <a href="#help" class="nav-link">Getting help</a>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="hero">
+      <div class="hero-eyebrow">The Handbook</div>
+      <h1 class="hero-title">How the alliance <em>operates</em>.</h1>
+      <p class="hero-lead">Everything you need to use the Eternal Vanguard tools: the website at <a href="/">eternal-vanguard.com</a>, the Discord bot, and the grading system that keeps the alliance accountable. Written for members, not engineers.</p>
+      <div class="hero-shields">
+        <span class="hero-shield-label">The five grades</span>
+        <span class="shield">
+          <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <defs><filter id="glow-s" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(229,228,226,0.08)" stroke="#e5e4e2" stroke-width="1.5" filter="url(#glow-s)"/>
+            <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#e5e4e2">S</text>
+          </svg>
+          <span class="shield-name">Platinum</span>
+        </span>
+        <span class="shield">
+          <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(255,215,0,0.06)" stroke="#ffd700" stroke-width="1.5"/>
+            <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#ffd700">A</text>
+          </svg>
+          <span class="shield-name">Gold</span>
+        </span>
+        <span class="shield">
+          <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(192,192,192,0.05)" stroke="#c0c0c0" stroke-width="1.5"/>
+            <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#c0c0c0">B</text>
+          </svg>
+          <span class="shield-name">Silver</span>
+        </span>
+        <span class="shield">
+          <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(205,127,50,0.05)" stroke="#cd7f32" stroke-width="1.5"/>
+            <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#cd7f32">C</text>
+          </svg>
+          <span class="shield-name">Bronze</span>
+        </span>
+        <span class="shield">
+          <svg class="shield-svg" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(58,69,96,0.15)" stroke="#3a4560" stroke-width="1.5"/>
+            <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="20" font-weight="600" fill="#6b7ea0">D</text>
+          </svg>
+          <span class="shield-name">Matte</span>
+        </span>
+      </div>
+    </div>
+
+    <section id="platform">
+      <div class="section-eyebrow">Article I</div>
+      <h2>The <em>platform</em>.</h2>
+      <p class="lead">Eternal Vanguard has its own website and its own Discord bot. They talk to each other so everything stays in sync.</p>
+      <p><strong>The website</strong> keeps the records. It knows who is in the alliance, what everyone has done this season, and where each player ranks. Staff use it to review new arrivals and to load the weekly game data.</p>
+      <p><strong>The Discord bot</strong> is where the roster comes to life inside the chat. It gives you the right role automatically, translates messages between languages, tracks who is attending events, and lets you look up any player without leaving Discord.</p>
+      <p>Once you link your Discord account to your website account, the two stay connected. Your grade role updates on its own. Your Discord nickname matches your in-game name. You do not have to do anything.</p>
+    </section>
+
+    <section id="getting-started">
+      <div class="section-eyebrow">Article II</div>
+      <h2>Getting <em>started</em>.</h2>
+      <p class="lead">There are three steps between joining and being fully set up. Expect a few hours between step 2 and step 3 while staff review your request.</p>
+      <ol class="steps">
+        <li>
+          <strong>Create your website account.</strong>
+          Go to <a href="/signup">eternal-vanguard.com/signup</a>. You will need three things: your in-game name, your character ID, and a screenshot.
+          <br><br>
+          Your <em>character ID</em> is the number Call of Dragons shows next to your name on your Profile screen — the game uses it to identify you. Copy it exactly, without spaces.
+          <br><br>
+          The <em>screenshot</em> is your in-game Profile screen — the one you open by tapping your own portrait in the top-left of the game. Only you can see that exact screen from your account, which is how staff confirm the account is really yours.
+        </li>
+        <li>
+          <strong>Wait for approval.</strong>
+          Staff receive a notification the moment you submit. They compare your screenshot against your details and either approve, promote, or reject the request. You will get an email as soon as it is done — usually within a few hours.
+        </li>
+        <li>
+          <strong>Link your Discord.</strong>
+          Once approved, log in, open <a href="/profile">eternal-vanguard.com/profile</a>, and click <strong>Link Discord</strong>. The bot notices within seconds and gives you the <code>@Verified</code> role plus the grade role that matches your current standing. From then on, your Discord nickname automatically mirrors your in-game name.
+        </li>
+      </ol>
+      <div class="callout">
+        <span class="callout-icon">Note</span>
+        <div class="callout-body">
+          If you are not yet in the alliance and want to join, use <a href="/apply">eternal-vanguard.com/apply</a> instead. That form is open to anyone — no account needed.
+        </div>
+      </div>
+    </section>
+
+    <section id="your-grade">
+      <div class="section-eyebrow">Article III</div>
+      <h2>Your <em>grade</em>.</h2>
+      <p class="lead">Every active member has a grade, updated each time new game data is loaded. It is based on one number, and one number only.</p>
+
+      <h4>The formula</h4>
+      <p>Your <strong>M/P%</strong> is your season merits divided by your starting power, times one hundred. That is the whole system. No hidden weights, no engagement index, no seven-way scoring — one ratio, one grade.</p>
+
+      <div class="example">
+        <div class="example-label">Worked example</div>
+        <div class="example-body">
+          You started the season with <span class="math">100M power</span> and have earned <span class="math">8M merits</span> so far.<br>
+          Your M/P% is <span class="math">8 ÷ 100 × 100 = 8%</span> — that is Gold ({{ threshold_a }}% or higher).
         </div>
       </div>
 
-      <!-- 1. The Platform -->
-      <section id="platform" class="hb-section">
-        <div class="hb-section-eyebrow">Article I</div>
-        <h2 class="hb-h2">The <em>platform</em>.</h2>
-        <p class="hb-p lead">Eternal Vanguard has its own website and its own Discord bot. They talk to each other so everything stays in sync.</p>
-
-        <p class="hb-p"><strong>The website</strong> keeps the records. It knows who is in the alliance, what everyone has done this season, and where each player ranks. Staff use it to review new arrivals and to load the weekly game data.</p>
-
-        <p class="hb-p"><strong>The Discord bot</strong> is where the roster comes to life inside the chat. It gives you the right role automatically, translates messages between languages, tracks who is attending events, and lets you look up any player without leaving Discord.</p>
-
-        <p class="hb-p">Once you link your Discord account to your website account, the two stay connected. Your grade role updates on its own. Your Discord nickname matches your in-game name. You do not have to do anything.</p>
-      </section>
-
-      <!-- 2. Getting Started -->
-      <section id="getting-started" class="hb-section">
-        <div class="hb-section-eyebrow">Article II</div>
-        <h2 class="hb-h2">Getting <em>started</em>.</h2>
-        <p class="hb-p lead">There are three steps between joining and being fully set up. Expect a few hours between step 2 and step 3 while staff review your request.</p>
-
-        <ol class="hb-steps">
-          <li>
-            <strong>Create your website account.</strong>
-            Go to <a href="/signup">eternal-vanguard.com/signup</a>. You will need three things: your in-game name, your character ID, and a screenshot.
-            <br><br>
-            Your <em>character ID</em> is the number Call of Dragons shows next to your name on your Profile screen — the game uses it to identify you. Copy it exactly, without spaces.
-            <br><br>
-            The <em>screenshot</em> is your in-game Profile screen — the one you open by tapping your own portrait in the top-left of the game. Only you can see that exact screen from your account, which is how staff confirm the account is really yours.
-          </li>
-          <li>
-            <strong>Wait for approval.</strong>
-            Staff receive a notification the moment you submit. They compare your screenshot against your details and either approve, promote, or reject the request. You will get an email as soon as it is done — usually within a few hours.
-          </li>
-          <li>
-            <strong>Link your Discord.</strong>
-            Once approved, log in, open <a href="/profile">eternal-vanguard.com/profile</a>, and click <strong>Link Discord</strong>. The bot notices within seconds and gives you the <code>@Verified</code> role plus the grade role that matches your current standing. From then on, your Discord nickname automatically mirrors your in-game name.
-          </li>
-        </ol>
-
-        <div class="hb-callout">
-          <span class="hb-callout-icon">Note</span>
-          <div class="hb-callout-body">
-            If you are not yet in the alliance and want to join, use <a href="/apply">eternal-vanguard.com/apply</a> instead. That form is open to anyone — no account needed.
-          </div>
+      <div class="callout tip">
+        <span class="callout-icon">Why</span>
+        <div class="callout-body">
+          Merits alone would always favour the biggest accounts. Merits divided by power rewards <em>effort relative to what you brought</em>. A 50M player who fights hard can grade higher than a 200M player who coasts.
         </div>
-      </section>
-
-      <!-- 3. Your Grade -->
-      <section id="your-grade" class="hb-section">
-        <div class="hb-section-eyebrow">Article III</div>
-        <h2 class="hb-h2">Your <em>grade</em>.</h2>
-        <p class="hb-p lead">Every active member has a grade, updated each time new game data is loaded. It is based on one number, and one number only.</p>
-
-        <h4 class="hb-h4">The formula</h4>
-        <p class="hb-p">Your <strong>M/P%</strong> is your season merits divided by your starting power, times one hundred. That is the whole system. No hidden weights, no engagement index, no seven-way scoring — one ratio, one grade.</p>
-
-        <div class="hb-example">
-          <div class="hb-example-label">Worked example</div>
-          <div class="hb-example-body">
-            You started the season with <span class="math">100M power</span> and have earned <span class="math">8M merits</span> so far.<br>
-            Your M/P% is <span class="math">8 ÷ 100 × 100 = 8%</span> — that is Gold ({{ threshold_a }}% or higher).
-          </div>
-        </div>
-
-        <div class="hb-callout tip">
-          <span class="hb-callout-icon">Why</span>
-          <div class="hb-callout-body">
-            Merits alone would always favour the biggest accounts. Merits divided by power rewards <em>effort relative to what you brought</em>. A 50M player who fights hard can grade higher than a 200M player who coasts.
-          </div>
-        </div>
-
-        <h4 class="hb-h4">The five grades — {{ season_name }}</h4>
-        <div class="hb-grades">
-          <div class="hb-grade-card">
-            <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <filter id="glow-s-big" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="2" result="blur"/>
-                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-              </defs>
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(229,228,226,0.1)" stroke="#e5e4e2" stroke-width="1.5" filter="url(#glow-s-big)"/>
-              <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#e5e4e2">S</text>
-            </svg>
-            <div class="hb-grade-body">
-              <div class="hb-grade-title">Platinum</div>
-              <div class="hb-grade-threshold">M/P% ≥ {{ threshold_s }}</div>
-              <div class="hb-grade-meaning">The keepers of the vanguard. Consistent, front-line output every season.</div>
-            </div>
-          </div>
-
-          <div class="hb-grade-card">
-            <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"/>
-              <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#ffd700">A</text>
-            </svg>
-            <div class="hb-grade-body">
-              <div class="hb-grade-title">Gold</div>
-              <div class="hb-grade-threshold">M/P% ≥ {{ threshold_a }}</div>
-              <div class="hb-grade-meaning">Strong contributors. Reliable participation across events and PvP.</div>
-            </div>
-          </div>
-
-          <div class="hb-grade-card">
-            <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(192,192,192,0.06)" stroke="#c0c0c0" stroke-width="1.5"/>
-              <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#c0c0c0">B</text>
-            </svg>
-            <div class="hb-grade-body">
-              <div class="hb-grade-title">Silver</div>
-              <div class="hb-grade-threshold">M/P% ≥ {{ threshold_b }}</div>
-              <div class="hb-grade-meaning">Steady presence. Doing the work, not standing out — yet.</div>
-            </div>
-          </div>
-
-          <div class="hb-grade-card">
-            <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(205,127,50,0.06)" stroke="#cd7f32" stroke-width="1.5"/>
-              <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#cd7f32">C</text>
-            </svg>
-            <div class="hb-grade-body">
-              <div class="hb-grade-title">Bronze</div>
-              <div class="hb-grade-threshold">M/P% ≥ {{ threshold_c }}</div>
-              <div class="hb-grade-meaning">On watch. Present, but below the pace the alliance expects.</div>
-            </div>
-          </div>
-
-          <div class="hb-grade-card">
-            <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(71,85,105,0.2)" stroke="#475569" stroke-width="1.5"/>
-              <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#94a3b8">D</text>
-            </svg>
-            <div class="hb-grade-body">
-              <div class="hb-grade-title">Matte</div>
-              <div class="hb-grade-threshold">M/P% &lt; {{ threshold_c }}</div>
-              <div class="hb-grade-meaning">Effectively inactive this season. Reviewed at season's end.</div>
-            </div>
-          </div>
-
-          <div class="hb-grade-card">
-            <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="none" stroke="#6b7ea0" stroke-width="1" stroke-dasharray="3 3"/>
-              <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="11" font-weight="500" fill="#6b7ea0">FARM</text>
-            </svg>
-            <div class="hb-grade-body">
-              <div class="hb-grade-title">Farm account</div>
-              <div class="hb-grade-threshold">Start power ≤ {{ farm_threshold_m }}M</div>
-              <div class="hb-grade-meaning">Not graded. Listed separately on the Farms page for reference only.</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="hb-callout">
-          <span class="hb-callout-icon">Note</span>
-          <div class="hb-callout-body">
-            These thresholds are set for the current season. Staff can adjust them between seasons, based on the pace and difficulty of the season ahead. What you see above is always what is active right now.
-          </div>
-        </div>
-
-        <h4 class="hb-h4">Where to see yours</h4>
-        <ul class="hb-ul">
-          <li>On the website: <a href="/profile">eternal-vanguard.com/profile</a> for your own grade, <a href="/roster">eternal-vanguard.com/roster</a> for everyone's.</li>
-          <li>On Discord: the coloured role next to your name, or type <code>/me</code> to get the full breakdown.</li>
-        </ul>
-      </section>
-
-      <!-- 4. Site sections -->
-      <section id="site" class="hb-section">
-        <div class="hb-section-eyebrow">Article IV</div>
-        <h2 class="hb-h2">The <em>website</em>, page by page.</h2>
-        <p class="hb-p lead">Once you are logged in, five pages matter.</p>
-
-        <div class="hb-features">
-          <div class="hb-feature">
-            <div class="hb-feature-path"><a href="/dashboard">eternal-vanguard.com/dashboard</a></div>
-            <div class="hb-feature-desc"><strong>The season at a glance.</strong> How many players sit at each grade, who is at the top, and what the alliance average looks like. This is the first page staff open every morning.</div>
-          </div>
-          <div class="hb-feature">
-            <div class="hb-feature-path"><a href="/roster">eternal-vanguard.com/roster</a></div>
-            <div class="hb-feature-desc"><strong>The full member list.</strong> Filter by grade, search by name or character ID, tap any ID to copy it. On mobile, the name column stays visible when you scroll sideways.</div>
-          </div>
-          <div class="hb-feature">
-            <div class="hb-feature-path"><a href="/profile">eternal-vanguard.com/profile</a></div>
-            <div class="hb-feature-desc"><strong>Your own account.</strong> Change your password, connect or disconnect Discord, see your current grade.</div>
-          </div>
-          <div class="hb-feature">
-            <div class="hb-feature-path">eternal-vanguard.com/player/&lt;id&gt;</div>
-            <div class="hb-feature-desc"><strong>Any player's history.</strong> Their grade over past seasons, their event participation, their power growth. You reach this by clicking any name in the roster.</div>
-          </div>
-          <div class="hb-feature">
-            <div class="hb-feature-path"><a href="/farms">eternal-vanguard.com/farms</a></div>
-            <div class="hb-feature-desc"><strong>The farm accounts.</strong> Every account at or below {{ farm_threshold_m }}M starting power. They are not part of the grading, but they are listed here for reference.</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Your Profile -->
-      <section id="your-profile" class="hb-section">
-        <div class="hb-section-eyebrow">Article V</div>
-        <h2 class="hb-h2">Your <em>profile</em>, in detail.</h2>
-        <p class="hb-p">The <a href="/profile">eternal-vanguard.com/profile</a> page is where you control the link between your website account and everything else on the platform.</p>
-
-        <h4 class="hb-h4">Connecting Discord</h4>
-        <p class="hb-p">Click <strong>Link Discord</strong>, allow the app when Discord asks, and that's it. The bot notices within seconds and updates your roles and nickname.</p>
-
-        <h4 class="hb-h4">Disconnecting Discord</h4>
-        <p class="hb-p">You can unlink whenever you want. The <code>@Verified</code> role and your grade role are removed immediately. Your website account stays intact — nothing else changes.</p>
-
-        <h4 class="hb-h4">Forgot your password?</h4>
-        <p class="hb-p">Use the <a href="/forgot">Forgot password</a> link on the login page. A reset email arrives within a minute — check your spam folder if it does not show up.</p>
-      </section>
-
-      <!-- Bot commands -->
-      <section id="bot-commands" class="hb-section">
-        <div class="hb-section-eyebrow">Article VI</div>
-        <h2 class="hb-h2">Discord <em>commands</em>.</h2>
-        <p class="hb-p lead">A slash command is something you type in Discord starting with a <code>/</code>. Discord shows a menu of what is available as you type. Every command below replies only to you by default — nobody else sees the answer unless you tap the "Post publicly" button.</p>
-
-        <div class="hb-cmds">
-          <div class="hb-cmds-header">Available to everyone</div>
-          <div class="hb-cmd-row">
-            <div class="hb-cmd-name">/ping</div>
-            <div class="hb-cmd-desc"><span class="who">All</span>Check whether the bot is alive and how fast it is answering. Use this if something looks broken.</div>
-          </div>
-          <div class="hb-cmd-row">
-            <div class="hb-cmd-name">/me</div>
-            <div class="hb-cmd-desc"><span class="who">All</span>Your own player sheet — grade, M/P%, rank, and power. If your Discord is not linked to a website account yet, the command shows you how to fix that.</div>
-          </div>
-        </div>
-
-        <div class="hb-cmds">
-          <div class="hb-cmds-header">Verified members only</div>
-          <div class="hb-cmd-row">
-            <div class="hb-cmd-name">/lookup query &lt;name or id&gt;</div>
-            <div class="hb-cmd-desc"><span class="who">Verified</span>Find any player by name or character ID. Handles unusual characters, accents, and stylised names.</div>
-          </div>
-          <div class="hb-cmd-row">
-            <div class="hb-cmd-name">/lookup rang &lt;grade&gt;</div>
-            <div class="hb-cmd-desc"><span class="who">Verified</span>Every player at a given grade — S, A, B, C, D, or FARM — sorted by M/P%. You can page through the list, and there is a "Post publicly" button if the whole channel should see it.</div>
-          </div>
-          <div class="hb-cmd-row">
-            <div class="hb-cmd-name">/top n:&lt;1–25&gt;</div>
-            <div class="hb-cmd-desc"><span class="who">Verified</span>The top N players by M/P%. Handy before big events, to see who is leading the pack.</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Translations -->
-      <section id="translations" class="hb-section">
-        <div class="hb-section-eyebrow">Article VII</div>
-        <h2 class="hb-h2">Speaking across <em>languages</em>.</h2>
-        <p class="hb-p lead">K193 is a mixed-language kingdom. The bot translates any message on demand, without cluttering the conversation.</p>
-
-        <ol class="hb-steps">
-          <li>
-            <strong>React with a flag emoji.</strong>
-            On any message, add a flag as a reaction — 🇬🇧, 🇫🇷, 🇪🇸, 🇻🇳, and about twenty others. The bot reads the flag as "please translate this into that language."
-          </li>
-          <li>
-            <strong>The translation shows up in the right channel.</strong>
-            Public messages are translated in <code>#traductions</code>. Staff-only messages are translated in <code>#staff-traductions</code>. A staff message can never leak into a public channel by accident.
-          </li>
-          <li>
-            <strong>Jump back to the original.</strong>
-            Each translation comes with a <strong>Voir le message original ↗</strong> button that takes you straight to the message it came from, in case you need the context.
-          </li>
-        </ol>
-
-        <div class="hb-callout tip">
-          <span class="hb-callout-icon">Tip</span>
-          <div class="hb-callout-body">
-            If several people ask for the same translation, each gets their own copy tagged with their name. Nobody misses it in the scrollback.
-          </div>
-        </div>
-      </section>
-
-      <!-- Events -->
-      <section id="events" class="hb-section">
-        <div class="hb-section-eyebrow">Article VIII</div>
-        <h2 class="hb-h2">Events and <em>responses</em>.</h2>
-        <p class="hb-p lead">When staff schedule an event — a ranking, a behemoth run, a gate, a spire — the bot posts it in <code>#events</code> with two buttons.</p>
-
-        <ul class="hb-ul">
-          <li><strong>I'm in</strong> — you are counted as coming. Your name shows up in the "Coming" list on the event's post.</li>
-          <li><strong>Can't make it</strong> — you are counted as out. You appear in the "Not coming" list.</li>
-        </ul>
-
-        <p class="hb-p">You can change your mind at any time until the event is over. The morning after the event ends (UTC time), the buttons freeze and the post is marked closed.</p>
-
-        <h4 class="hb-h4">Reminders</h4>
-        <p class="hb-p">You will get automatic reminders in the channel: one the morning before the event, one an hour before if there is a specific start time, and one on the morning of the last day.</p>
-
-        <div class="hb-callout warn">
-          <span class="hb-callout-icon">Verify</span>
-          <div class="hb-callout-body">
-            The buttons only work if you have the <code>@Verified</code> role. If you have not linked your Discord to the website yet, the bot will ask you to visit <a href="/profile">eternal-vanguard.com/profile</a> first.
-          </div>
-        </div>
-      </section>
-
-      <!-- Staff duties -->
-      <section id="staff" class="hb-section">
-        <div class="hb-section-eyebrow">Article IX</div>
-        <h2 class="hb-h2">Staff <em>duties</em>.</h2>
-        <p class="hb-p lead">R4 and R5 have a few extra tools. Almost everything can be done from either the website or Discord, whichever is faster in the moment.</p>
-
-        <h3 class="hb-h3">Reviewing new arrivals</h3>
-        <p class="hb-p">Two channels feed the review queue:</p>
-        <ul class="hb-ul">
-          <li><strong>Applications</strong> come from <a href="/apply">eternal-vanguard.com/apply</a> — people asking to join the alliance.</li>
-          <li><strong>Signups</strong> come from <a href="/signup">eternal-vanguard.com/signup</a> — existing alliance members asking for a website account.</li>
-        </ul>
-        <p class="hb-p">Both send a notification to <code>#staff-alerts</code>, with the submitted screenshot attached. Click <strong>Accept</strong> or <strong>Reject with reason</strong> right there on Discord, or open <a href="/staff/applications">eternal-vanguard.com/staff/applications</a> and <a href="/staff/registrations">eternal-vanguard.com/staff/registrations</a> on the website for the full view.</p>
-
-        <div class="hb-callout">
-          <span class="hb-callout-icon">First</span>
-          <div class="hb-callout-body">
-            Whichever action fires first — website or Discord — closes the record. Do not double-click.
-          </div>
-        </div>
-
-        <h3 class="hb-h3">Loading the weekly game data</h3>
-        <p class="hb-p">The bot handles this on its own. Every night, it pulls the latest export from the Farlight portal, checks it for duplicates, loads it into the database, and posts a summary in <code>#audit-log</code>. If everything went well, the message says so. If something went wrong — a corrupted file, an expired token, a conflict with a manual upload — the message says that too, and pings staff.</p>
-
-        <p class="hb-p"><strong>You do not need to do anything for the normal weekly cycle.</strong> Just glance at <code>#audit-log</code> from time to time to confirm the bot is happy.</p>
-
-        <h4 class="hb-h4">If you need to force a pull right now</h4>
-        <p class="hb-p">Run <code>/farlight-pull-force</code> on Discord (staff only). The bot fetches the current data immediately, ignoring the schedule, and posts the same kind of summary to <code>#audit-log</code>.</p>
-
-        <h4 class="hb-h4">If you need to upload a file by hand</h4>
-        <p class="hb-p">Occasionally you may want to load a specific export that the automatic pull did not catch. Open <a href="/staff/upload">eternal-vanguard.com/staff/upload</a>, drop the file in, and confirm the replacement if the site asks — that happens when a file for the same period already exists.</p>
-
-        <h4 class="hb-h4">The Farlight token expires from time to time</h4>
-        <p class="hb-p">The bot uses a personal token to authenticate against the Farlight portal. Every couple of months, that token expires. The bot warns you in <code>#staff-alerts</code> a week ahead, so you have time to log in to Farlight, grab a fresh token, and update it via <code>/staff/settings</code>. Instructions come with the warning.</p>
-
-        <h3 class="hb-h3">Running events</h3>
-        <p class="hb-p">Open <a href="/staff/events">eternal-vanguard.com/staff/events</a>, pick the current season, and click <strong>New event</strong>. Choose the kind (ranking, behemoth, gate, spire), the dates, and an optional start time in UTC. Save it — the bot posts the response embed in <code>#events</code> within seconds.</p>
-        <p class="hb-p">To cancel, click the <strong>Delete</strong> button on the event's page or the ✕ on the events list. The Discord post disappears automatically.</p>
-
-        <h3 class="hb-h3">Season lifecycle</h3>
-        <p class="hb-p">Starting a new season takes four steps:</p>
-        <ol class="hb-steps">
-          <li><strong>Upload a one-day snapshot</strong> of the season's first day (start date = end date).</li>
-          <li><strong>Close the current season</strong> on <a href="/staff/seasons">eternal-vanguard.com/staff/seasons</a>.</li>
-          <li><strong>Create the new season</strong>, and point <em>Start snapshot</em> at the file you just uploaded.</li>
-          <li><strong>Activate it.</strong> The nightly pulls from that point on will fill in the new scoreboard.</li>
-        </ol>
-      </section>
-
-      <!-- FAQ -->
-      <section id="faq" class="hb-section">
-        <div class="hb-section-eyebrow">Article X</div>
-        <h2 class="hb-h2">Common <em>questions</em>.</h2>
-
-        <h4 class="hb-h4">How often are grades updated?</h4>
-        <p class="hb-p">Every night. The bot loads the latest game data automatically around 03:00 UTC, and grades are recalculated right after. If you check the site in the morning, you are looking at yesterday's activity.</p>
-
-        <h4 class="hb-h4">Why is my grade different from what I expected?</h4>
-        <p class="hb-p">Grades update with each new load of data. If you built a lot of power right before the season started, your denominator is high — your M/P% will lag behind your merit total. This is intentional and will not change.</p>
-
-        <h4 class="hb-h4">My in-game name just changed. Do I need to update the website?</h4>
-        <p class="hb-p">No. The next data load reads your current name from the export and updates it everywhere, including your Discord nickname.</p>
-
-        <h4 class="hb-h4">I disconnected Discord by mistake. What now?</h4>
-        <p class="hb-p">Go back to <a href="/profile">eternal-vanguard.com/profile</a> and link it again. Your grade role comes back on its own.</p>
-
-        <h4 class="hb-h4">The bot is not responding to my slash command.</h4>
-        <p class="hb-p">Discord sometimes takes a few minutes to sync new commands after the bot has been updated. Try <code>/ping</code> first — if that works, wait a moment and try your command again.</p>
-
-        <h4 class="hb-h4">Can I hide my grade from other members?</h4>
-        <p class="hb-p">No. Grades are public by design. The alliance operates on shared accountability — everyone sees everyone's standing, including staff. That is the point.</p>
-
-        <h4 class="hb-h4">Where does my data go?</h4>
-        <p class="hb-p">Everything is stored on a single server run by the alliance owner. No third-party analytics, no ads, no data resale. Only your game stats (from the Farlight export) and what you submit at signup.</p>
-      </section>
-
-      <!-- Help -->
-      <section id="help" class="hb-section">
-        <div class="hb-section-eyebrow">Article XI</div>
-        <h2 class="hb-h2">Getting <em>help</em>.</h2>
-        <p class="hb-p lead">If something is broken, or you are stuck, ask. The alliance is small enough that a direct message gets a real answer, usually within the hour.</p>
-
-        <ul class="hb-ul">
-          <li>Send a direct message to any R4 or R5 on Discord.</li>
-          <li>Post in <code>#general</code> if it is not urgent and might help others.</li>
-          <li>For account issues you would rather keep private, email <a href="mailto:contact@eternal-vanguard.com">contact@eternal-vanguard.com</a>.</li>
-        </ul>
-
-        <div class="hb-callout tip">
-          <span class="hb-callout-icon">Soon</span>
-          <div class="hb-callout-body">
-            A dedicated support ticket system is on the roadmap — private channels between you and staff, tracked from open to close. Until it lands, DMs are the way.
-          </div>
-        </div>
-      </section>
-
-      <div class="hb-signoff">
-        <em>Held to a higher standard.</em>
-        <span class="meta">The Handbook · Current season: {{ season_name }}</span>
       </div>
 
-    </main>
-  </div>
+      <h4>The five grades — {{ season_name }}</h4>
+      <div class="grades-grid">
+        <div class="grade-card">
+          <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <defs><filter id="glow-s2" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(229,228,226,0.1)" stroke="#e5e4e2" stroke-width="1.5" filter="url(#glow-s2)"/>
+            <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#e5e4e2">S</text>
+          </svg>
+          <div class="grade-card-body">
+            <div class="grade-card-title">Platinum</div>
+            <div class="grade-card-threshold">M/P% ≥ {{ threshold_s }}</div>
+            <div class="grade-card-meaning">The keepers of the vanguard. Consistent, front-line output every season.</div>
+          </div>
+        </div>
+
+        <div class="grade-card">
+          <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(255,215,0,0.08)" stroke="#ffd700" stroke-width="1.5"/>
+            <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#ffd700">A</text>
+          </svg>
+          <div class="grade-card-body">
+            <div class="grade-card-title">Gold</div>
+            <div class="grade-card-threshold">M/P% ≥ {{ threshold_a }}</div>
+            <div class="grade-card-meaning">Strong contributors. Reliable participation across events and PvP.</div>
+          </div>
+        </div>
+
+        <div class="grade-card">
+          <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(192,192,192,0.06)" stroke="#c0c0c0" stroke-width="1.5"/>
+            <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#c0c0c0">B</text>
+          </svg>
+          <div class="grade-card-body">
+            <div class="grade-card-title">Silver</div>
+            <div class="grade-card-threshold">M/P% ≥ {{ threshold_b }}</div>
+            <div class="grade-card-meaning">Steady presence. Doing the work, not standing out — yet.</div>
+          </div>
+        </div>
+
+        <div class="grade-card">
+          <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(205,127,50,0.06)" stroke="#cd7f32" stroke-width="1.5"/>
+            <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#cd7f32">C</text>
+          </svg>
+          <div class="grade-card-body">
+            <div class="grade-card-title">Bronze</div>
+            <div class="grade-card-threshold">M/P% ≥ {{ threshold_c }}</div>
+            <div class="grade-card-meaning">On watch. Present, but below the pace the alliance expects.</div>
+          </div>
+        </div>
+
+        <div class="grade-card">
+          <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="rgba(58,69,96,0.2)" stroke="#3a4560" stroke-width="1.5"/>
+            <text x="22" y="31" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="22" font-weight="600" fill="#6b7ea0">D</text>
+          </svg>
+          <div class="grade-card-body">
+            <div class="grade-card-title">Matte</div>
+            <div class="grade-card-threshold">M/P% &lt; {{ threshold_c }}</div>
+            <div class="grade-card-meaning">Effectively inactive this season. Reviewed at season's end.</div>
+          </div>
+        </div>
+
+        <div class="grade-card">
+          <svg class="shield-svg large" viewBox="0 0 44 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4 L40 4 L40 30 Q40 44 22 50 Q4 44 4 30 Z" fill="none" stroke="#6b7ea0" stroke-width="1" stroke-dasharray="3 3"/>
+            <text x="22" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="11" font-weight="500" fill="#6b7ea0">FARM</text>
+          </svg>
+          <div class="grade-card-body">
+            <div class="grade-card-title">Farm account</div>
+            <div class="grade-card-threshold">Start power ≤ {{ farm_threshold_m }}M</div>
+            <div class="grade-card-meaning">Not graded. Listed separately on the Farms page for reference only.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="callout-icon">Note</span>
+        <div class="callout-body">
+          These thresholds are set for the current season. Staff can adjust them between seasons, based on the pace and difficulty of the season ahead. What you see above is always what is active right now.
+        </div>
+      </div>
+
+      <h4>Where to see yours</h4>
+      <ul class="plain">
+        <li>On the website: <a href="/profile">eternal-vanguard.com/profile</a> for your own grade, <a href="/roster">eternal-vanguard.com/roster</a> for everyone's.</li>
+        <li>On Discord: the coloured role next to your name, or type <code>/me</code> to get the full breakdown.</li>
+      </ul>
+    </section>
+
+    <section id="site">
+      <div class="section-eyebrow">Article IV</div>
+      <h2>The <em>website</em>, page by page.</h2>
+      <p class="lead">Once you are logged in, five pages matter.</p>
+      <div class="features">
+        <div class="feature-row">
+          <div class="feature-path"><a href="/dashboard">eternal-vanguard.com/dashboard</a></div>
+          <div class="feature-desc"><strong>The season at a glance.</strong> How many players sit at each grade, who is at the top, and what the alliance average looks like. This is the first page staff open every morning.</div>
+        </div>
+        <div class="feature-row">
+          <div class="feature-path"><a href="/roster">eternal-vanguard.com/roster</a></div>
+          <div class="feature-desc"><strong>The full member list.</strong> Filter by grade, search by name or character ID, tap any ID to copy it. On mobile, the name column stays visible when you scroll sideways.</div>
+        </div>
+        <div class="feature-row">
+          <div class="feature-path"><a href="/profile">eternal-vanguard.com/profile</a></div>
+          <div class="feature-desc"><strong>Your own account.</strong> Change your password, connect or disconnect Discord, see your current grade.</div>
+        </div>
+        <div class="feature-row">
+          <div class="feature-path">eternal-vanguard.com/player/&lt;id&gt;</div>
+          <div class="feature-desc"><strong>Any player's history.</strong> Their grade over past seasons, their event participation, their power growth. You reach this by clicking any name in the roster.</div>
+        </div>
+        <div class="feature-row">
+          <div class="feature-path"><a href="/farms">eternal-vanguard.com/farms</a></div>
+          <div class="feature-desc"><strong>The farm accounts.</strong> Every account at or below {{ farm_threshold_m }}M starting power. They are not part of the grading, but they are listed here for reference.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="your-profile">
+      <div class="section-eyebrow">Article V</div>
+      <h2>Your <em>profile</em>, in detail.</h2>
+      <p>The <a href="/profile">eternal-vanguard.com/profile</a> page is where you control the link between your website account and everything else on the platform.</p>
+      <h4>Connecting Discord</h4>
+      <p>Click <strong>Link Discord</strong>, allow the app when Discord asks, and that's it. The bot notices within seconds and updates your roles and nickname.</p>
+      <h4>Disconnecting Discord</h4>
+      <p>You can unlink whenever you want. The <code>@Verified</code> role and your grade role are removed immediately. Your website account stays intact — nothing else changes.</p>
+      <h4>Forgot your password?</h4>
+      <p>Use the <a href="/forgot">Forgot password</a> link on the login page. A reset email arrives within a minute — check your spam folder if it does not show up.</p>
+    </section>
+
+    <section id="bot-commands">
+      <div class="section-eyebrow">Article VI</div>
+      <h2>Discord <em>commands</em>.</h2>
+      <p class="lead">A slash command is something you type in Discord starting with a <code>/</code>. Discord shows a menu of what is available as you type. Every command below replies only to you by default — nobody else sees the answer unless you tap the "Post publicly" button.</p>
+      <div class="commands">
+        <div class="commands-header">Available to everyone</div>
+        <div class="command-row">
+          <div class="command-name">/ping</div>
+          <div class="command-desc"><span class="who">All</span>Check whether the bot is alive and how fast it is answering. Use this if something looks broken.</div>
+        </div>
+        <div class="command-row">
+          <div class="command-name">/me</div>
+          <div class="command-desc"><span class="who">All</span>Your own player sheet — grade, M/P%, rank, and power. If your Discord is not linked to a website account yet, the command shows you how to fix that.</div>
+        </div>
+      </div>
+      <div class="commands">
+        <div class="commands-header">Verified members only</div>
+        <div class="command-row">
+          <div class="command-name">/lookup query &lt;name or id&gt;</div>
+          <div class="command-desc"><span class="who">Verified</span>Find any player by name or character ID. Handles unusual characters, accents, and stylised names.</div>
+        </div>
+        <div class="command-row">
+          <div class="command-name">/lookup rang &lt;grade&gt;</div>
+          <div class="command-desc"><span class="who">Verified</span>Every player at a given grade — S, A, B, C, D, or FARM — sorted by M/P%. You can page through the list, and there is a "Post publicly" button if the whole channel should see it.</div>
+        </div>
+        <div class="command-row">
+          <div class="command-name">/top n:&lt;1–25&gt;</div>
+          <div class="command-desc"><span class="who">Verified</span>The top N players by M/P%. Handy before big events, to see who is leading the pack.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="translations">
+      <div class="section-eyebrow">Article VII</div>
+      <h2>Speaking across <em>languages</em>.</h2>
+      <p class="lead">K193 is a mixed-language kingdom. The bot translates any message on demand, without cluttering the conversation.</p>
+      <ol class="steps">
+        <li>
+          <strong>React with a flag emoji.</strong>
+          On any message, add a flag as a reaction — 🇬🇧, 🇫🇷, 🇪🇸, 🇻🇳, and about twenty others. The bot reads the flag as "please translate this into that language."
+        </li>
+        <li>
+          <strong>The translation shows up in the right channel.</strong>
+          Public messages are translated in <code>#traductions</code>. Staff-only messages are translated in <code>#staff-traductions</code>. A staff message can never leak into a public channel by accident.
+        </li>
+        <li>
+          <strong>Jump back to the original.</strong>
+          Each translation comes with a <strong>Voir le message original ↗</strong> button that takes you straight to the message it came from, in case you need the context.
+        </li>
+      </ol>
+      <div class="callout tip">
+        <span class="callout-icon">Tip</span>
+        <div class="callout-body">
+          If several people ask for the same translation, each gets their own copy tagged with their name. Nobody misses it in the scrollback.
+        </div>
+      </div>
+    </section>
+
+    <section id="events">
+      <div class="section-eyebrow">Article VIII</div>
+      <h2>Events and <em>responses</em>.</h2>
+      <p class="lead">When staff schedule an event — a ranking, a behemoth run, a gate, a spire — the bot posts it in <code>#events</code> with two buttons.</p>
+      <ul class="plain">
+        <li><strong>I'm in</strong> — you are counted as coming. Your name shows up in the "Coming" list on the event's post.</li>
+        <li><strong>Can't make it</strong> — you are counted as out. You appear in the "Not coming" list.</li>
+      </ul>
+      <p>You can change your mind at any time until the event is over. The morning after the event ends (UTC time), the buttons freeze and the post is marked closed.</p>
+      <h4>Reminders</h4>
+      <p>You will get automatic reminders in the channel: one the morning before the event, one an hour before if there is a specific start time, and one on the morning of the last day.</p>
+      <div class="callout warn">
+        <span class="callout-icon">Verify</span>
+        <div class="callout-body">
+          The buttons only work if you have the <code>@Verified</code> role. If you have not linked your Discord to the website yet, the bot will ask you to visit <a href="/profile">eternal-vanguard.com/profile</a> first.
+        </div>
+      </div>
+    </section>
+
+    <section id="staff">
+      <div class="section-eyebrow">Article IX</div>
+      <h2>Staff <em>duties</em>.</h2>
+      <p class="lead">R4 and R5 have a few extra tools. Almost everything can be done from either the website or Discord, whichever is faster in the moment.</p>
+      <h3>Reviewing new arrivals</h3>
+      <p>Two channels feed the review queue:</p>
+      <ul class="plain">
+        <li><strong>Applications</strong> come from <a href="/apply">eternal-vanguard.com/apply</a> — people asking to join the alliance.</li>
+        <li><strong>Signups</strong> come from <a href="/signup">eternal-vanguard.com/signup</a> — existing alliance members asking for a website account.</li>
+      </ul>
+      <p>Both send a notification to <code>#staff-alerts</code>, with the submitted screenshot attached. Click <strong>Accept</strong> or <strong>Reject with reason</strong> right there on Discord, or open <a href="/staff/applications">eternal-vanguard.com/staff/applications</a> and <a href="/staff/registrations">eternal-vanguard.com/staff/registrations</a> on the website for the full view.</p>
+      <div class="callout">
+        <span class="callout-icon">First</span>
+        <div class="callout-body">
+          Whichever action fires first — website or Discord — closes the record. Do not double-click.
+        </div>
+      </div>
+      <h3>Loading the weekly game data</h3>
+      <p>The bot handles this on its own. Every night, it pulls the latest export from the Farlight portal, checks it for duplicates, loads it into the database, and posts a summary in <code>#audit-log</code>. If everything went well, the message says so. If something went wrong — a corrupted file, an expired token, a conflict with a manual upload — the message says that too, and pings staff.</p>
+      <p><strong>You do not need to do anything for the normal weekly cycle.</strong> Just glance at <code>#audit-log</code> from time to time to confirm the bot is happy.</p>
+      <h4>If you need to force a pull right now</h4>
+      <p>Run <code>/farlight-pull-force</code> on Discord (staff only). The bot fetches the current data immediately, ignoring the schedule, and posts the same kind of summary to <code>#audit-log</code>.</p>
+      <h4>If you need to upload a file by hand</h4>
+      <p>Occasionally you may want to load a specific export that the automatic pull did not catch. Open <a href="/staff/upload">eternal-vanguard.com/staff/upload</a>, drop the file in, and confirm the replacement if the site asks — that happens when a file for the same period already exists.</p>
+      <h4>The Farlight token expires from time to time</h4>
+      <p>The bot uses a personal token to authenticate against the Farlight portal. Every couple of months, that token expires. The bot warns you in <code>#staff-alerts</code> a week ahead, so you have time to log in to Farlight, grab a fresh token, and update it via <code>/staff/settings</code>. Instructions come with the warning.</p>
+      <h3>Running events</h3>
+      <p>Open <a href="/staff/events">eternal-vanguard.com/staff/events</a>, pick the current season, and click <strong>New event</strong>. Choose the kind (ranking, behemoth, gate, spire), the dates, and an optional start time in UTC. Save it — the bot posts the response embed in <code>#events</code> within seconds.</p>
+      <p>To cancel, click the <strong>Delete</strong> button on the event's page or the ✕ on the events list. The Discord post disappears automatically.</p>
+      <h3>Season lifecycle</h3>
+      <p>Starting a new season takes four steps:</p>
+      <ol class="steps">
+        <li><strong>Upload a one-day snapshot</strong> of the season's first day (start date = end date).</li>
+        <li><strong>Close the current season</strong> on <a href="/staff/seasons">eternal-vanguard.com/staff/seasons</a>.</li>
+        <li><strong>Create the new season</strong>, and point <em>Start snapshot</em> at the file you just uploaded.</li>
+        <li><strong>Activate it.</strong> The nightly pulls from that point on will fill in the new scoreboard.</li>
+      </ol>
+    </section>
+
+    <section id="faq">
+      <div class="section-eyebrow">Article X</div>
+      <h2>Common <em>questions</em>.</h2>
+      <h4>How often are grades updated?</h4>
+      <p>Every night. The bot loads the latest game data automatically around 03:00 UTC, and grades are recalculated right after. If you check the site in the morning, you are looking at yesterday's activity.</p>
+      <h4>Why is my grade different from what I expected?</h4>
+      <p>Grades update with each new load of data. If you built a lot of power right before the season started, your denominator is high — your M/P% will lag behind your merit total. This is intentional and will not change.</p>
+      <h4>My in-game name just changed. Do I need to update the website?</h4>
+      <p>No. The next data load reads your current name from the export and updates it everywhere, including your Discord nickname.</p>
+      <h4>I disconnected Discord by mistake. What now?</h4>
+      <p>Go back to <a href="/profile">eternal-vanguard.com/profile</a> and link it again. Your grade role comes back on its own.</p>
+      <h4>The bot is not responding to my slash command.</h4>
+      <p>Discord sometimes takes a few minutes to sync new commands after the bot has been updated. Try <code>/ping</code> first — if that works, wait a moment and try your command again.</p>
+      <h4>Can I hide my grade from other members?</h4>
+      <p>No. Grades are public by design. The alliance operates on shared accountability — everyone sees everyone's standing, including staff. That is the point.</p>
+      <h4>Where does my data go?</h4>
+      <p>Everything is stored on a single server run by the alliance owner. No third-party analytics, no ads, no data resale. Only your game stats (from the Farlight export) and what you submit at signup.</p>
+    </section>
+
+    <section id="help">
+      <div class="section-eyebrow">Article XI</div>
+      <h2>Getting <em>help</em>.</h2>
+      <p class="lead">If something is broken, or you are stuck, ask. The alliance is small enough that a direct message gets a real answer, usually within the hour.</p>
+      <ul class="plain">
+        <li>Send a direct message to any R4 or R5 on Discord.</li>
+        <li>Post in <code>#general</code> if it is not urgent and might help others.</li>
+        <li>For account issues you would rather keep private, email <a href="mailto:contact@eternal-vanguard.com">contact@eternal-vanguard.com</a>.</li>
+      </ul>
+      <div class="callout tip">
+        <span class="callout-icon">Soon</span>
+        <div class="callout-body">
+          A dedicated support ticket system is on the roadmap — private channels between you and staff, tracked from open to close. Until it lands, DMs are the way.
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>Eternal Vanguard · Kingdom 193 · <em>Held to a higher standard.</em></p>
+      <p style="margin-top: 0.5rem; font-size: 0.75rem;">The Handbook · Current season: {{ season_name }}</p>
+    </footer>
+
+  </main>
 </div>
 
 <script nonce="{{ request.state.csp_nonce }}">
   (function () {
-    // TOC toggle (mobile)
-    var toc = document.getElementById('hb-toc');
-    var toggle = document.querySelector('[data-action="toggle-toc"]');
-    if (toc && toggle) {
-      toggle.addEventListener('click', function () {
-        var expanded = toc.classList.toggle('expanded');
-        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      });
-      // Close TOC on link tap (mobile) so user isn't left with big menu open
-      toc.querySelectorAll('.toc-nav a').forEach(function (a) {
-        a.addEventListener('click', function () {
-          if (window.innerWidth <= 900) {
-            toc.classList.remove('expanded');
-            toggle.setAttribute('aria-expanded', 'false');
-          }
-        });
-      });
-    }
+    var sidebar = document.getElementById('hb-sidebar');
+    var backdrop = document.querySelector('.sidebar-backdrop');
 
-    // Active section highlighting on scroll
-    var sections = document.querySelectorAll('.hb-section');
-    var links = document.querySelectorAll('.toc-nav a');
+    window._hbToggle = function () { sidebar.classList.toggle('open'); backdrop.classList.toggle('open'); };
+    window._hbClose  = function () { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
+
+    document.querySelectorAll('.nav-link, .brand-back').forEach(function (a) {
+      a.addEventListener('click', function () { if (window.innerWidth <= 900) window._hbClose(); });
+    });
+
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window._hbClose(); });
+
+    var sections = document.querySelectorAll('section');
+    var links = document.querySelectorAll('.nav-link');
     if ('IntersectionObserver' in window && sections.length && links.length) {
       var observer = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
           if (entry.isIntersecting) {
             var id = entry.target.id;
-            links.forEach(function (l) {
-              l.classList.toggle('active', l.getAttribute('href') === '#' + id);
-            });
+            links.forEach(function (l) { l.classList.toggle('active', l.getAttribute('href') === '#' + id); });
           }
         });
       }, { rootMargin: '-30% 0px -60% 0px' });
@@ -1244,4 +794,6 @@
     }
   })();
 </script>
-{% endblock %}
+
+</body>
+</html>

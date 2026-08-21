@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 """
 Public manual page — GET /manual
 
@@ -24,14 +26,28 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
+def _parse_value(raw):
+    """Settings values are stored as JSON like {"v": 10.0}. Extract .v."""
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return raw
+    if isinstance(parsed, dict) and "v" in parsed:
+        return parsed["v"]
+    return parsed
+
+
 def _get_setting_num(db: Session, key: str, default: float) -> str:
     """Fetch a numeric setting, return formatted str (drops trailing .0)."""
     try:
         row = db.execute(
-            text("SELECT value FROM settings WHERE key = :k LIMIT 1"),
+            text('SELECT value FROM settings WHERE "key" = :k LIMIT 1'),
             {"k": key},
         ).fetchone()
-        val = float(row[0]) if row and row[0] is not None else float(default)
+        raw = _parse_value(row[0]) if row else None
+        val = float(raw) if raw is not None else float(default)
     except Exception:
         val = float(default)
     return str(int(val)) if val == int(val) else str(val)
@@ -41,12 +57,13 @@ def _get_setting_int(db: Session, key: str, default: int) -> int:
     """Kept for callers that need a plain int (e.g. farm cutoff in bytes)."""
     try:
         row = db.execute(
-            text("SELECT value FROM settings WHERE key = :k LIMIT 1"),
+            text('SELECT value FROM settings WHERE "key" = :k LIMIT 1'),
             {"k": key},
         ).fetchone()
-        if not row or row[0] is None:
+        raw = _parse_value(row[0]) if row else None
+        if raw is None:
             return default
-        return int(float(row[0]))
+        return int(float(raw))
     except Exception:
         return default
 

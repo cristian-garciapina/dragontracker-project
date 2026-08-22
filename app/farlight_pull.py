@@ -86,6 +86,35 @@ def _get_active_season(session) -> Season:
     return season
 
 
+def _maybe_attach_start_snapshot(session, season: Season) -> Optional[int]:
+    """If the active season has no start_snapshot yet, try to attach the
+    single-day snapshot that matches season.start_date. Returns the
+    attached snapshot id if attachment happened, None otherwise.
+
+    Called after each daily pull. Safe to call every night: no-op once
+    the anchor is set.
+    """
+    if season.start_snapshot_id is not None:
+        return None
+    snap = session.execute(
+        select(Snapshot).where(
+            Snapshot.date_start == season.start_date,
+            Snapshot.date_end == season.start_date,
+        ).order_by(Snapshot.id.asc())
+    ).scalars().first()
+    if snap is None:
+        return None
+    season.start_snapshot_id = snap.id
+    if snap.season_id != season.id:
+        snap.season_id = season.id
+    session.flush()
+    logger.info(
+        "farlight_pull: auto-attached snapshot #%d as start of season '%s' (%s)",
+        snap.id, season.name, season.start_date.isoformat(),
+    )
+    return snap.id
+
+
 def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict[str, Any]:
     """Execute a full nightly pull. See module docstring for semantics."""
     summary: dict[str, Any] = {
@@ -184,8 +213,14 @@ def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict
             date_start=cum_start, date_end=end,
             force=force,
         )
+        # Auto-attach start snapshot if season is still waiting for its anchor
+        attached_id = _maybe_attach_start_snapshot(session, season)
+        if attached_id is not None:
+            summary["start_snapshot_auto_attached"] = attached_id
+
         score_report = None
-        if daily_report is not None or cum_report is not None:
+        # Only rescore if we have an anchor (needed for M/P% computation)
+        if (daily_report is not None or cum_report is not None) and season.start_snapshot_id is not None:
             score_report = recompute_scores_for_active_season(session)
     except Exception as e:
         session.rollback()

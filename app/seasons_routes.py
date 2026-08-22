@@ -360,109 +360,104 @@ async def confirm_replace_post(
     )
 
 
-# --- Wizard: new season --------------------------------------------------
-@router.get("/staff/seasons/new", response_class=HTMLResponse)
-async def new_season_wizard(
+# --- Season lifecycle: close active season --------------------------------
+@router.post("/staff/seasons/{season_id}/close")
+async def close_season(
+    season_id: int,
     request: Request,
     user: User = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
+    """Close the given season. Sets is_active=False, closed_at=now,
+    end_date=today. Triggers one final rescore to freeze the scores.
+
+    After this, the nightly Farlight cron sees no active season and
+    skips all pulls until a new season is created.
+    """
+    season = db.get(Season, season_id)
+    if season is None or not season.is_active:
+        return RedirectResponse(url="/staff/seasons", status_code=303)
+
+    try:
+        recompute_scores_for_active_season(db)
+    except Exception:
+        pass
+
+    now = datetime.utcnow()
+    today = now.date()
+
+    old_state = {
+        "is_active": True,
+        "end_date": season.end_date.isoformat() if season.end_date else None,
+        "closed_at": season.closed_at.isoformat() if season.closed_at else None,
+    }
+    season.is_active = False
+    season.closed_at = now
+    if season.end_date is None:
+        season.end_date = today
+    new_state = {
+        "is_active": False,
+        "end_date": season.end_date.isoformat(),
+        "closed_at": season.closed_at.isoformat(),
+    }
+    _audit(db, user, "close", "season", str(season.id), old_state, new_state)
+    db.commit()
+
+    return RedirectResponse(url="/staff/seasons", status_code=303)
+
+
+# --- Season lifecycle: start new season -----------------------------------
+@router.get("/staff/seasons/new", response_class=HTMLResponse)
+async def new_season_form(
+    request: Request,
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    import re
+    active = _active_season(db)
+
+    default_name = ""
+    last = db.scalar(select(Season).order_by(Season.id.desc()))
+    if last is not None:
+        m = re.match(r"^(.*?)(\d+)$", last.name)
+        if m:
+            default_name = f"{m.group(1)}{int(m.group(2)) + 1}"
+        else:
+            default_name = last.name
+
     return templates.TemplateResponse(
         request=request,
         name="staff/season_new.html",
         context={
             "user": user,
             "kingdom": 193,
-            "step": 1,
             "error": None,
-            "pending_snapshot": None,
-            "current_season": _active_season(db),
+            "active_season": active,
+            "default_name": default_name,
+            "default_start_date": date.today().isoformat(),
         },
     )
 
 
-@router.post("/staff/seasons/new/upload")
-async def new_season_upload(
+@router.post("/staff/seasons/new")
+async def new_season_create(
     request: Request,
-    file: UploadFile = File(...),
-    user: User = Depends(require_staff),
-    db: Session = Depends(get_db),
-):
-    """Step 1 handler: ingest the start-of-season snapshot under the
-    active season (it'll be reassigned in step 3 when the new season
-    is created)."""
-    try:
-        result = await _ingest_upload(db, file, ingested_by=user.username)
-    except Exception as exc:
-        return templates.TemplateResponse(
-            request=request,
-            name="staff/season_new.html",
-            context={
-                "user": user, "kingdom": 193, "step": 1,
-                "error": f"Upload failed: {exc}",
-                "pending_snapshot": None,
-                "current_season": _active_season(db),
-            },
-        )
-
-    snap = db.get(Snapshot, result["snapshot_id"])
-    # Sanity: a start snapshot should be a single-day export.
-    if snap.date_start != snap.date_end:
-        return templates.TemplateResponse(
-            request=request,
-            name="staff/season_new.html",
-            context={
-                "user": user, "kingdom": 193, "step": 1,
-                "error": (
-                    "This export covers a date range, not a single day. "
-                    "A start-of-season snapshot must be a single-day export "
-                    "(date_start = date_end). The file was ingested anyway, "
-                    "but you should pick a 1-day export to start a new season."
-                ),
-                "pending_snapshot": None,
-                "current_season": _active_season(db),
-            },
-        )
-
-    return templates.TemplateResponse(
-        request=request,
-        name="staff/season_new.html",
-        context={
-            "user": user, "kingdom": 193, "step": 2,
-            "error": None,
-            "pending_snapshot": snap,
-            "current_season": _active_season(db),
-            "default_name": f"Season {snap.date_start.strftime('%Y')}-S{((snap.date_start.month - 1) // 3) + 1}",
-        },
-    )
-
-
-@router.post("/staff/seasons/new/confirm")
-async def new_season_confirm(
-    request: Request,
-    snapshot_id: int = Form(...),
     name: str = Form(...),
     start_date: str = Form(...),
     user: User = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    """Step 3 handler: close the active season + create the new one."""
-    snap = db.get(Snapshot, snapshot_id)
-    if snap is None:
-        return RedirectResponse(url="/staff/seasons/new", status_code=303)
-
-    try:
-        start_d = date.fromisoformat(start_date.strip())
-    except ValueError:
+    active = _active_season(db)
+    if active is not None:
         return templates.TemplateResponse(
             request=request,
             name="staff/season_new.html",
             context={
-                "user": user, "kingdom": 193, "step": 2,
-                "error": "Invalid start date (expected YYYY-MM-DD).",
-                "pending_snapshot": snap,
-                "current_season": _active_season(db),
+                "user": user, "kingdom": 193,
+                "error": f"Season '{active.name}' is still active. Close it first.",
+                "active_season": active,
                 "default_name": name,
+                "default_start_date": start_date,
             },
         )
 
@@ -472,45 +467,43 @@ async def new_season_confirm(
             request=request,
             name="staff/season_new.html",
             context={
-                "user": user, "kingdom": 193, "step": 2,
-                "error": "Invalid season name.",
-                "pending_snapshot": snap,
-                "current_season": _active_season(db),
+                "user": user, "kingdom": 193,
+                "error": "Invalid season name (1-64 chars).",
+                "active_season": None,
                 "default_name": name,
+                "default_start_date": start_date,
+            },
+        )
+
+    try:
+        start_d = date.fromisoformat(start_date.strip())
+    except ValueError:
+        return templates.TemplateResponse(
+            request=request,
+            name="staff/season_new.html",
+            context={
+                "user": user, "kingdom": 193,
+                "error": "Invalid start date (expected YYYY-MM-DD).",
+                "active_season": None,
+                "default_name": name,
+                "default_start_date": start_date,
             },
         )
 
     now = datetime.utcnow()
-
-    # Close the active season(s)
-    actives = list(db.scalars(select(Season).where(Season.is_active == True)).all())
-    for s in actives:
-        _audit(db, user, "close", "season", str(s.id),
-               {"is_active": True}, {"is_active": False, "closed_at": now.isoformat()})
-        s.is_active = False
-        s.closed_at = now
-        if s.end_date is None:
-            s.end_date = start_d  # the new season starts where the old one ends
-
-    # Create the new season; reassign the start snapshot to it
     new_season = Season(
         name=name_clean,
         start_date=start_d,
         is_active=True,
-        start_snapshot_id=snap.id,
+        start_snapshot_id=None,
         created_at=now,
     )
     db.add(new_season)
-    db.flush()  # get new_season.id
-    snap.season_id = new_season.id
+    db.flush()
 
     _audit(db, user, "create", "season", str(new_season.id),
-           None, {"name": name_clean, "start_date": start_date,
-                  "start_snapshot_id": snap.id})
+           None, {"name": name_clean, "start_date": start_d.isoformat(),
+                  "start_snapshot_id": None})
     db.commit()
-
-    # Recompute scores under the new season (probably empty until a
-    # cumulative is uploaded, but we run it for consistency).
-    recompute_scores_for_active_season(db)
 
     return RedirectResponse(url="/staff/seasons", status_code=303)

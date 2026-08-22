@@ -1,95 +1,52 @@
 {% extends "base.html" %}
-{% block title %}New season · Eternal Vanguard{% endblock %}
+{% block title %}Start a new season · Eternal Vanguard{% endblock %}
 {% block content %}
-<div class="max-w-2xl mx-auto px-6 py-12" data-page="staff-seasons-new">
+<div class="max-w-2xl mx-auto px-6 py-12" data-page="staff-season-new">
 
   <section data-section="hero" class="mb-8">
     <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ kingdom }}</p>
-    <h1 class="font-display text-4xl mb-2">New season</h1>
+    <h1 class="font-display text-4xl mb-2">Start a new season</h1>
     <p class="text-secondary text-sm">
-      Step {{ step }} of 2 — {% if step == 1 %}upload the start-of-season snapshot{% else %}confirm metadata{% endif %}.
+      Give the season a name and a start date. The start snapshot will be
+      auto-attached at the next Farlight nightly pull (03:15 UTC).
     </p>
   </section>
 
   {% if error %}
-  <div role="alert" class="mb-4 p-3 border border-red-700 bg-red-900/30 text-red-200 text-sm rounded">
-    {{ error }}
-  </div>
+  <div role="alert" class="mb-4 p-3 border border-red-700 bg-red-900/30 text-red-200 text-sm rounded">{{ error }}</div>
   {% endif %}
 
-  {% if current_season %}
-  <div class="mb-6 p-3 border border-gold/40 bg-gold/5 text-gold text-sm rounded">
-    Warning: confirming this wizard will close the active season
-    <span class="font-mono">{{ current_season.name }}</span> (started {{ current_season.start_date.isoformat() }}).
-    No data will be deleted — the season is just marked as inactive.
+  {% if active_season %}
+  <div class="mb-6 p-4 border border-amber-700 bg-amber-900/20 text-amber-200 text-sm rounded">
+    <strong>Season {{ active_season.name }} is still active.</strong>
+    <p class="mt-1 text-xs">You must close it before starting a new one.</p>
+    <a href="/staff/seasons" class="inline-block mt-3 px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white text-xs rounded">← Back to seasons</a>
   </div>
-  {% endif %}
-
-  {% if step == 1 %}
-    <section class="border border-edge bg-card rounded p-6">
-      <h2 class="font-display text-2xl mb-2">1. Upload start snapshot</h2>
-      <p class="text-secondary text-sm mb-4">
-        Export a <strong>single-day</strong> snapshot from the Farlight portal
-        (date_start = date_end). This becomes the reference point for M/P% computation.
-        Filename format: <span class="font-mono">193_YYYY-MM-DD_YYYY-MM-DD.xlsx</span>.
-      </p>
-
-      <form method="post" action="/staff/seasons/new/upload" enctype="multipart/form-data" class="flex items-center gap-3">
-        <input type="file" name="file" accept=".xlsx" required
-               class="text-sm text-secondary file:px-3 file:py-2 file:bg-elevated file:text-primary file:border file:border-edge file:rounded file:cursor-pointer file:mr-3">
-        <button type="submit"
-                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors text-sm">
-          Upload &amp; continue
-        </button>
-      </form>
-
-      <div class="mt-6 pt-4 border-t border-edge">
-        <a href="/staff/seasons" class="text-sm text-secondary hover:text-cyan-300">← Cancel</a>
+  {% else %}
+  <section class="border border-edge bg-card rounded p-6">
+    <form method="post" action="/staff/seasons/new" class="space-y-5">
+      <div>
+        <label for="name" class="block text-xs text-muted uppercase tracking-wider mb-2">Season name</label>
+        <input type="text" id="name" name="name" required maxlength="64"
+               value="{{ default_name }}" placeholder="SOS19"
+               class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono focus:outline-none focus:border-cyan-500">
       </div>
-    </section>
-
-  {% elif step == 2 %}
-    <section class="border border-edge bg-card rounded p-6">
-      <h2 class="font-display text-2xl mb-2">2. Confirm metadata</h2>
-      <p class="text-secondary text-sm mb-4">
-        Snapshot ingested: <span class="font-mono text-primary">{{ pending_snapshot.source_filename }}</span>
-        ({{ pending_snapshot.row_count }} rows, day {{ pending_snapshot.date_start.isoformat() }}).
-      </p>
-
-      <form method="post" action="/staff/seasons/new/confirm" class="space-y-4">
-        <input type="hidden" name="snapshot_id" value="{{ pending_snapshot.id }}">
-
-        <div>
-          <label for="name" class="block text-sm text-secondary mb-1">Season name</label>
-          <input id="name" name="name" type="text" required maxlength="64"
-                 value="{{ default_name }}"
-                 class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary">
-        </div>
-
-        <div>
-          <label for="start_date" class="block text-sm text-secondary mb-1">Start date (YYYY-MM-DD)</label>
-          <input id="start_date" name="start_date" type="text" required
-                 value="{{ pending_snapshot.date_start.isoformat() }}"
-                 pattern="\d{4}-\d{2}-\d{2}"
-                 class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono">
-          <p class="text-xs text-muted mt-1">
-            Usually the snapshot's date. The previous season (if any) will be marked as ending the day before.
-          </p>
-        </div>
-
-        <div class="flex gap-3 pt-2 border-t border-edge">
-          <button type="submit"
-                  class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors text-sm">
-            Create season &amp; close previous
-          </button>
-          <a href="/staff/seasons"
-             class="px-4 py-2 border border-edge hover:border-cyan-400 hover:text-cyan-300 rounded transition-colors text-sm">
-            Cancel
-          </a>
-        </div>
-      </form>
-    </section>
+      <div>
+        <label for="start_date" class="block text-xs text-muted uppercase tracking-wider mb-2">Start date (day 1 of the KvK)</label>
+        <input type="date" id="start_date" name="start_date" required
+               value="{{ default_start_date }}"
+               class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono focus:outline-none focus:border-cyan-500">
+        <p class="text-xs text-muted mt-2">
+          Farlight publishes data with 1 day delay. The snapshot for this date will
+          be pulled the next morning and auto-attached as the start of season.
+        </p>
+      </div>
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors text-sm">Create season</button>
+        <a href="/staff/seasons" class="px-4 py-2 border border-edge text-secondary hover:text-primary rounded transition-colors text-sm">Cancel</a>
+      </div>
+    </form>
+  </section>
   {% endif %}
-
 </div>
 {% endblock %}

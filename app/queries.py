@@ -41,12 +41,22 @@ def resolve_season_or_active(
     db: Session, season_id: Optional[int]
 ) -> Optional[Season]:
     """Return the requested season if it exists, else the active season,
-    else None. Invalid IDs silently fall back to active."""
+    else the most recent closed season (fallback for inter-season UX).
+    Invalid IDs silently fall back to active."""
     if season_id:
         season = db.get(Season, season_id)
         if season is not None:
             return season
-    return get_active_season(db)
+    active = get_active_season(db)
+    if active is not None:
+        return active
+    # Fallback: no active season -> show the most recent closed one
+    # so /dashboard and /roster keep displaying final standings between seasons.
+    return db.scalar(
+        select(Season)
+        .where(Season.is_active == False)  # noqa: E712
+        .order_by(Season.end_date.desc().nullslast(), Season.start_date.desc())
+    )
 
 
 def get_scoring_snapshot(db: Session, season: Season) -> Optional[Snapshot]:

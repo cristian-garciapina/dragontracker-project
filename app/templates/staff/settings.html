@@ -1,6 +1,130 @@
 {% extends "base.html" %}
 {% block title %}Settings · Eternal Vanguard{% endblock %}
 {% block content %}
+<style>
+  .status-card {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-card);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-card::before {
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--color-cyan), transparent);
+    opacity: 0.6;
+  }
+  .status-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--color-border);
+    transition: background-color 200ms ease;
+  }
+  .status-toggle:hover { background: rgba(34, 211, 238, 0.03); }
+  .status-toggle .txt .name {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-text-primary);
+  }
+  .status-toggle .txt .desc {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    margin-top: 0.15rem;
+  }
+  .status-toggle .txt .active-pill {
+    display: inline-block;
+    margin-left: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #FCA5A5;
+    border: 1px solid rgba(252, 165, 165, 0.4);
+    padding: 1px 6px;
+    border-radius: 2px;
+    vertical-align: middle;
+  }
+
+  /* iOS-style switch */
+  .switch { position: relative; display: inline-block; width: 42px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 22px;
+    transition: 200ms;
+  }
+  .switch .slider::before {
+    position: absolute; content: "";
+    height: 14px; width: 14px;
+    left: 3px; top: 3px;
+    background: var(--color-text-muted);
+    border-radius: 50%;
+    transition: 200ms;
+  }
+  .switch input:checked + .slider {
+    background: rgba(34, 211, 238, 0.15);
+    border-color: var(--color-cyan);
+  }
+  .switch input:checked + .slider::before {
+    transform: translateX(20px);
+    background: var(--color-cyan);
+    box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+  }
+</style>
+
+<div class="max-w-5xl mx-auto px-6 pt-10">
+  <section class="mb-8">
+    <div class="mb-3">
+      <h2 class="font-display text-2xl">Site status</h2>
+      <p class="text-xs text-muted mt-1">
+        Toggle either flag to lock the site behind a static page. Only you (owner) keep full access. <span class="text-secondary">Closed</span> wins over <span class="text-secondary">Maintenance</span> if both are ON.
+      </p>
+    </div>
+
+    <form id="site-status-form" method="post" action="/staff/settings/site-status" class="status-card">
+      <label class="status-toggle cursor-pointer" style="border-top: none;">
+        <div class="txt">
+          <span class="name">Maintenance mode</span>
+          {% if site_status.maintenance %}<span class="active-pill">Active</span>{% endif %}
+          <span class="desc">Visitors see “Site under maintenance.”</span>
+        </div>
+        <span class="switch">
+          <input type="checkbox" name="maintenance_mode" {% if site_status.maintenance %}checked{% endif %}>
+          <span class="slider"></span>
+        </span>
+      </label>
+
+      <label class="status-toggle cursor-pointer">
+        <div class="txt">
+          <span class="name">Site closed</span>
+          {% if site_status.closed %}<span class="active-pill">Active</span>{% endif %}
+          <span class="desc">Visitors see “Site closed.”</span>
+        </div>
+        <span class="switch">
+          <input type="checkbox" name="closed" {% if site_status.closed %}checked{% endif %}>
+          <span class="slider"></span>
+        </span>
+      </label>
+
+      <div class="flex justify-end px-5 py-3 border-t border-edge">
+        <button type="submit" class="text-[0.7rem] uppercase tracking-[0.15em] px-4 py-2 border border-edge rounded-sm hover:border-cyan hover:text-cyan transition-colors">
+          Save
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+
 <div class="max-w-3xl mx-auto px-6 py-12" data-page="staff-settings">
 
   <section data-section="hero" class="mb-8">

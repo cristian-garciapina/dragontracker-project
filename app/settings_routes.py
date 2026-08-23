@@ -23,6 +23,7 @@ from . import queries
 from .auth import get_db, require_staff
 from .models import AuditLog, Setting, User
 from .scoring import recompute_scores_for_active_season
+from .site_gate import get_site_status
 
 router = APIRouter(tags=["staff-settings"])
 
@@ -43,6 +44,7 @@ def _render(request: Request, db: Session, user: User,
             "error": error,
             "success": success,
             "recompute": recompute_info,
+            "site_status": get_site_status(db),
         },
     )
 
@@ -151,3 +153,54 @@ async def settings_update(
         success=f"Saved {len(changes)} change(s) and recomputed scores.",
         recompute_info=recompute_info,
     )
+
+
+# ---- Site status flags (maintenance / closed) ------------------------------
+
+def _set_bool_setting(db: Session, key: str, value: bool) -> None:
+    row = db.get(Setting, key)
+    if row is None:
+        row = Setting(
+            key=key,
+            value={"v": bool(value)},
+            value_type="bool",
+            category="site",
+            description="Site gate flag (owner-only bypass when ON).",
+            editable_by="owner",
+        )
+        db.add(row)
+    else:
+        row.value = {"v": bool(value)}
+
+
+@router.post("/staff/settings/site-status")
+async def site_status_update(
+    request: Request,
+    user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    maintenance = form.get("maintenance_mode") == "on"
+    closed = form.get("closed") == "on"
+
+    prev = get_site_status(db)
+    _set_bool_setting(db, "site.maintenance_mode", maintenance)
+    _set_bool_setting(db, "site.closed", closed)
+
+    for key, old, new in (
+        ("site.maintenance_mode", prev["maintenance"], maintenance),
+        ("site.closed", prev["closed"], closed),
+    ):
+        if old != new:
+            db.add(AuditLog(
+                user=user.username,
+                action="setting_update",
+                target_type="setting",
+                target_id=key,
+                old_value={"v": old},
+                new_value={"v": new},
+                timestamp=datetime.utcnow(),
+            ))
+    db.commit()
+
+    return _render(request, db, user, success="Site status updated.")

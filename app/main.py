@@ -44,6 +44,7 @@ from .farlight_routes import router as farlight_router
 from .password_reset import router as password_reset_router
 from .csp_report import router as csp_report_router
 from .csp_middleware import CSPNonceMiddleware
+from .site_gate import SiteGateMiddleware
 from .models import User
 from .manual_routes import router as manual_router
 
@@ -60,6 +61,7 @@ app = FastAPI(
 )
 
 app.add_middleware(CSPNonceMiddleware)
+app.add_middleware(SiteGateMiddleware)
 
 app.include_router(auth_router)
 app.include_router(signup_router)

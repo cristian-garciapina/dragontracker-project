@@ -13,6 +13,7 @@ non-staff users.
 """
 from __future__ import annotations
 from fastapi import Depends as _EV_Depends
+from sqlalchemy.sql import func
 from sqlalchemy.orm import Session as _EV_Session
 from sqlalchemy import select as _EV_select
 from .models import Season as _EV_Season
@@ -38,6 +39,17 @@ TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
+
+def _short_merits(n):
+    if not n:
+        return "0"
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.2f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.0f}K"
+    return str(n)
+
+
 @router.get("/player/{character_id}", response_class=HTMLResponse)
 async def player_profile(
     request: Request,
@@ -59,6 +71,12 @@ async def player_profile(
         .order_by(Season.start_date.desc(), Score.computed_at.desc())
     ).all()
 
+    burn_totals = dict(db.execute(
+        select(Burn.season_id, func.coalesce(func.sum(Burn.merits_gained), 0))
+        .where(Burn.character_id == character_id)
+        .group_by(Burn.season_id)
+    ).all())
+
     seen: set[int] = set()
     history: list[dict] = []
     for score, season in rows:
@@ -79,6 +97,8 @@ async def player_profile(
             "merits_cumulative": score.merits_cumulative,
             "is_farm_account": score.is_farm_account,
             "primary_role": score.primary_role,
+            "burns_total": int(burn_totals.get(season.id, 0) or 0),
+            "burns_total_short": _short_merits(int(burn_totals.get(season.id, 0) or 0)),
         })
 
     current = history[0] if history else None
@@ -103,14 +123,15 @@ async def player_profile(
         ).all())
 
     active_season = db.scalar(select(Season).where(Season.is_active == True))
-    burns_current_season = []
-    if active_season is not None:
-        burns_current_season = list(db.scalars(
-            select(Burn)
-            .where(Burn.character_id == character_id)
-            .where(Burn.season_id == active_season.id)
-            .order_by(Burn.burn_date.desc(), Burn.recorded_at.desc())
-        ).all())
+    all_burns = list(db.scalars(
+        select(Burn)
+        .where(Burn.character_id == character_id)
+        .order_by(Burn.burn_date.desc(), Burn.recorded_at.desc())
+    ).all())
+    burns_by_season = {}
+    for b in all_burns:
+        burns_by_season.setdefault(b.season_id, []).append(b)
+    burns_current_season = burns_by_season.get(active_season.id, []) if active_season else []
 
     return templates.TemplateResponse(
         request=request,
@@ -127,6 +148,7 @@ async def player_profile(
             "notes": notes,
             "active_season": active_season,
             "burns_current_season": burns_current_season,
+            "burns_by_season": burns_by_season,
             "event_history": get_player_event_history(db, character_id),
             "today_iso": datetime.utcnow().date().isoformat(),
             "prev_cid": _get_prev_next_cids(db, character_id)[0],

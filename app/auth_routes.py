@@ -84,6 +84,20 @@ async def login_submit(
         user_agent=request.headers.get("user-agent"),
     )
 
+    # Gate check: if site is in maintenance or closed, only owner may enter.
+    # Anyone else gets the session destroyed and a friendly message.
+    from .site_gate import get_site_status
+    _gate = get_site_status(db)
+    if (_gate["maintenance"] or _gate["closed"]) and user.role != "owner":
+        delete_session(db, session.session_id)
+        msg = "The site is closed to the public right now." if _gate["closed"] else "The site is currently in maintenance. Please try again later."
+        return templates.TemplateResponse(
+            request=request,
+            name="auth/login.html",
+            context={"next": next, "error": msg, "flash": None},
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
     # If a discord OAuth was pending, link the discord_id to this user
     pending = request.cookies.get("discord_pending_id", "")
     linked_msg = ""

@@ -147,11 +147,67 @@
     transition: background 0.15s ease;
   }
   .path-card .cta:hover { background: #22d3ee; }
+  /* landing-v2-glass */
+  .landing-bg {
+    position: relative;
+    background:
+      radial-gradient(ellipse 90% 60% at 50% 0%, rgba(34,211,238,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 50% 100%, rgba(255,215,0,0.04) 0%, transparent 55%),
+      linear-gradient(180deg, #0f172a 0%, #0a0e1a 100%);
+  }
+  .landing-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 15% 25%, rgba(255,255,255,0.35), transparent 50%),
+      radial-gradient(1px 1px at 75% 15%, rgba(255,255,255,0.25), transparent 50%),
+      radial-gradient(1.5px 1.5px at 40% 60%, rgba(255,215,0,0.25), transparent 50%),
+      radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,0.3), transparent 50%),
+      radial-gradient(1px 1px at 25% 85%, rgba(34,211,238,0.2), transparent 50%);
+    background-size: 900px 900px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* Primary CTA — gradient + hover lift */
+  .primary-cta {
+    background: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
+    color: #0a0e1a;
+    box-shadow: 0 4px 20px rgba(34,211,238,0.25);
+    padding: 1rem 2.25rem;
+    font-size: 1.1rem;
+  }
+  .primary-cta:hover {
+    background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(34,211,238,0.4);
+  }
+
+  /* Glassmorphism on pillars */
+  .pillar {
+    background: rgba(255,255,255,0.025);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-left: 2px solid rgba(255,255,255,0.08);
+  }
+  .pillar:hover {
+    background: rgba(255,255,255,0.04);
+    border-left-color: var(--color-gold);
+    transform: translateY(-3px);
+  }
+
+  /* Quote block subtle glow */
+  .quote-block {
+    background: radial-gradient(ellipse 80% 100% at 50% 50%, rgba(255,215,0,0.03) 0%, transparent 70%);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="max-w-6xl mx-auto px-6 py-20">
+<div class="landing-bg relative overflow-hidden">
+<section class="relative max-w-6xl mx-auto px-6 py-20" style="z-index:1;">
 
   <!-- HERO -->
   <div class="mb-4">
@@ -224,4 +280,5 @@
   </div>
 
 </section>
+</div>
 {% endblock %}

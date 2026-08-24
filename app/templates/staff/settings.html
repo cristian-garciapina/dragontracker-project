@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings · Eternal Vanguard{% endblock %}
+{% block title %}Settings · {{ alliance.name }}{% endblock %}
 {% block content %}
 <style>
   .status-card {
@@ -127,8 +127,83 @@
 
 <div class="max-w-3xl mx-auto px-6 py-12" data-page="staff-settings">
 
+  <!-- alliance-identity-start -->
+  <section class="mb-10">
+    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Alliance</p>
+    <h1 class="font-display text-4xl mb-2">Alliance identity</h1>
+    <p class="text-secondary text-sm mb-6">
+      Configure the alliance identity. These values appear across the site
+      (headers, footer, landing page, emails) and are safe to change at any time.
+    </p>
+
+    {% if request.query_params.get('alliance_saved') %}
+    <div role="status" class="mb-4 p-3 border border-green-700 bg-green-900/30 text-green-200 text-sm rounded">
+      Alliance identity saved.
+    </div>
+    {% endif %}
+    {% if request.query_params.get('alliance_error') %}
+    <div role="alert" class="mb-4 p-3 border border-red-700 bg-red-900/30 text-red-200 text-sm rounded">
+      {{ request.query_params.get('alliance_error') }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/staff/settings/alliance" class="space-y-4 p-6 bg-card border border-edge rounded-lg">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="al_name" class="block text-xs uppercase tracking-wide text-muted mb-1">Alliance name</label>
+          <input id="al_name" type="text" name="name" required
+                 value="{{ alliance.name }}"
+                 class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary">
+        </div>
+        <div>
+          <label for="al_tag" class="block text-xs uppercase tracking-wide text-muted mb-1">Tag (short)</label>
+          <input id="al_tag" type="text" name="tag" maxlength="8"
+                 value="{{ alliance.tag }}"
+                 class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono">
+        </div>
+        <div>
+          <label for="al_kid" class="block text-xs uppercase tracking-wide text-muted mb-1">Kingdom ID</label>
+          <input id="al_kid" type="number" name="kingdom_id" min="0"
+                 value="{{ alliance.kingdom_id }}"
+                 class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono">
+        </div>
+        <div>
+          <label for="al_sid" class="block text-xs uppercase tracking-wide text-muted mb-1">Server ID</label>
+          <input id="al_sid" type="number" name="server_id" min="0"
+                 value="{{ alliance.server_id }}"
+                 class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono">
+          <p class="text-xs text-muted mt-1">Farlight API server ID. Usually equal to Kingdom ID.</p>
+        </div>
+      </div>
+
+      <div>
+        <label for="al_tagline" class="block text-xs uppercase tracking-wide text-muted mb-1">Tagline</label>
+        <input id="al_tagline" type="text" name="tagline" maxlength="120"
+               value="{{ alliance.tagline }}"
+               class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary">
+        <p class="text-xs text-muted mt-1">Short line on the public landing page.</p>
+      </div>
+
+      <div>
+        <label for="al_motto" class="block text-xs uppercase tracking-wide text-muted mb-1">Motto (optional)</label>
+        <input id="al_motto" type="text" name="motto" maxlength="120"
+               value="{{ alliance.motto }}"
+               class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary">
+        <p class="text-xs text-muted mt-1">Displayed as a quote on the landing page. Leave empty to hide.</p>
+      </div>
+
+      <div class="pt-2 border-t border-edge">
+        <button type="submit"
+                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+          Save alliance identity
+        </button>
+      </div>
+    </form>
+  </section>
+  <!-- alliance-identity-end -->
+
   <section data-section="hero" class="mb-8">
-    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ kingdom }}</p>
+    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ alliance.kingdom_id }}</p>
     <h1 class="font-display text-4xl mb-2">Scoring settings</h1>
     <p class="text-secondary text-sm">
       Adjust grade thresholds and the farm account cutoff. Saving recomputes

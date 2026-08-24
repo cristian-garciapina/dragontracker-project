@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Apply to join · Eternal Vanguard{% endblock %}
+{% block title %}Apply to join · {{ alliance.name }}{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -49,7 +49,7 @@
 
   <section data-section="hero" class="mb-6">
     <p class="text-xs tracking-[0.2em] uppercase text-muted mb-3 font-mono">
-      Eternal Vanguard · Kingdom {{ kingdom or 193 }}
+      {{ alliance.name }} · Kingdom {{ alliance.kingdom_id }}
     </p>
     <h1 class="font-display text-4xl tracking-wide leading-tight mb-3">
       Apply to join the alliance
@@ -64,7 +64,7 @@
   <div class="warn-box" role="note">
     <p class="warn-title">Wrong form?</p>
     <p>
-      This form is for players <strong>outside Eternal Vanguard</strong> who want to
+      This form is for players <strong>outside {{ alliance.name }}</strong> who want to
       join the alliance in-game. If you are <strong>already a member</strong> and
       just want to create an account on this website, go to
       <a href="/signup">Sign up</a> instead.
@@ -156,7 +156,7 @@
       <div>
         <label for="motivation" class="block text-xs text-muted uppercase tracking-[0.14em] mb-1.5">A few words about yourself</label>
         <textarea id="motivation" name="motivation" required minlength="20" rows="5"
-                  placeholder="Why Eternal Vanguard, what you bring, where you're at in the game…"
+                  placeholder="Why {{ alliance.name }}, what you bring, where you're at in the game…"
                   class="w-full px-3 py-2 bg-card border border-edge rounded-sm text-primary resize-y">{{ form.motivation }}</textarea>
         <p class="text-xs text-muted mt-1">20 characters minimum.</p>
       </div>

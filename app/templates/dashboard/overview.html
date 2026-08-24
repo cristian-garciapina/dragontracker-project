@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · Eternal Vanguard{% endblock %}
+{% block title %}Dashboard · {{ alliance.name }}{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -104,7 +104,7 @@
   {# ============================================================ HERO #}
   <section data-section="hero" class="mb-12">
     <div class="flex items-center gap-2 mb-3 text-xs tracking-[0.12em] uppercase">
-      <span class="text-secondary">Kingdom {{ kingdom }}</span>
+      <span class="text-secondary">Kingdom {{ alliance.kingdom_id }}</span>
       {% if season %}
         <span class="text-muted">·</span>
         <span class="text-gold">{{ season.name }}</span>

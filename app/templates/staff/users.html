@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Users · Eternal Vanguard{% endblock %}
+{% block title %}Users · {{ alliance.name }}{% endblock %}
 {% block content %}
 <div class="max-w-full mx-auto px-6 py-12" data-page="staff-users">
 
   <section data-section="hero" class="mb-6">
-    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ kingdom }}</p>
+    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ alliance.kingdom_id }}</p>
     <h1 class="font-display text-4xl mb-2">Users</h1>
     <p class="text-secondary text-sm">
       All registered accounts: <span class="font-mono text-primary">{{ total }}</span>

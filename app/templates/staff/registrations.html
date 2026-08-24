@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Pending registrations · Eternal Vanguard
+{% block title %}Pending registrations · {{ alliance.name }}
 {% endblock %}
 {% block content %}
 <div class="max-w-6xl mx-auto px-6 py-12" data-page="staff-registrations">
 
   <section data-section="hero" class="mb-8">
-    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ kingdom }}</p>
+    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ alliance.kingdom_id }}</p>
     <h1 class="font-display text-4xl mb-2">Pending registrations <span id="live-dot" class="inline-flex items-center gap-1.5 text-xs text-cyan-300 font-medium align-middle ml-2"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>Live</span></h1>
     <p class="text-secondary text-sm">
       All new account requests. Approve as member (default) or check "as staff" to grant officer access.

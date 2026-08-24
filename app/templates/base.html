@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
   <meta name="x-apple-disable-message-reformatting" content="" />
-  <meta name="description" content="Eternal Vanguard alliance — Call of Dragons Kingdom 193." />
-  <title>{% block title %}Eternal Vanguard{% endblock %}</title>
+  <meta name="description" content="{{ alliance.name }} alliance — Call of Dragons Kingdom {{ alliance.kingdom_id }}." />
+  <title>{% block title %}{{ alliance.name }}{% endblock %}</title>
   <link rel="icon" type="image/png" href="/static/favicon.png" />
   <link rel="apple-touch-icon" href="/static/favicon.png" />
 
@@ -20,7 +20,7 @@
   />
 
   <style>
-    /* --- Eternal Vanguard design tokens --------------------------------- */
+    /* --- Dragontracker design tokens --------------------------------- */
     :root {
       --color-bg-base:      #060912;
       --color-bg-card:      #0F1524;
@@ -469,7 +469,7 @@
   <header class="relative z-50 border-b border-edge" data-component="topbar">
     <nav class="max-w-7xl mx-auto flex items-center justify-between gap-6 px-6 py-5">
       <a href="/" class="font-display text-xl tracking-wider whitespace-nowrap" data-nav="wordmark">
-        Eternal <span class="text-gold">Vanguard</span>
+        {% set _words = alliance.name.split() %}{% if _words|length > 1 %}{{ _words[:-1]|join(" ") }} <span class="text-gold">{{ _words[-1] }}</span>{% else %}<span class="text-gold">{{ alliance.name }}</span>{% endif %}
       </a>
 
       {# ------------- Desktop nav (>= 1280px) ------------- #}
@@ -481,13 +481,11 @@
           {% if user.role == 'external' %}
             <li><a href="/apply" class="nav-link">Apply</a></li>
             <li><a href="/profile" class="nav-link">Profile</a></li>
-            <li><a href="/manual" class="nav-link">Handbook</a></li>
           {% else %}
           <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
           <li><a href="/roster" class="nav-link">Roster</a></li>
           <li><a href="/farms" class="nav-link">Farms</a></li>
           <li><a href="/profile" class="nav-link">Profile</a></li>
-          <li><a href="/manual" class="nav-link">Handbook</a></li>
           {% if user.role in ['staff', 'owner'] %}
           <li class="nav-dropdown">
             <button type="button" class="nav-link nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
@@ -562,7 +560,7 @@
 
   <aside class="drawer" id="mobile-drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Main menu">
     <div class="drawer-header">
-      <span class="wordmark">Eternal <span class="text-gold">Vanguard</span></span>
+      <span class="wordmark">{% set _words = alliance.name.split() %}{% if _words|length > 1 %}{{ _words[:-1]|join(" ") }} <span class="text-gold">{{ _words[-1] }}</span>{% else %}<span class="text-gold">{{ alliance.name }}</span>{% endif %}</span>
       <button type="button" class="drawer-close" data-action="close-menu" aria-label="Close menu">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
              fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -581,13 +579,11 @@
         {% if user.role == 'external' %}
           <a href="/apply" class="drawer-item"><span>Apply</span><span class="chev">›</span></a>
           <a href="/profile" class="drawer-item"><span>Profile</span><span class="chev">›</span></a>
-          <a href="/manual" class="drawer-item"><span>Handbook</span><span class="chev">›</span></a>
         {% else %}
         <a href="/dashboard" class="drawer-item"><span>Dashboard</span><span class="chev">›</span></a>
         <a href="/roster" class="drawer-item"><span>Roster</span><span class="chev">›</span></a>
         <a href="/farms" class="drawer-item"><span>Farms</span><span class="chev">›</span></a>
         <a href="/profile" class="drawer-item"><span>Profile</span><span class="chev">›</span></a>
-        <a href="/manual" class="drawer-item"><span>Handbook</span><span class="chev">›</span></a>
 
         {% if user.role in ['staff', 'owner'] %}
         <p class="drawer-section-label">Staff</p>
@@ -635,7 +631,7 @@
 
   <footer class="relative z-10 border-t border-edge mt-24">
     <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row justify-between gap-3 text-sm text-muted">
-      <span>Kingdom 193 · Call of Dragons</span>
+      <span>Kingdom {{ alliance.kingdom_id }} · Call of Dragons</span>
       <span class="font-mono text-xs">v0.4.0</span>
     </div>
   </footer>

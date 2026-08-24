@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Handbook · Eternal Vanguard</title>
+<title>The Handbook · {{ alliance.name }}</title>
 <link rel="icon" type="image/png" href="/static/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -347,12 +347,6 @@
       <a href="#your-profile" class="nav-link">Your profile</a>
     </div>
 
-    <div class="nav-group">
-      <div class="nav-title">Using Discord</div>
-      <a href="#bot-commands" class="nav-link">Slash commands</a>
-      <a href="#translations" class="nav-link">Translations</a>
-      <a href="#events" class="nav-link">Events &amp; responses</a>
-    </div>
 
     <div class="nav-group">
       <div class="nav-title">Staff</div>
@@ -371,7 +365,7 @@
     <div class="hero">
       <div class="hero-eyebrow">The Handbook</div>
       <h1 class="hero-title">How the alliance <em>operates</em>.</h1>
-      <p class="hero-lead">Everything you need to use the Eternal Vanguard tools: the website at <a href="/">eternal-vanguard.com</a>, the Discord bot, and the grading system that keeps the alliance accountable. Written for members, not engineers.</p>
+      <p class="hero-lead">Everything you need to use the {{ alliance.name }} website: the dashboard, the roster, and the grading system that keeps the alliance accountable. Written for members, not engineers.</p>
       <div class="hero-shields">
         <span class="hero-shield-label">The five grades</span>
         <span class="shield">
@@ -416,10 +410,9 @@
     <section id="platform">
       <div class="section-eyebrow">Article I</div>
       <h2>The <em>platform</em>.</h2>
-      <p class="lead">Eternal Vanguard has its own website and its own Discord bot. They talk to each other so everything stays in sync.</p>
+      <p class="lead">This is the {{ alliance.name }} website. It is where the alliance tracks scores, seasons, applications, and members.</p>
       <p><strong>The website</strong> keeps the records. It knows who is in the alliance, what everyone has done this season, and where each player ranks. Staff use it to review new arrivals and to load the weekly game data.</p>
-      <p><strong>The Discord bot</strong> is where the roster comes to life inside the chat. It gives you the right role automatically, translates messages between languages, tracks who is attending events, and lets you look up any player without leaving Discord.</p>
-      <p>Once you link your Discord account to your website account, the two stay connected. Your grade role updates on its own. Your Discord nickname matches your in-game name. You do not have to do anything.</p>
+            <p>Once you link your Discord account to your website account, the two stay connected. Your grade role updates on its own. Your Discord nickname matches your in-game name. You do not have to do anything.</p>
     </section>
 
     <section id="getting-started">
@@ -429,7 +422,7 @@
       <ol class="steps">
         <li>
           <strong>Create your website account.</strong>
-          Go to <a href="/signup">eternal-vanguard.com/signup</a>. You will need three things: your in-game name, your character ID, and a screenshot.
+          Go to <a href="/signup">//signup</a>. You will need three things: your in-game name, your character ID, and a screenshot.
           <br><br>
           Your <em>character ID</em> is the number Call of Dragons shows next to your name on your Profile screen — the game uses it to identify you. Copy it exactly, without spaces.
           <br><br>
@@ -441,13 +434,13 @@
         </li>
         <li>
           <strong>Link your Discord.</strong>
-          Once approved, log in, open <a href="/profile">eternal-vanguard.com/profile</a>, and click <strong>Link Discord</strong>. The bot notices within seconds and gives you the <code>@Verified</code> role plus the grade role that matches your current standing. From then on, your Discord nickname automatically mirrors your in-game name.
+          Once approved, log in, open <a href="/profile">//profile</a>, and click <strong>Link Discord</strong>. The bot notices within seconds and gives you the <code>@Verified</code> role plus the grade role that matches your current standing. From then on, your Discord nickname automatically mirrors your in-game name.
         </li>
       </ol>
       <div class="callout">
         <span class="callout-icon">Note</span>
         <div class="callout-body">
-          If you are not yet in the alliance and want to join, use <a href="/apply">eternal-vanguard.com/apply</a> instead. That form is open to anyone — no account needed.
+          If you are not yet in the alliance and want to join, use <a href="/apply">//apply</a> instead. That form is open to anyone — no account needed.
         </div>
       </div>
     </section>
@@ -560,7 +553,7 @@
 
       <h4>Where to see yours</h4>
       <ul class="plain">
-        <li>On the website: <a href="/profile">eternal-vanguard.com/profile</a> for your own grade, <a href="/roster">eternal-vanguard.com/roster</a> for everyone's.</li>
+        <li>On the website: <a href="/profile">//profile</a> for your own grade, <a href="/roster">//roster</a> for everyone's.</li>
         <li>On Discord: the coloured role next to your name, or type <code>/me</code> to get the full breakdown.</li>
       </ul>
     </section>
@@ -571,23 +564,23 @@
       <p class="lead">Once you are logged in, five pages matter.</p>
       <div class="features">
         <div class="feature-row">
-          <div class="feature-path"><a href="/dashboard">eternal-vanguard.com/dashboard</a></div>
+          <div class="feature-path"><a href="/dashboard">//dashboard</a></div>
           <div class="feature-desc"><strong>The season at a glance.</strong> How many players sit at each grade, who is at the top, and what the alliance average looks like. This is the first page staff open every morning.</div>
         </div>
         <div class="feature-row">
-          <div class="feature-path"><a href="/roster">eternal-vanguard.com/roster</a></div>
+          <div class="feature-path"><a href="/roster">//roster</a></div>
           <div class="feature-desc"><strong>The full member list.</strong> Filter by grade, search by name or character ID, tap any ID to copy it. On mobile, the name column stays visible when you scroll sideways.</div>
         </div>
         <div class="feature-row">
-          <div class="feature-path"><a href="/profile">eternal-vanguard.com/profile</a></div>
+          <div class="feature-path"><a href="/profile">//profile</a></div>
           <div class="feature-desc"><strong>Your own account.</strong> Change your password, connect or disconnect Discord, see your current grade.</div>
         </div>
         <div class="feature-row">
-          <div class="feature-path">eternal-vanguard.com/player/&lt;id&gt;</div>
+          <div class="feature-path">//player/&lt;id&gt;</div>
           <div class="feature-desc"><strong>Any player's history.</strong> Their grade over past seasons, their event participation, their power growth. You reach this by clicking any name in the roster.</div>
         </div>
         <div class="feature-row">
-          <div class="feature-path"><a href="/farms">eternal-vanguard.com/farms</a></div>
+          <div class="feature-path"><a href="/farms">//farms</a></div>
           <div class="feature-desc"><strong>The farm accounts.</strong> Every account at or below {{ farm_threshold_m }}M starting power. They are not part of the grading, but they are listed here for reference.</div>
         </div>
       </div>
@@ -596,90 +589,13 @@
     <section id="your-profile">
       <div class="section-eyebrow">Article V</div>
       <h2>Your <em>profile</em>, in detail.</h2>
-      <p>The <a href="/profile">eternal-vanguard.com/profile</a> page is where you control the link between your website account and everything else on the platform.</p>
+      <p>The <a href="/profile">//profile</a> page is where you control the link between your website account and everything else on the platform.</p>
       <h4>Connecting Discord</h4>
       <p>Click <strong>Link Discord</strong>, allow the app when Discord asks, and that's it. The bot notices within seconds and updates your roles and nickname.</p>
       <h4>Disconnecting Discord</h4>
       <p>You can unlink whenever you want. The <code>@Verified</code> role and your grade role are removed immediately. Your website account stays intact — nothing else changes.</p>
       <h4>Forgot your password?</h4>
       <p>Use the <a href="/forgot">Forgot password</a> link on the login page. A reset email arrives within a minute — check your spam folder if it does not show up.</p>
-    </section>
-
-    <section id="bot-commands">
-      <div class="section-eyebrow">Article VI</div>
-      <h2>Discord <em>commands</em>.</h2>
-      <p class="lead">A slash command is something you type in Discord starting with a <code>/</code>. Discord shows a menu of what is available as you type. Every command below replies only to you by default — nobody else sees the answer unless you tap the "Post publicly" button.</p>
-      <div class="commands">
-        <div class="commands-header">Available to everyone</div>
-        <div class="command-row">
-          <div class="command-name">/ping</div>
-          <div class="command-desc"><span class="who">All</span>Check whether the bot is alive and how fast it is answering. Use this if something looks broken.</div>
-        </div>
-        <div class="command-row">
-          <div class="command-name">/me</div>
-          <div class="command-desc"><span class="who">All</span>Your own player sheet — grade, M/P%, rank, and power. If your Discord is not linked to a website account yet, the command shows you how to fix that.</div>
-        </div>
-      </div>
-      <div class="commands">
-        <div class="commands-header">Verified members only</div>
-        <div class="command-row">
-          <div class="command-name">/lookup query &lt;name or id&gt;</div>
-          <div class="command-desc"><span class="who">Verified</span>Find any player by name or character ID. Handles unusual characters, accents, and stylised names.</div>
-        </div>
-        <div class="command-row">
-          <div class="command-name">/lookup rang &lt;grade&gt;</div>
-          <div class="command-desc"><span class="who">Verified</span>Every player at a given grade — S, A, B, C, D, or FARM — sorted by M/P%. You can page through the list, and there is a "Post publicly" button if the whole channel should see it.</div>
-        </div>
-        <div class="command-row">
-          <div class="command-name">/top n:&lt;1–25&gt;</div>
-          <div class="command-desc"><span class="who">Verified</span>The top N players by M/P%. Handy before big events, to see who is leading the pack.</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="translations">
-      <div class="section-eyebrow">Article VII</div>
-      <h2>Speaking across <em>languages</em>.</h2>
-      <p class="lead">K193 is a mixed-language kingdom. The bot translates any message on demand, without cluttering the conversation.</p>
-      <ol class="steps">
-        <li>
-          <strong>React with a flag emoji.</strong>
-          On any message, add a flag as a reaction — 🇬🇧, 🇫🇷, 🇪🇸, 🇻🇳, and about twenty others. The bot reads the flag as "please translate this into that language."
-        </li>
-        <li>
-          <strong>The translation shows up in the right channel.</strong>
-          Public messages are translated in <code>#traductions</code>. Staff-only messages are translated in <code>#staff-traductions</code>. A staff message can never leak into a public channel by accident.
-        </li>
-        <li>
-          <strong>Jump back to the original.</strong>
-          Each translation comes with a <strong>Voir le message original ↗</strong> button that takes you straight to the message it came from, in case you need the context.
-        </li>
-      </ol>
-      <div class="callout tip">
-        <span class="callout-icon">Tip</span>
-        <div class="callout-body">
-          If several people ask for the same translation, each gets their own copy tagged with their name. Nobody misses it in the scrollback.
-        </div>
-      </div>
-    </section>
-
-    <section id="events">
-      <div class="section-eyebrow">Article VIII</div>
-      <h2>Events and <em>responses</em>.</h2>
-      <p class="lead">When staff schedule an event — a ranking, a behemoth run, a gate, a spire — the bot posts it in <code>#events</code> with two buttons.</p>
-      <ul class="plain">
-        <li><strong>I'm in</strong> — you are counted as coming. Your name shows up in the "Coming" list on the event's post.</li>
-        <li><strong>Can't make it</strong> — you are counted as out. You appear in the "Not coming" list.</li>
-      </ul>
-      <p>You can change your mind at any time until the event is over. The morning after the event ends (UTC time), the buttons freeze and the post is marked closed.</p>
-      <h4>Reminders</h4>
-      <p>You will get automatic reminders in the channel: one the morning before the event, one an hour before if there is a specific start time, and one on the morning of the last day.</p>
-      <div class="callout warn">
-        <span class="callout-icon">Verify</span>
-        <div class="callout-body">
-          The buttons only work if you have the <code>@Verified</code> role. If you have not linked your Discord to the website yet, the bot will ask you to visit <a href="/profile">eternal-vanguard.com/profile</a> first.
-        </div>
-      </div>
     </section>
 
     <section id="staff">
@@ -689,10 +605,10 @@
       <h3>Reviewing new arrivals</h3>
       <p>Two channels feed the review queue:</p>
       <ul class="plain">
-        <li><strong>Applications</strong> come from <a href="/apply">eternal-vanguard.com/apply</a> — people asking to join the alliance.</li>
-        <li><strong>Signups</strong> come from <a href="/signup">eternal-vanguard.com/signup</a> — existing alliance members asking for a website account.</li>
+        <li><strong>Applications</strong> come from <a href="/apply">//apply</a> — people asking to join the alliance.</li>
+        <li><strong>Signups</strong> come from <a href="/signup">//signup</a> — existing alliance members asking for a website account.</li>
       </ul>
-      <p>Both send a notification to <code>#staff-alerts</code>, with the submitted screenshot attached. Click <strong>Accept</strong> or <strong>Reject with reason</strong> right there on Discord, or open <a href="/staff/applications">eternal-vanguard.com/staff/applications</a> and <a href="/staff/registrations">eternal-vanguard.com/staff/registrations</a> on the website for the full view.</p>
+      <p>Both send a notification to <code>#staff-alerts</code>, with the submitted screenshot attached. Click <strong>Accept</strong> or <strong>Reject with reason</strong> right there on Discord, or open <a href="/staff/applications">//staff/applications</a> and <a href="/staff/registrations">//staff/registrations</a> on the website for the full view.</p>
       <div class="callout">
         <span class="callout-icon">First</span>
         <div class="callout-body">
@@ -705,17 +621,17 @@
       <h4>If you need to force a pull right now</h4>
       <p>Run <code>/farlight-pull-force</code> on Discord (staff only). The bot fetches the current data immediately, ignoring the schedule, and posts the same kind of summary to <code>#audit-log</code>.</p>
       <h4>If you need to upload a file by hand</h4>
-      <p>Occasionally you may want to load a specific export that the automatic pull did not catch. Open <a href="/staff/upload">eternal-vanguard.com/staff/upload</a>, drop the file in, and confirm the replacement if the site asks — that happens when a file for the same period already exists.</p>
+      <p>Occasionally you may want to load a specific export that the automatic pull did not catch. Open <a href="/staff/upload">//staff/upload</a>, drop the file in, and confirm the replacement if the site asks — that happens when a file for the same period already exists.</p>
       <h4>The Farlight token expires from time to time</h4>
       <p>The bot uses a personal token to authenticate against the Farlight portal. Every couple of months, that token expires. The bot warns you in <code>#staff-alerts</code> a week ahead, so you have time to log in to Farlight, grab a fresh token, and update it via <code>/staff/settings</code>. Instructions come with the warning.</p>
       <h3>Running events</h3>
-      <p>Open <a href="/staff/events">eternal-vanguard.com/staff/events</a>, pick the current season, and click <strong>New event</strong>. Choose the kind (ranking, behemoth, gate, spire), the dates, and an optional start time in UTC. Save it — the bot posts the response embed in <code>#events</code> within seconds.</p>
+      <p>Open <a href="/staff/events">//staff/events</a>, pick the current season, and click <strong>New event</strong>. Choose the kind (ranking, behemoth, gate, spire), the dates, and an optional start time in UTC. Save it — the bot posts the response embed in <code>#events</code> within seconds.</p>
       <p>To cancel, click the <strong>Delete</strong> button on the event's page or the ✕ on the events list. The Discord post disappears automatically.</p>
       <h3>Season lifecycle</h3>
       <p>Starting a new season takes four steps:</p>
       <ol class="steps">
         <li><strong>Upload a one-day snapshot</strong> of the season's first day (start date = end date).</li>
-        <li><strong>Close the current season</strong> on <a href="/staff/seasons">eternal-vanguard.com/staff/seasons</a>.</li>
+        <li><strong>Close the current season</strong> on <a href="/staff/seasons">//staff/seasons</a>.</li>
         <li><strong>Create the new season</strong>, and point <em>Start snapshot</em> at the file you just uploaded.</li>
         <li><strong>Activate it.</strong> The nightly pulls from that point on will fill in the new scoreboard.</li>
       </ol>
@@ -731,7 +647,7 @@
       <h4>My in-game name just changed. Do I need to update the website?</h4>
       <p>No. The next data load reads your current name from the export and updates it everywhere, including your Discord nickname.</p>
       <h4>I disconnected Discord by mistake. What now?</h4>
-      <p>Go back to <a href="/profile">eternal-vanguard.com/profile</a> and link it again. Your grade role comes back on its own.</p>
+      <p>Go back to <a href="/profile">//profile</a> and link it again. Your grade role comes back on its own.</p>
       <h4>The bot is not responding to my slash command.</h4>
       <p>Discord sometimes takes a few minutes to sync new commands after the bot has been updated. Try <code>/ping</code> first — if that works, wait a moment and try your command again.</p>
       <h4>Can I hide my grade from other members?</h4>
@@ -747,7 +663,7 @@
       <ul class="plain">
         <li>Send a direct message to any R4 or R5 on Discord.</li>
         <li>Post in <code>#general</code> if it is not urgent and might help others.</li>
-        <li>For account issues you would rather keep private, email <a href="mailto:contact@eternal-vanguard.com">contact@eternal-vanguard.com</a>.</li>
+        <li>For account issues you would rather keep private, email <a href="mailto:contact@/">contact@/</a>.</li>
       </ul>
       <div class="callout tip">
         <span class="callout-icon">Soon</span>
@@ -758,7 +674,7 @@
     </section>
 
     <footer>
-      <p>Eternal Vanguard · Kingdom 193 · <em>Held to a higher standard.</em></p>
+      <p>{{ alliance.name }} · Kingdom {{ alliance.kingdom_id }} · <em>Held to a higher standard.</em></p>
       <p style="margin-top: 0.5rem; font-size: 0.75rem;">The Handbook · Current season: {{ season_name }}</p>
     </footer>
 

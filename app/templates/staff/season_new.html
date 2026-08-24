@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Start a new season · Eternal Vanguard{% endblock %}
+{% block title %}Start a new season · {{ alliance.name }}{% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto px-6 py-12" data-page="staff-season-new">
 
   <section data-section="hero" class="mb-8">
-    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ kingdom }}</p>
+    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ alliance.kingdom_id }}</p>
     <h1 class="font-display text-4xl mb-2">Start a new season</h1>
     <p class="text-secondary text-sm">
       Give the season a name and a start date. The start snapshot will be

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Roster · Eternal Vanguard{% endblock %}
+{% block title %}Roster · {{ alliance.name }}{% endblock %}
 
 {% set is_staff = user and user.role in ['staff', 'owner'] %}
 
@@ -189,7 +189,7 @@
   {# ============================================================ HERO #}
   <section data-section="hero" class="mb-8">
     <div class="flex items-center gap-2 mb-3 text-xs tracking-[0.12em] uppercase">
-      <span class="text-secondary">Kingdom {{ kingdom }}</span>
+      <span class="text-secondary">Kingdom {{ alliance.kingdom_id }}</span>
       {% if season %}
         <span class="text-muted">·</span>
         <span class="text-gold">{{ season.name }}</span>

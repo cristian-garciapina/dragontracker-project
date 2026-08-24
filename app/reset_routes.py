@@ -22,7 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth import require_owner
-from app.db import get_db
+from .db import get_session
 from app.models import User
 
 router = APIRouter(prefix="/staff/settings", tags=["staff-settings-danger"])
@@ -113,7 +113,7 @@ def reset_alliance_data(
     confirm_name: str = Form(...),
     create_backup: str = Form(default=""),
     owner: User = Depends(require_owner),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_session),
 ):
     """Wipe all alliance data. Owner-only. Requires typing current alliance name."""
 
@@ -140,6 +140,7 @@ def reset_alliance_data(
 
     # 3. Wipe alliance-scoped tables inside a single transaction.
     try:
+        db.execute(text("PRAGMA foreign_keys = OFF"))
         for tbl in TABLES_TO_WIPE:
             db.execute(text(f"DELETE FROM {tbl}"))
 
@@ -174,11 +175,12 @@ def reset_alliance_data(
         # Audit trail entry (kept intentionally so this event is traceable).
         db.execute(
             text(
-                "INSERT INTO audit_log (actor, action, target, details, created_at) "
-                "VALUES (:actor, 'reset_alliance_data', 'system', :details, CURRENT_TIMESTAMP)"
+                "INSERT INTO audit_log "
+                "(user, action, target_type, target_id, new_value, timestamp) "
+                "VALUES (:user, 'reset_alliance_data', 'system', 'reset', :details, CURRENT_TIMESTAMP)"
             ),
             {
-                "actor": owner.username,
+                "user": owner.username,
                 "details": json.dumps(
                     {
                         "backup_created": backup_path,
@@ -188,6 +190,7 @@ def reset_alliance_data(
             },
         )
 
+        db.execute(text("PRAGMA foreign_keys = ON"))
         db.commit()
     except Exception as exc:
         db.rollback()

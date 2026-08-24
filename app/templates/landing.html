@@ -12,7 +12,7 @@
   }
   .hero-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-size: clamp(2.75rem, 6vw, 5rem);
     font-weight: 500;
     line-height: 1.05;
     color: var(--color-primary);
@@ -26,7 +26,84 @@
     font-size: 1.125rem;
     color: var(--color-secondary);
     max-width: 42rem;
+    line-height: 1.6;
   }
+
+  .pillars {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin: 5rem 0;
+  }
+  @media (min-width: 768px) {
+    .pillars { grid-template-columns: repeat(3, 1fr); }
+  }
+  .pillar {
+    padding: 2rem;
+    background: var(--color-card);
+    border: 1px solid var(--color-edge);
+    border-left: 2px solid var(--color-edge);
+    border-radius: 0.5rem;
+    transition: border-left-color 0.2s ease;
+  }
+  .pillar:hover { border-left-color: var(--color-gold); }
+  .pillar-title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.5rem;
+    color: var(--color-primary);
+    margin-bottom: 0.75rem;
+  }
+  .pillar-body {
+    color: var(--color-secondary);
+    line-height: 1.6;
+    font-size: 0.95rem;
+  }
+
+  .quote-block {
+    max-width: 48rem;
+    margin: 5rem auto;
+    padding: 3rem 2rem;
+    text-align: center;
+    border-top: 1px solid var(--color-edge);
+    border-bottom: 1px solid var(--color-edge);
+  }
+  .quote-text {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-style: italic;
+    font-size: 1.75rem;
+    color: var(--color-primary);
+    line-height: 1.4;
+  }
+  .quote-text strong {
+    color: var(--color-gold);
+    font-weight: 500;
+  }
+
+  .primary-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 2rem;
+    background: var(--color-cyan);
+    color: #0a0e1a;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 1.05rem;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .primary-cta:hover {
+    background: #22d3ee;
+    transform: translateY(-1px);
+  }
+
+  .path-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-top: 5rem;
+  }
+  @media (min-width: 768px) { .path-cards { grid-template-columns: repeat(2, 1fr); } }
   .path-card {
     background: var(--color-card);
     border: 1px solid var(--color-edge);
@@ -69,40 +146,68 @@
     text-decoration: none;
     transition: background 0.15s ease;
   }
-  .path-card .cta:hover {
-    background: #22d3ee;
-  }
-  .motto {
-    font-family: 'Cormorant Garamond', Georgia, serif;
-    font-style: italic;
-    font-size: 1.5rem;
-    color: var(--color-gold);
-    text-align: center;
-    padding: 3rem 1rem;
-    border-top: 1px solid var(--color-edge);
-    border-bottom: 1px solid var(--color-edge);
-    max-width: 48rem;
-    margin: 4rem auto;
-  }
+  .path-card .cta:hover { background: #22d3ee; }
 </style>
 {% endblock %}
 
 {% block content %}
 <section class="max-w-6xl mx-auto px-6 py-20">
-  <div class="mb-16">
+
+  <!-- HERO -->
+  <div class="mb-4">
     <p class="hero-eyebrow mb-6">{{ alliance.name }} · Kingdom {{ alliance.kingdom_id }}</p>
-    <h1 class="hero-title mb-6">Alliance <em>management</em> for Call of Dragons</h1>
-    <p class="hero-tagline">{{ alliance.tagline or "Track every merit, every score, every season." }}</p>
+    <h1 class="hero-title mb-8">Alliance <em>accountability</em> for Call of Dragons.</h1>
+    <p class="hero-tagline mb-8">
+      {{ alliance.tagline or "A private space for our members to see where they stand, and for our staff to lead with clear evidence." }}
+    </p>
+    <a href="/apply" class="primary-cta">Apply to join <span>→</span></a>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+  <!-- 3 PILLARS -->
+  <div class="pillars">
+    <div class="pillar">
+      <h3 class="pillar-title">Transparent</h3>
+      <p class="pillar-body">
+        Every member sees their own grade and the criteria behind it. No
+        hidden judgments. Ranks are earned in the open.
+      </p>
+    </div>
+    <div class="pillar">
+      <h3 class="pillar-title">Active</h3>
+      <p class="pillar-body">
+        Nightly ingestion of official game data. Scores refresh on their own.
+        Staff spend time leading, not copy-pasting spreadsheets.
+      </p>
+    </div>
+    <div class="pillar">
+      <h3 class="pillar-title">Respectful</h3>
+      <p class="pillar-body">
+        Members are people first. Performance is tracked without shaming,
+        in a private space only members can access.
+      </p>
+    </div>
+  </div>
+
+  <!-- QUOTE BLOCK -->
+  <div class="quote-block">
+    <p class="quote-text">
+      {% if alliance.motto %}
+        "{{ alliance.motto }}"
+      {% else %}
+        We don't grow by adding bodies. We grow by keeping the <strong>right</strong> ones.
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- 2 CTA CARDS -->
+  <div class="path-cards">
     <div class="path-card">
       <p class="who">For players outside {{ alliance.name }}</p>
       <h2>Apply to join</h2>
       <p>
-        You play Call of Dragons on Kingdom {{ alliance.kingdom_id }} (or want to migrate)
-        and want to join {{ alliance.name }} in-game. Staff reviews every application
-        before opening a member account.
+        You play Call of Dragons on Kingdom {{ alliance.kingdom_id }} (or want
+        to migrate) and want to join {{ alliance.name }} in-game. Staff reviews
+        every application before opening a member account.
       </p>
       <a href="/apply" class="cta">Apply <span>→</span></a>
     </div>
@@ -118,8 +223,5 @@
     </div>
   </div>
 
-  {% if alliance.motto %}
-  <div class="motto">"{{ alliance.motto }}"</div>
-  {% endif %}
 </section>
 {% endblock %}

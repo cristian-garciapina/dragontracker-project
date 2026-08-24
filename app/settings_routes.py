@@ -8,8 +8,8 @@ Both 'staff' and 'owner' can access. Every modification is recorded in
 audit_log (one row per changed key) with the actor's username and the
 old/new values.
 """
-import json
 from __future__ import annotations
+import json
 
 from datetime import datetime
 from pathlib import Path

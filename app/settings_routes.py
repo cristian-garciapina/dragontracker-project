@@ -8,6 +8,7 @@ Both 'staff' and 'owner' can access. Every modification is recorded in
 audit_log (one row per changed key) with the actor's username and the
 old/new values.
 """
+import json
 from __future__ import annotations
 
 from datetime import datetime
@@ -31,9 +32,22 @@ TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
+def _get_alliance_name(db: Session) -> str:
+    """Read current alliance.name from settings (JSON string)."""
+    from sqlalchemy import text as _text
+    row = db.execute(_text("SELECT value FROM settings WHERE key = 'alliance.name'")).first()
+    if row is None:
+        return "Your Alliance"
+    try:
+        return str(__import__('json').loads(row[0])) if isinstance(row[0], str) else str(row[0])
+    except Exception:
+        return "Your Alliance"
+
+
 def _render(request: Request, db: Session, user: User,
             error: Optional[str] = None, success: Optional[str] = None,
-            recompute_info: Optional[dict] = None):
+            recompute_info: Optional[dict] = None,
+            reset_done: bool = False):
     return templates.TemplateResponse(
         request=request,
         name="staff/settings.html",
@@ -45,6 +59,8 @@ def _render(request: Request, db: Session, user: User,
             "success": success,
             "recompute": recompute_info,
             "site_status": get_site_status(db),
+            "alliance_name": _get_alliance_name(db),
+            "reset_done": reset_done,
         },
     )
 
@@ -55,7 +71,8 @@ async def settings_view(
     user: User = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return _render(request, db, user)
+    reset_done = request.query_params.get("reset") == "done"
+    return _render(request, db, user, reset_done=reset_done)
 
 
 @router.post("/staff/settings")

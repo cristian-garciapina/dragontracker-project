@@ -195,4 +195,74 @@
   </p>
 
 </div>
+
+<!-- danger-zone-start -->
+<section class="mt-16 border border-red-900/50 bg-red-950/20 rounded-lg p-6">
+  <h2 class="text-xl font-display text-red-400 mb-2">Danger zone</h2>
+  <p class="text-sm text-secondary mb-4">
+    Permanently wipes all alliance data: members, snapshots, scores, seasons,
+    events, applications, notes, secrets, non-owner accounts. Alliance identity
+    is reset to defaults. On-disk artefacts (screenshots, support attachments,
+    CSP log) are cleared. This action is <span class="font-bold text-red-300">irreversible</span>
+    unless you create a backup.
+  </p>
+
+  {% if reset_done %}
+  <div class="mb-4 p-3 rounded bg-emerald-950/40 border border-emerald-800 text-emerald-200 text-sm">
+    Alliance data has been reset. Configure your new alliance identity above.
+  </div>
+  {% endif %}
+
+  <button type="button"
+          onclick="document.getElementById('reset-modal').classList.remove('hidden')"
+          class="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded transition-colors">
+    Reset all alliance data
+  </button>
+</section>
+
+<!-- Reset confirmation modal -->
+<div id="reset-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+  <div class="bg-card border border-red-900 rounded-lg max-w-lg w-full p-6">
+    <h3 class="text-lg font-display text-red-400 mb-3">Confirm reset</h3>
+    <p class="text-sm text-secondary mb-4">
+      This will permanently delete all alliance data. To confirm, type the
+      current alliance name exactly:
+      <span class="font-mono font-bold text-primary">{{ alliance_name }}</span>
+    </p>
+
+    <form method="post" action="/staff/settings/reset-alliance-data" class="space-y-4">
+      <div>
+        <label class="block text-xs uppercase tracking-wide text-muted mb-1">
+          Alliance name
+        </label>
+        <input type="text"
+               name="confirm_name"
+               required
+               autocomplete="off"
+               class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono focus:border-red-500 focus:outline-none">
+      </div>
+
+      <label class="flex items-center gap-2 text-sm text-secondary">
+        <input type="checkbox" name="create_backup" checked
+               class="w-4 h-4 rounded border-edge bg-elevated">
+        Create a safety backup before reset
+      </label>
+
+      <div class="flex gap-2 pt-2 border-t border-edge">
+        <button type="submit"
+                class="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded transition-colors">
+          Reset everything
+        </button>
+        <button type="button"
+                onclick="document.getElementById('reset-modal').classList.add('hidden')"
+                class="px-4 py-2 border border-edge hover:border-cyan-400 hover:text-cyan-300 rounded transition-colors text-sm">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- danger-zone-end -->
+
 {% endblock %}

@@ -16,6 +16,7 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from .alliance_context import AllianceContextMiddleware, _load_alliance
 from sqlalchemy.orm import Session
 
 from . import queries
@@ -33,6 +34,7 @@ from .staff_routes import router as staff_router
 from .profile_routes import router as profile_router
 from .settings_routes import router as settings_router
 from .reset_routes import router as reset_router
+from .alliance_settings_routes import router as alliance_settings_router
 from .seasons_routes import router as seasons_router
 from .recruitment_routes import router as recruitment_router
 from .events_routes import router as events_router
@@ -63,6 +65,7 @@ app = FastAPI(
 
 app.add_middleware(CSPNonceMiddleware)
 app.add_middleware(SiteGateMiddleware)
+app.add_middleware(AllianceContextMiddleware)
 
 app.include_router(auth_router)
 app.include_router(signup_router)
@@ -70,6 +73,7 @@ app.include_router(staff_router)
 app.include_router(profile_router)
 app.include_router(settings_router)
 app.include_router(reset_router)
+app.include_router(alliance_settings_router)
 app.include_router(recruitment_router)
 app.include_router(events_router)
 app.include_router(farming_windows_router)
@@ -87,6 +91,39 @@ if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+# Expose alliance identity to every template as {{ alliance.* }}.
+# Monkey-patch Jinja2Templates.TemplateResponse at the class level so EVERY
+# instance (main + all routers) auto-injects `alliance` from request.state
+# into the template context without any per-route change.
+from fastapi.templating import Jinja2Templates as _Jinja2Templates
+
+_original_class_tr = _Jinja2Templates.TemplateResponse
+
+def _patched_class_tr(self, *args, **kwargs):
+    # Locate the context dict in args or kwargs
+    context = kwargs.get('context')
+    if context is None:
+        for a in args:
+            if isinstance(a, dict):
+                context = a
+                break
+    if context is not None and 'alliance' not in context:
+        req = context.get('request') or kwargs.get('request')
+        if req is None:
+            from starlette.requests import Request as _Req
+            for a in args:
+                if isinstance(a, _Req):
+                    req = a
+                    break
+        if req is not None and hasattr(req.state, 'alliance'):
+            context['alliance'] = req.state.alliance
+        else:
+            context['alliance'] = _load_alliance()
+    return _original_class_tr(self, *args, **kwargs)
+
+_Jinja2Templates.TemplateResponse = _patched_class_tr
+
 
 
 @app.exception_handler(RequiresLoginException)

@@ -53,7 +53,7 @@ from .farlight_client import (
     validate_jwt_shape,
 )
 from .ingest import find_conflicting_snapshot, ingest_rows
-from .models import Alliance, Season
+from .models import Alliance, Season, Snapshot
 from .scoring import recompute_scores_for_active_season
 from .secrets_store import get_secret
 
@@ -115,7 +115,7 @@ def _maybe_attach_start_snapshot(session, season: Season) -> Optional[int]:
     return snap.id
 
 
-def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict[str, Any]:
+def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -> dict[str, Any]:
     """Execute a full nightly pull. See module docstring for semantics."""
     summary: dict[str, Any] = {
         "started_at": datetime.utcnow().isoformat(),
@@ -166,6 +166,40 @@ def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict
         "cum_start": cum_start.isoformat(),
         "cum_end": end.isoformat(),
     })
+
+    # ---- Backfill start snapshot if season has no anchor yet ------------
+    # start_snapshot_backfill: when the owner creates the season AFTER its
+    # start date (typical when joining a running alliance), we must fetch the
+    # single-day export for start_date and ingest it so _maybe_attach_start_snapshot
+    # can pick it up in this same run.
+    if season.start_snapshot_id is None:
+        try:
+            start_data = fetch_topn(
+                jwt,
+                start_date=cum_start.isoformat(),
+                end_date=cum_start.isoformat(),
+                server_id=server_id,
+            )
+            start_rows = map_api_rows(start_data)
+            summary["start_snapshot_rows_fetched"] = len(start_rows)
+            _handle_window(
+                session, start_rows,
+                source_filename=f"farlight_api_{server_id}_{cum_start}_{cum_start}.json",
+                date_start=cum_start, date_end=cum_start,
+                force=force,
+            )
+            logger.info(
+                "farlight_pull: backfilled start snapshot for season '%s' (%s), %d rows",
+                season.name, cum_start.isoformat(), len(start_rows),
+            )
+        except FarlightAuthError as e:
+            summary["status"] = "api_auth_rejected"
+            summary["error"] = str(e)
+            return summary
+        except FarlightAPIError as e:
+            summary["status"] = "api_error"
+            summary["error"] = f"start snapshot backfill: {e}"
+            return summary
 
     # ---- Fetch daily + cumulative ---------------------------------------
     try:
@@ -242,6 +276,46 @@ def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict
         summary["status"] = "ok"
     summary["completed_at"] = datetime.utcnow().isoformat()
     return summary
+
+
+def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict[str, Any]:
+    """Public entry point. Runs the pull, always logs one audit_log entry."""
+    summary: dict[str, Any] = {}
+    try:
+        summary = _run_pull_impl(session, jwt=jwt, force=force)
+        return summary
+    except Exception as e:
+        summary = {
+            "status": "crashed",
+            "error": f"{type(e).__name__}: {e}",
+            "completed_at": datetime.utcnow().isoformat(),
+        }
+        raise
+    finally:
+        try:
+            _log_pull_to_audit(summary)
+        except Exception:
+            logger.exception("farlight_pull: audit_log write failed (non-fatal)")
+
+
+def _log_pull_to_audit(summary: dict) -> None:
+    """Write one entry to staff_events per run (that's the table the
+    /staff/audit UI reads), using a fresh session so it survives even if
+    the caller's session is in rollback state."""
+    from .db import SessionLocal
+    from sqlalchemy import text
+
+    status = str(summary.get("status", "unknown"))[:64]
+    with SessionLocal() as audit_db:
+        audit_db.execute(
+            text(
+                "INSERT INTO staff_events "
+                "(entity_type, entity_id, entity_ref, action, detail, actor, at) "
+                "VALUES ('system', 0, 'farlight-pull', 'farlight_pull', :detail, 'system:farlight', CURRENT_TIMESTAMP)"
+            ),
+            {"detail": status},
+        )
+        audit_db.commit()
 
 
 def _handle_window(

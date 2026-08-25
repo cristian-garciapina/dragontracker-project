@@ -90,6 +90,8 @@ class SiteGateMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
 
             role = _current_user_role(db, request)
+            import sys
+            print(f"[site_gate] path={path} role={role!r} cookies={dict(request.cookies)!r}", file=sys.stderr, flush=True)
             if role == "owner":
                 return await call_next(request)
 

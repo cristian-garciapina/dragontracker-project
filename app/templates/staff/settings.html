@@ -202,6 +202,164 @@
   </section>
   <!-- alliance-identity-end -->
 
+  <!-- farlight-section-start -->
+  {% if user.role == 'owner' %}
+  <section class="mb-10">
+    <p class="text-sm text-secondary uppercase tracking-wider mb-2">Owner · Integrations</p>
+    <h1 class="font-display text-4xl mb-2">Farlight API</h1>
+    <p class="text-secondary text-sm mb-6">
+      The JWT used to authenticate against Farlight's Top-N endpoint. It expires
+      every ~30 days and must be rotated by pasting a fresh one from the game
+      portal. Owner-only.
+    </p>
+
+    {% if request.query_params.get('farlight_saved') %}
+    <div role="status" class="mb-4 p-3 border border-green-700 bg-green-900/30 text-green-200 text-sm rounded">
+      New JWT stored. Valid for {{ request.query_params.get('exp_days') }} more days.
+    </div>
+    {% endif %}
+    {% if request.query_params.get('farlight_error') %}
+    <div role="alert" class="mb-4 p-3 border border-red-700 bg-red-900/30 text-red-200 text-sm rounded">
+      {{ request.query_params.get('farlight_error') }}
+    </div>
+    {% endif %}
+
+    <div class="p-6 bg-card border border-edge rounded-lg space-y-6">
+
+      <!-- Current status -->
+      <div id="fl-status" class="text-sm">
+        <div class="text-muted uppercase text-xs tracking-wide mb-2">Current status</div>
+        <div class="font-mono text-secondary">Loading...</div>
+      </div>
+
+      <!-- Rotate form -->
+      <form method="post" action="/staff/settings/farlight-jwt" class="space-y-3 pt-4 border-t border-edge">
+        <label for="fl_token" class="block text-xs uppercase tracking-wide text-muted">Paste new JWT</label>
+        <textarea id="fl_token" name="token" required rows="4"
+                  placeholder="eyJhbGciOi..."
+                  class="w-full px-3 py-2 bg-elevated border border-edge rounded text-primary font-mono text-xs break-all"></textarea>
+        <p class="text-xs text-muted">
+          Get it from the Farlight portal: F12 → Network → any XHR → Request headers → Authorization.
+          Paste without the "Bearer " prefix.
+        </p>
+        <div class="flex gap-2">
+          <button type="submit"
+                  class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+            Rotate JWT
+          </button>
+          <button type="button" id="fl-test-btn"
+                  class="px-4 py-2 border border-edge hover:border-cyan-400 hover:text-cyan-300 rounded text-sm transition-colors">
+            Test connection
+          </button>
+          <span id="fl-test-result" class="self-center text-sm"></span>
+        </div>
+      </form>
+
+      <!-- Force pull -->
+      <div class="pt-4 border-t border-edge">
+        <div class="text-xs uppercase tracking-wide text-muted mb-2">Manual ingestion</div>
+        <p class="text-sm text-secondary mb-3">
+          Trigger a full Farlight pull immediately (start snapshot if missing,
+          cumulative, and yesterday's daily). Takes 10-30 seconds. Runs synchronously.
+        </p>
+        <div class="flex gap-2 items-center">
+          <button type="button" id="fl-pull-btn"
+                  class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+            Force pull now
+          </button>
+          <span id="fl-pull-result" class="self-center text-sm"></span>
+        </div>
+        <pre id="fl-pull-detail" class="hidden mt-3 p-3 bg-elevated border border-edge rounded text-xs font-mono text-secondary overflow-auto max-h-96"></pre>
+      </div>
+    </div>
+  </section>
+
+  <script nonce="{{ request.state.csp_nonce }}">
+    // Load current JWT status
+    fetch('/staff/settings/farlight-status')
+      .then(r => r.json())
+      .then(data => {
+        const box = document.querySelector('#fl-status .font-mono');
+        if (!data.present) {
+          box.innerHTML = '<span class="text-red-400">No JWT stored.</span>';
+          return;
+        }
+        const color = data.expired ? 'text-red-400' : (data.days_left < 7 ? 'text-yellow-400' : 'text-green-400');
+        const state = data.expired ? 'EXPIRED' : `${data.days_left} days left`;
+        box.innerHTML = `
+          <div>Account: <span class="text-primary">${data.account || 'unknown'}</span></div>
+          <div>Expires: <span class="${color}">${data.expires_at || 'unknown'} (${state})</span></div>
+          <div>Last updated: <span class="text-muted">${data.updated_at || 'unknown'} by ${data.updated_by || 'unknown'}</span></div>
+        `;
+      })
+      .catch(err => {
+        document.querySelector('#fl-status .font-mono').innerHTML =
+          '<span class="text-red-400">Failed to load status.</span>';
+      });
+
+    // Test connection button
+    document.getElementById('fl-test-btn').addEventListener('click', function() {
+      const result = document.getElementById('fl-test-result');
+      result.textContent = 'Testing...';
+      result.className = 'self-center text-sm text-muted';
+      fetch('/staff/settings/farlight-test', { method: 'POST' })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+          if (ok && data.ok) {
+            result.textContent = '✓ ' + data.message;
+            result.className = 'self-center text-sm text-green-400';
+          } else {
+            result.textContent = '✗ ' + (data.error || 'Unknown error');
+            result.className = 'self-center text-sm text-red-400';
+          }
+        })
+        .catch(err => {
+          result.textContent = '✗ Network error';
+          result.className = 'self-center text-sm text-red-400';
+        });
+    });
+
+    // Force pull button
+    document.getElementById('fl-pull-btn').addEventListener('click', function() {
+      const btn = this;
+      const result = document.getElementById('fl-pull-result');
+      const detail = document.getElementById('fl-pull-detail');
+      btn.disabled = true;
+      btn.textContent = 'Pulling... (10-30s)';
+      result.textContent = '';
+      result.className = 'self-center text-sm text-muted';
+      detail.className = 'hidden';
+      fetch('/staff/settings/farlight-force-pull', { method: 'POST' })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+          btn.disabled = false;
+          btn.textContent = 'Force pull now';
+          if (ok && (data.status === 'ok' || data.status === 'skipped_manual')) {
+            const daily = data.daily_rows_fetched ?? '?';
+            const cum = data.cum_rows_fetched ?? '?';
+            const start = data.start_snapshot_rows_fetched;
+            let msg = `✓ ${data.status} — daily: ${daily} rows, cumulative: ${cum} rows`;
+            if (start !== undefined) msg += `, start snapshot: ${start} rows`;
+            result.textContent = msg;
+            result.className = 'self-center text-sm text-green-400';
+          } else {
+            result.textContent = '✗ ' + (data.status || 'error') + (data.error ? ': ' + data.error : '');
+            result.className = 'self-center text-sm text-red-400';
+          }
+          detail.textContent = JSON.stringify(data, null, 2);
+          detail.className = 'mt-3 p-3 bg-elevated border border-edge rounded text-xs font-mono text-secondary overflow-auto max-h-96';
+        })
+        .catch(err => {
+          btn.disabled = false;
+          btn.textContent = 'Force pull now';
+          result.textContent = '✗ Network error: ' + err;
+          result.className = 'self-center text-sm text-red-400';
+        });
+    });
+  </script>
+  {% endif %}
+  <!-- farlight-section-end -->
+
   <section data-section="hero" class="mb-8">
     <p class="text-sm text-secondary uppercase tracking-wider mb-2">Staff · Kingdom {{ alliance.kingdom_id }}</p>
     <h1 class="font-display text-4xl mb-2">Scoring settings</h1>

@@ -35,6 +35,7 @@ from .profile_routes import router as profile_router
 from .settings_routes import router as settings_router
 from .reset_routes import router as reset_router
 from .alliance_settings_routes import router as alliance_settings_router
+from .farlight_settings_routes import router as farlight_settings_router
 from .seasons_routes import router as seasons_router
 from .recruitment_routes import router as recruitment_router
 from .events_routes import router as events_router
@@ -74,6 +75,7 @@ app.include_router(profile_router)
 app.include_router(settings_router)
 app.include_router(reset_router)
 app.include_router(alliance_settings_router)
+app.include_router(farlight_settings_router)
 app.include_router(recruitment_router)
 app.include_router(events_router)
 app.include_router(farming_windows_router)

@@ -127,6 +127,25 @@ def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -
         "status": "unknown",
     }
 
+    # ---- Kill-switch check ----------------------------------------------
+    # `farlight.pull_enabled` = "false" stops all nightly runs. Force pulls
+    # from the UI (force=True) bypass this — the user explicitly asked.
+    if not force:
+        from .models import Setting
+        import json as _json
+        row = session.execute(
+            select(Setting).where(Setting.key == "farlight.pull_enabled")
+        ).scalar_one_or_none()
+        if row is not None:
+            try:
+                enabled = _json.loads(row.value)
+            except Exception:
+                enabled = row.value
+            if str(enabled).lower() in ("false", "0", "no", "off"):
+                summary["status"] = "disabled"
+                summary["error"] = "farlight.pull_enabled is false; set it to true in /staff/settings to resume."
+                return summary
+
     # ---- Load + validate JWT --------------------------------------------
     if jwt is None:
         jwt = get_secret(session, SECRET_KEY_JWT)

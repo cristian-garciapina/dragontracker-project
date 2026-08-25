@@ -255,6 +255,27 @@
         </div>
       </form>
 
+      <!-- Nightly toggle -->
+      <div class="pt-4 border-t border-edge">
+        <div class="text-xs uppercase tracking-wide text-muted mb-2">Nightly automation</div>
+        <form method="post" action="/staff/settings/farlight-pull-toggle" class="flex items-center gap-3">
+          <label class="inline-flex items-center gap-3 cursor-pointer select-none">
+            <input type="checkbox" name="enabled" value="on"
+                   {% if farlight_pull_enabled %}checked{% endif %}
+                   class="w-4 h-4 accent-cyan-500">
+            <span class="text-sm text-primary">Enable nightly Farlight pull (03:15 UTC)</span>
+          </label>
+          <button type="submit"
+                  class="ml-auto px-3 py-1.5 border border-edge hover:border-cyan-400 hover:text-cyan-300 rounded text-sm transition-colors">
+            Save
+          </button>
+        </form>
+        <p class="text-xs text-muted mt-2">
+          When disabled, the cron job still fires but exits immediately with status "disabled".
+          Manual "Force pull now" below always bypasses this switch.
+        </p>
+      </div>
+
       <!-- Force pull -->
       <div class="pt-4 border-t border-edge">
         <div class="text-xs uppercase tracking-wide text-muted mb-2">Manual ingestion</div>

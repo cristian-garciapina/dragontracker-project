@@ -21,7 +21,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from . import queries
-from .auth import get_db, require_staff
+from .auth import get_db, require_staff, require_owner
 from .models import AuditLog, Setting, User
 from .scoring import recompute_scores_for_active_season
 from .site_gate import get_site_status
@@ -44,6 +44,24 @@ def _get_alliance_name(db: Session) -> str:
         return "Your Alliance"
 
 
+
+def _get_farlight_pull_enabled(db) -> bool:
+    """Read farlight.pull_enabled from settings. Default True if missing."""
+    from sqlalchemy import text
+    import json as _json
+    row = db.execute(
+        text("SELECT value FROM settings WHERE key = 'farlight.pull_enabled'")
+    ).first()
+    if row is None or row[0] is None:
+        return True
+    raw = row[0]
+    try:
+        val = _json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        val = raw
+    return str(val).lower() not in ("false", "0", "no", "off")
+
+
 def _render(request: Request, db: Session, user: User,
             error: Optional[str] = None, success: Optional[str] = None,
             recompute_info: Optional[dict] = None,
@@ -60,6 +78,7 @@ def _render(request: Request, db: Session, user: User,
             "site_status": get_site_status(db),
             "alliance_name": _get_alliance_name(db),
             "reset_done": reset_done,
+            "farlight_pull_enabled": _get_farlight_pull_enabled(db),
         },
     )
 
@@ -67,7 +86,7 @@ def _render(request: Request, db: Session, user: User,
 @router.get("/staff/settings", response_class=HTMLResponse)
 async def settings_view(
     request: Request,
-    user: User = Depends(require_staff),
+    user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     reset_done = request.query_params.get("reset") == "done"
@@ -77,7 +96,7 @@ async def settings_view(
 @router.post("/staff/settings")
 async def settings_update(
     request: Request,
-    user: User = Depends(require_staff),
+    user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     form = await request.form()
@@ -192,7 +211,7 @@ def _set_bool_setting(db: Session, key: str, value: bool) -> None:
 @router.post("/staff/settings/site-status")
 async def site_status_update(
     request: Request,
-    user: User = Depends(require_staff),
+    user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     form = await request.form()

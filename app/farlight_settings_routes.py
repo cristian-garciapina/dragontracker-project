@@ -187,3 +187,36 @@ def farlight_force_pull(
             status_code=500,
         )
 
+
+@router.post("/farlight-pull-toggle")
+def farlight_pull_toggle(
+    enabled: str = Form(""),
+    session: Session = Depends(get_session),
+    owner: User = Depends(require_owner),
+):
+    """Toggle the nightly Farlight pull kill-switch. Owner-only."""
+    from sqlalchemy import text
+    import json as _json
+
+    # HTML checkbox sends "on" when checked, nothing when unchecked
+    new_val = "true" if enabled == "on" else "false"
+
+    session.execute(
+        text(
+            "UPDATE settings SET value = :val, updated_at = CURRENT_TIMESTAMP, "
+            "updated_by = :by WHERE key = 'farlight.pull_enabled'"
+        ),
+        {"val": _json.dumps(new_val), "by": owner.username},
+    )
+    # Audit
+    session.execute(
+        text(
+            "INSERT INTO staff_events "
+            "(entity_type, entity_id, entity_ref, action, detail, actor, at) "
+            "VALUES ('system', 0, 'farlight-pull-toggle', 'setting_update', :detail, :actor, CURRENT_TIMESTAMP)"
+        ),
+        {"detail": f"pull_enabled={new_val}", "actor": f"web:{owner.username}"},
+    )
+    session.commit()
+    return RedirectResponse(url="/staff/settings?farlight_saved=1#farlight", status_code=303)
+

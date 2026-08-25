@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .auth import require_staff
+from .auth import require_owner
 from .db import get_session
 from .models import AuditLog, Setting, User
 
@@ -54,7 +54,7 @@ def _parse(raw: str, kind: str, label: str):
 @router.post("/alliance")
 async def alliance_update(
     request: Request,
-    user: User = Depends(require_staff),
+    user: User = Depends(require_owner),
     db: Session = Depends(get_session),
 ):
     form = await request.form()

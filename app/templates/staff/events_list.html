@@ -17,8 +17,7 @@
     <div class="flex items-center gap-3">
       {% if all_seasons and all_seasons|length > 1 %}
       <label class="text-xs uppercase tracking-wider text-slate-400">Season</label>
-      <select id="season-picker" class="field-select text-sm"
-              onchange="window.location.href='/staff/events?season=' + this.value">
+      <select id="season-picker" class="field-select text-sm" data-nav-season>
         {% for s in all_seasons %}
           <option value="{{ s.id }}" {% if season and s.id == season.id %}selected{% endif %}>
             {{ s.name }}{% if s.id == active_season_id %} · active{% endif %}
@@ -27,7 +26,7 @@
       </select>
       {% endif %}
       {% if season and season.id == active_season_id %}
-      <button type="button" onclick="document.getElementById('new-event-dlg').showModal()"
+      <button type="button" data-dlg-open="new-event-dlg"
               class="btn-primary">+ New event</button>
       {% endif %}
     </div>
@@ -148,7 +147,7 @@
     </label>
   </form>
   <div class="flex justify-end gap-2 mt-6">
-    <button type="button" onclick="document.getElementById('new-event-dlg').close()"
+    <button type="button" data-dlg-close="new-event-dlg"
             class="btn-ghost">Cancel</button>
     <button type="submit" form="new-event-form" class="btn-primary">Create</button>
   </div>
@@ -196,13 +195,34 @@
     Delete <span id="row-del-name" class="text-white font-semibold"></span>? All attendance and participation data will be lost.
   </p>
   <div class="flex justify-end gap-2 mt-6">
-    <button type="button" onclick="document.getElementById('row-del-dlg').close()" class="btn-ghost">Cancel</button>
+    <button type="button" data-dlg-close="row-del-dlg" class="btn-ghost">Cancel</button>
     <button type="submit" form="row-del-form" class="btn-primary bg-red-600 hover:bg-red-500">Delete</button>
   </div>
 </dialog>
 
 <script nonce="{{ request.state.csp_nonce }}">
 (function() {
+  // Season picker navigation
+  const picker = document.querySelector("[data-nav-season]");
+  if (picker) picker.addEventListener("change", () => {
+    window.location.href = "/staff/events?season=" + picker.value;
+  });
+
+  // Generic dialog open/close via data-dlg-open / data-dlg-close
+  document.querySelectorAll("[data-dlg-open]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const d = document.getElementById(btn.dataset.dlgOpen);
+      if (d) d.showModal();
+    });
+  });
+  document.querySelectorAll("[data-dlg-close]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const d = document.getElementById(btn.dataset.dlgClose);
+      if (d) d.close();
+    });
+  });
+
+  // Row-delete dialog (populate action + name from data-del-event)
   const dlg = document.getElementById("row-del-dlg");
   const form = document.getElementById("row-del-form");
   const nameEl = document.getElementById("row-del-name");

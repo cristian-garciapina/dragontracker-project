@@ -36,7 +36,7 @@
         {% endif %}
       </p>
     </div>
-    <button type="button" onclick="document.getElementById('delete-event-dlg').showModal()"
+    <button type="button" data-dlg-open="delete-event-dlg"
             class="btn-ghost text-red-400">Delete event</button>
   </div>
 
@@ -145,7 +145,7 @@
           <dd class="font-mono tnum text-white" data-live-count="eligible">{{ eligible_total }}</dd>
         </div>
         <div class="pt-2">
-          <button type="button" onclick="document.getElementById('elig-dlg').showModal()"
+          <button type="button" data-dlg-open="elig-dlg"
                   class="btn-ghost w-full justify-center">Manage participants</button>
         </div>
       </dl>
@@ -249,12 +249,11 @@
         Farms are excluded automatically. Unchecked members are removed from the ranking and stats.
       </p>
       <div class="flex gap-2 mt-3">
-        <button type="button" onclick="document.querySelectorAll('#elig-list input[type=checkbox]').forEach(c=>c.checked=true)"
+        <button type="button" data-elig-check-all
                 class="btn-ghost text-xs">Check all</button>
-        <button type="button" onclick="document.querySelectorAll('#elig-list input[type=checkbox]').forEach(c=>c.checked=false)"
+        <button type="button" data-elig-uncheck-all
                 class="btn-ghost text-xs">Uncheck all</button>
-        <input type="search" id="elig-filter" placeholder="Filter by name..."
-               oninput="const q=this.value.toLowerCase();document.querySelectorAll('#elig-list label').forEach(l=>{l.style.display=l.dataset.name.includes(q)?'':'none'})"
+        <input type="search" id="elig-filter" placeholder="Filter by name..." data-elig-filter
                class="field-input flex-1 py-1 text-sm">
       </div>
     </div>
@@ -280,7 +279,7 @@
     </div>
 
     <div class="p-4 border-t border-slate-800 flex justify-end gap-2">
-      <button type="button" onclick="document.getElementById('elig-dlg').close()"
+      <button type="button" data-dlg-close="elig-dlg"
               class="btn-ghost">Cancel</button>
       <button type="submit" class="btn-primary">Save</button>
     </div>
@@ -295,7 +294,7 @@
     All attendance and participation data will be lost. This can't be undone.
   </p>
   <div class="flex justify-end gap-2 mt-6">
-    <button type="button" onclick="document.getElementById('delete-event-dlg').close()"
+    <button type="button" data-dlg-close="delete-event-dlg"
             class="btn-ghost">Cancel</button>
     <button type="submit" form="delete-event-form" class="btn-primary bg-red-600 hover:bg-red-500">Delete</button>
   </div>
@@ -304,6 +303,34 @@
 
 <script nonce="{{ request.state.csp_nonce }}">
 (function() {
+  // Generic dialog open/close via data-dlg-open / data-dlg-close
+  document.querySelectorAll("[data-dlg-open]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const d = document.getElementById(btn.dataset.dlgOpen);
+      if (d) d.showModal();
+    });
+  });
+  document.querySelectorAll("[data-dlg-close]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const d = document.getElementById(btn.dataset.dlgClose);
+      if (d) d.close();
+    });
+  });
+
+  // Eligibility list: check/uncheck all + filter
+  const eligBoxes = () => document.querySelectorAll("#elig-list input[type=checkbox]");
+  const checkAll = document.querySelector("[data-elig-check-all]");
+  if (checkAll) checkAll.addEventListener("click", () => eligBoxes().forEach(c => c.checked = true));
+  const uncheckAll = document.querySelector("[data-elig-uncheck-all]");
+  if (uncheckAll) uncheckAll.addEventListener("click", () => eligBoxes().forEach(c => c.checked = false));
+  const filter = document.querySelector("[data-elig-filter]");
+  if (filter) filter.addEventListener("input", () => {
+    const q = filter.value.toLowerCase();
+    document.querySelectorAll("#elig-list label").forEach(l => {
+      l.style.display = (l.dataset.name || "").includes(q) ? "" : "none";
+    });
+  });
+
   const url = "/staff/events/{{ event.id }}/json";
   const INTERVAL_MS = 8000;
   const dot = document.getElementById("live-dot");

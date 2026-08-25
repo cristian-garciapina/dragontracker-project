@@ -380,9 +380,9 @@
                 </div>
                 {% if is_staff and h.season_active %}
                 <div>
-                  <form method="post" action="/player/{{ member.character_id }}/burns/{{ b.id }}/delete">
+                  <form method="post" action="/player/{{ member.character_id }}/burns/{{ b.id }}/delete"
+                        data-confirm="Delete this burn? This will re-add merits to the season score.">
                     <button type="submit"
-                            onclick="return confirm('Delete this burn? This will re-add merits to the season score.');"
                             class="text-xs text-muted hover:text-red-400 transition-colors"
                             title="Delete burn">
                       Delete
@@ -551,7 +551,7 @@
     if (window.Chart) draw();
     else {
       const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
       s.onload = draw;
       document.head.appendChild(s);
     }
@@ -738,5 +738,13 @@
       });
     });
   });
+</script>
+
+<script nonce="{{ request.state.csp_nonce }}">
+document.querySelectorAll("form[data-confirm]").forEach(f => {
+  f.addEventListener("submit", (e) => {
+    if (!window.confirm(f.dataset.confirm)) e.preventDefault();
+  });
+});
 </script>
 {% endblock %}

@@ -94,7 +94,7 @@
         You can start a new season anytime after that.
       </p>
       <form method="post" action="/staff/seasons/{{ season.id }}/close"
-            onsubmit="return confirm('End season {{ season.name }}? This will freeze the scores and stop automatic ingestion until you start a new season.');">
+            data-confirm="End season {{ season.name }}? This will freeze the scores and stop automatic ingestion until you start a new season.">
         <button type="submit"
                 class="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded transition-colors text-sm">
           End {{ season.name }}
@@ -145,4 +145,14 @@
     </section>
   {% endif %}
 </div>
+
+<script nonce="{{ request.state.csp_nonce }}">
+(function() {
+  document.querySelectorAll("form[data-confirm]").forEach(f => {
+    f.addEventListener("submit", (e) => {
+      if (!window.confirm(f.dataset.confirm)) e.preventDefault();
+    });
+  });
+})();
+</script>
 {% endblock %}

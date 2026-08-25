@@ -78,7 +78,7 @@
                   </button>
                 </form>
                 <form method="post" action="/staff/registrations/{{ u.id }}/reject" class="inline ml-1"
-                      onsubmit="return confirm('Reject and delete this registration?');">
+                      data-confirm="Reject and delete this registration?">
                   <button type="submit"
                           class="px-2 py-1 text-xs border border-red-700 text-red-300 hover:bg-red-900/30 rounded">
                     Reject
@@ -158,4 +158,12 @@
 })();
 </script>
 
+
+<script nonce="{{ request.state.csp_nonce }}">
+document.querySelectorAll("form[data-confirm]").forEach(f => {
+  f.addEventListener("submit", (e) => {
+    if (!window.confirm(f.dataset.confirm)) e.preventDefault();
+  });
+});
+</script>
 {% endblock %}

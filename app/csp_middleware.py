@@ -17,11 +17,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-CSP_HEADER_NAME = "Content-Security-Policy-Report-Only"
+CSP_HEADER_NAME = "Content-Security-Policy"
 
 _POLICY_TEMPLATE = (
     "default-src 'self'; "
-    "script-src 'self' 'nonce-{nonce}' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+    "script-src 'self' 'nonce-{nonce}' 'sha256-zsv5yXhFB0x+s529Zj0NjYgpLjMm6od8yAs04N1JUDk=' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
     "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com; "
     "img-src 'self' data: https:; "

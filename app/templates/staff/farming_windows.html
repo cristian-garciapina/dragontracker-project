@@ -74,11 +74,11 @@
           </div>
           <div>
             <form id="del-{{ w.id }}" method="post" action="/staff/farming-windows/{{ w.id }}/delete" style="display:contents"></form>
-            <button type="button" class="btn-ghost text-red-300 hover:text-red-200" onclick="document.getElementById('confirm-{{ w.id }}').showModal()">Delete</button>
+            <button type="button" class="btn-ghost text-red-300 hover:text-red-200" data-dlg-open="confirm-{{ w.id }}">Delete</button>
             <dialog id="confirm-{{ w.id }}" class="rounded-lg border border-slate-700 bg-slate-900 p-6 text-slate-200 backdrop:bg-black/60">
               <p class="mb-4">Delete this farming window? Scores will be recomputed.</p>
               <div class="flex justify-end gap-2">
-                <button type="button" class="btn-ghost" onclick="document.getElementById('confirm-{{ w.id }}').close()">Cancel</button>
+                <button type="button" class="btn-ghost" data-dlg-close="confirm-{{ w.id }}">Cancel</button>
                 <button type="submit" form="del-{{ w.id }}" class="btn-primary bg-red-700 hover:bg-red-600">Delete</button>
               </div>
             </dialog>
@@ -90,4 +90,21 @@
 
   {% endif %}
 </div>
+
+<script nonce="{{ request.state.csp_nonce }}">
+(function() {
+  document.querySelectorAll("[data-dlg-open]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const d = document.getElementById(btn.dataset.dlgOpen);
+      if (d) d.showModal();
+    });
+  });
+  document.querySelectorAll("[data-dlg-close]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const d = document.getElementById(btn.dataset.dlgClose);
+      if (d) d.close();
+    });
+  });
+})();
+</script>
 {% endblock %}

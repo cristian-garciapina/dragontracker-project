@@ -122,7 +122,7 @@
           <p class="font-mono text-primary text-sm">{{ linked_discord_id }}</p>
         </div>
         <form method="post" action="/profile/discord/unlink"
-              onsubmit="return confirm('Unlink your Discord? You will lose your Discord roles until you re-link.');">
+              data-confirm="Unlink your Discord? You will lose your Discord roles until you re-link.">
           <button type="submit"
                   class="text-xs px-3 py-1.5 border border-red-700 text-red-300 hover:bg-red-900/20 rounded uppercase tracking-wider transition-colors">
             Unlink
@@ -168,4 +168,12 @@
   </section>
 
 </div>
+
+<script nonce="{{ request.state.csp_nonce }}">
+document.querySelectorAll("form[data-confirm]").forEach(f => {
+  f.addEventListener("submit", (e) => {
+    if (!window.confirm(f.dataset.confirm)) e.preventDefault();
+  });
+});
+</script>
 {% endblock %}

@@ -399,7 +399,7 @@
                    title="This player has staff notes"
                    class="ml-1 inline-block align-middle text-gold hover:text-cyan-300 transition-colors"
                    style="font-size: 0.85em; text-decoration: none;"
-                   onclick="event.stopPropagation();">📝</a>
+                   data-stop-propagation>📝</a>
               {% endif %}
               {% if filters.discord_only and row.character_id in ids_with_discord %}
                 <span class="ml-1 inline-block align-middle text-[#5865F2]" title="Discord linked">
@@ -412,7 +412,7 @@
                    title="{{ burn_n }} burn{{ 's' if burn_n > 1 else '' }} this season"
                    class="ml-1 inline-block align-middle hover:text-cyan-300 transition-colors"
                    style="font-size: 0.85em; text-decoration: none; color: #FCA5A5;"
-                   onclick="event.stopPropagation();">🔥{% if burn_n > 1 %}<span style="font-family: var(--font-mono); font-size: 0.85em; margin-left: 1px;">×{{ burn_n }}</span>{% endif %}</a>
+                   data-stop-propagation>🔥{% if burn_n > 1 %}<span style="font-family: var(--font-mono); font-size: 0.85em; margin-left: 1px;">×{{ burn_n }}</span>{% endif %}</a>
               {% endif %}
             </td>
             <td class="col-pin col-pin-3 col-id font-mono"
@@ -514,6 +514,10 @@
 </div>
 
 <script nonce="{{ request.state.csp_nonce }}">
+document.querySelectorAll("[data-stop-propagation]").forEach(el => {
+  el.addEventListener("click", (e) => e.stopPropagation());
+});
+
   (function () {
     const table = document.querySelector('[data-table="roster"]');
     if (!table) return;

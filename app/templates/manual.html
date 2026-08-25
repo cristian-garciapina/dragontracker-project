@@ -316,11 +316,11 @@
 </head>
 <body>
 
-<button class="menu-toggle" onclick="_hbToggle()" aria-label="Open menu">
+<button class="menu-toggle" data-hb-toggle aria-label="Open menu">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
 </button>
 
-<div class="sidebar-backdrop" onclick="_hbClose()"></div>
+<div class="sidebar-backdrop" data-hb-close></div>
 
 <div class="shell">
   <aside class="sidebar" id="hb-sidebar">
@@ -688,6 +688,8 @@
 
     window._hbToggle = function () { sidebar.classList.toggle('open'); backdrop.classList.toggle('open'); };
     window._hbClose  = function () { sidebar.classList.remove('open'); backdrop.classList.remove('open'); };
+    document.querySelectorAll('[data-hb-toggle]').forEach(el => el.addEventListener('click', window._hbToggle));
+    document.querySelectorAll('[data-hb-close]').forEach(el => el.addEventListener('click', window._hbClose));
 
     document.querySelectorAll('.nav-link, .brand-back').forEach(function (a) {
       a.addEventListener('click', function () { if (window.innerWidth <= 900) window._hbClose(); });

@@ -468,7 +468,7 @@
   {% endif %}
 
   <button type="button"
-          onclick="document.getElementById('reset-modal').classList.remove('hidden')"
+          data-modal-show="reset-modal"
           class="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded transition-colors">
     Reset all alliance data
   </button>
@@ -509,7 +509,7 @@
           Reset everything
         </button>
         <button type="button"
-                onclick="document.getElementById('reset-modal').classList.add('hidden')"
+                data-modal-hide="reset-modal"
                 class="px-4 py-2 border border-edge hover:border-cyan-400 hover:text-cyan-300 rounded transition-colors text-sm">
           Cancel
         </button>
@@ -519,4 +519,19 @@
 </div>
 <!-- danger-zone-end -->
 
+
+<script nonce="{{ request.state.csp_nonce }}">
+document.querySelectorAll("[data-modal-show]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const m = document.getElementById(btn.dataset.modalShow);
+    if (m) m.classList.remove("hidden");
+  });
+});
+document.querySelectorAll("[data-modal-hide]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const m = document.getElementById(btn.dataset.modalHide);
+    if (m) m.classList.add("hidden");
+  });
+});
+</script>
 {% endblock %}

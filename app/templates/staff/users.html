@@ -150,7 +150,7 @@
                   </form>
 
                   <form method="post" action="/staff/users/{{ u.id }}/delete" class="inline ml-1"
-                        onsubmit="return confirm('Delete user {{ u.username }} permanently? This cannot be undone.');">
+                        data-confirm="Delete user {{ u.username }} permanently? This cannot be undone.">
                     <button type="submit"
                             class="px-2 py-1 text-xs border border-red-700 text-red-300 hover:bg-red-900/30 rounded">
                       Delete
@@ -171,4 +171,12 @@
   </section>
 
 </div>
+
+<script nonce="{{ request.state.csp_nonce }}">
+document.querySelectorAll("form[data-confirm]").forEach(f => {
+  f.addEventListener("submit", (e) => {
+    if (!window.confirm(f.dataset.confirm)) e.preventDefault();
+  });
+});
+</script>
 {% endblock %}

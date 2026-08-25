@@ -1,4 +1,4 @@
-"""SQLAlchemy 2.0 models for Eternal Vanguard dashboard.
+"""SQLAlchemy 2.0 models for Dragontracker.
 
 Schema design follows brief section 5.3:
 - Core tables: alliances, members, snapshots, stats, seasons

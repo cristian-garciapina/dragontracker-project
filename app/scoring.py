@@ -1,4 +1,4 @@
-"""Performance scoring for Eternal Vanguard.
+"""Performance scoring for Dragontracker.
 
 Algorithm (simplified vs brief, aligned with operational practice 2026-06-25):
 

@@ -25,13 +25,14 @@ from app.models import (
 
 
 def seed_alliance(session: Session) -> None:
-    """Insert Eternal Vanguard if not already present."""
-    existing = session.execute(
-        select(Alliance).where(Alliance.name == "Eternal Vanguard")
-    ).scalar_one_or_none()
+    """Insert a placeholder alliance row if the table is empty.
+
+    Owner reconfigures name / kingdom_number / tag afterwards through
+    /staff/settings. Kept as row #1 to serve as the tenant root."""
+    existing = session.execute(select(Alliance)).scalars().first()
     if existing:
         return
-    session.add(Alliance(name="Eternal Vanguard", kingdom_number=193, tag="EV"))
+    session.add(Alliance(name="My Alliance", kingdom_number=0, tag="ALLY"))
 
 
 def seed_season(session: Session) -> None:

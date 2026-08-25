@@ -27,13 +27,39 @@ _env = Environment(
 )
 
 
+
+def _alliance_name() -> str:
+    """Read alliance name from settings at runtime. Safe fallback if DB
+    unavailable — we never want a mailer call to crash the caller."""
+    try:
+        from sqlalchemy import select
+        from .db import SessionLocal
+        from .models import Setting
+        with SessionLocal() as db:
+            row = db.execute(
+                select(Setting).where(Setting.key == "alliance.name")
+            ).scalar_one_or_none()
+            if row and row.value:
+                # Setting.value is a JSON string like '"Rénaissance des Légendes"'
+                import json as _json
+                try:
+                    val = _json.loads(row.value)
+                except Exception:
+                    val = row.value
+                if val:
+                    return str(val)
+    except Exception:
+        pass
+    return "Alliance"
+
+
 def _smtp_config() -> Optional[dict]:
     host = os.getenv("SMTP_HOST")
     port_raw = os.getenv("SMTP_PORT")
     user = os.getenv("SMTP_USER")
     password = os.getenv("SMTP_PASS")
     sender = os.getenv("SMTP_FROM", user)
-    from_name = os.getenv("SMTP_FROM_NAME", "Eternal Vanguard")
+    from_name = os.getenv("SMTP_FROM_NAME") or _alliance_name()
     if not (host and port_raw and user and password and sender):
         return None
     try:
@@ -88,7 +114,7 @@ def send_password_reset(to: str, username: str, reset_url: str) -> bool:
     ctx = {"username": username, "reset_url": reset_url}
     return send_email(
         to=to,
-        subject="Reset your Eternal Vanguard password",
+        subject=f"Reset your {_alliance_name()} password",
         html_body=tmpl_html.render(**ctx),
         text_body=tmpl_text.render(**ctx),
     )

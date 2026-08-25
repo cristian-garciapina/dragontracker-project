@@ -209,7 +209,6 @@ async def list_applications(
         name="staff/applications.html",
         context={
             "user": user,
-            "kingdom": 193,
             "apps": apps,
             "counts": counts,
             "current_filter": status,

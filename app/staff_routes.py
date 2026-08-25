@@ -102,7 +102,6 @@ async def list_users(
         name="staff/users.html",
         context={
             "user": actor,
-            "kingdom": 193,
             "rows": rows,
             "filters": {"q": q, "state": state, "role": role},
             "total": len(users),
@@ -197,7 +196,6 @@ async def staff_edit_form(
             "user": actor,
             "target": u,
             "member_current_name": member.current_name if member else None,
-            "kingdom": 193,
             "error": None,
             "success": None,
         },
@@ -228,7 +226,6 @@ async def staff_edit_user(
                 "user": actor,
                 "target": u,
                 "member_current_name": member.current_name if member else None,
-                "kingdom": 193,
                 "error": error,
                 "success": success,
             },

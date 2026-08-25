@@ -255,7 +255,7 @@ async def list_registrations(
     return templates.TemplateResponse(
         request=request,
         name="staff/registrations.html",
-        context={"user": staff, "rows": rows, "kingdom": 193},
+        context={"user": staff, "rows": rows},
     )
 
 

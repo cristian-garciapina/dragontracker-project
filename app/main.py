@@ -1,5 +1,5 @@
 """
-Eternal Vanguard — main FastAPI application.
+Dragontracker — main FastAPI application.
 
 Routes:
 - `/`              public landing
@@ -57,8 +57,8 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 app = FastAPI(
-    title="Eternal Vanguard",
-    description="Alliance management website for Call of Dragons — Kingdom 193.",
+    title="Dragontracker",
+    description="Alliance management platform for Call of Dragons.",
     version="0.4.0",
     docs_url="/_docs",
     redoc_url=None,
@@ -152,11 +152,7 @@ async def landing(
     return templates.TemplateResponse(
         request=request,
         name="landing.html",
-        context={
-            "alliance_name": "Eternal Vanguard",
-            "kingdom": 193,
-            "user": user,
-        },
+        context={"user": user},
     )
 
 
@@ -177,7 +173,6 @@ async def farms(
     """Read-only listing of accounts excluded from scoring (start power ≤ 15M)."""
     context: dict = {
         "user": user,
-        "kingdom": 193,
         "season": None,
         "snapshot": None,
         "farms": [],
@@ -230,7 +225,6 @@ async def dashboard_overview(
 ) -> HTMLResponse:
     context: dict = {
         "user": user,
-        "kingdom": 193,
         "season": None,
         "season_progress": None,
         "snapshot": None,
@@ -306,7 +300,6 @@ async def roster(
 
     context: dict = {
         "user": user,
-        "kingdom": 193,
         "season": None,
         "snapshot": None,
         "rows": [],

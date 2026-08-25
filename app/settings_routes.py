@@ -53,7 +53,6 @@ def _render(request: Request, db: Session, user: User,
         name="staff/settings.html",
         context={
             "user": user,
-            "kingdom": 193,
             "settings": queries.load_editable_settings(db),
             "error": error,
             "success": success,

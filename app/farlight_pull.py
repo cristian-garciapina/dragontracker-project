@@ -60,7 +60,6 @@ from .secrets_store import get_secret
 logger = logging.getLogger(__name__)
 
 SECRET_KEY_JWT = "farlight_jwt"
-DEFAULT_SERVER_ID = 193
 WARN_EXPIRY_DAYS = 7
 INGESTED_BY = "farlight-cron"
 
@@ -70,11 +69,17 @@ def _yesterday_utc() -> date:
 
 
 def _get_server_id(session) -> int:
-    """Pull kingdom_number from the first Alliance row, fallback to 193."""
+    """Pull kingdom_number from the first Alliance row.
+
+    Raises RuntimeError if no alliance is configured — we refuse to fall
+    back to a hardcoded server ID (would silently pull the wrong kingdom)."""
     alliance = session.execute(select(Alliance)).scalars().first()
-    if alliance:
-        return alliance.kingdom_number
-    return DEFAULT_SERVER_ID
+    if alliance is None or not alliance.kingdom_number:
+        raise RuntimeError(
+            "No alliance configured (or kingdom_number is 0). "
+            "Set it via /staff/settings before running a Farlight pull."
+        )
+    return alliance.kingdom_number
 
 
 def _get_active_season(session) -> Season:

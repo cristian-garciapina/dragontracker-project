@@ -96,7 +96,6 @@ def _render(request: Request, db: Session, user: User,
         name="staff/seasons.html",
         context={
             "user": user,
-            "kingdom": 193,
             "season": season,
             "snapshots": snapshots,
             "start_snap": start_snap,
@@ -203,7 +202,6 @@ def _render_confirm(request, db, user, *, conflict, pending, token, error=None):
         name="staff/seasons_upload_conflict.html",
         context={
             "user": user,
-            "kingdom": 193,
             "conflict": {
                 "id": conflict.id,
                 "date_start": conflict.date_start,
@@ -430,7 +428,6 @@ async def new_season_form(
         name="staff/season_new.html",
         context={
             "user": user,
-            "kingdom": 193,
             "error": None,
             "active_season": active,
             "default_name": default_name,
@@ -453,7 +450,7 @@ async def new_season_create(
             request=request,
             name="staff/season_new.html",
             context={
-                "user": user, "kingdom": 193,
+                "user": user,
                 "error": f"Season '{active.name}' is still active. Close it first.",
                 "active_season": active,
                 "default_name": name,
@@ -467,7 +464,7 @@ async def new_season_create(
             request=request,
             name="staff/season_new.html",
             context={
-                "user": user, "kingdom": 193,
+                "user": user,
                 "error": "Invalid season name (1-64 chars).",
                 "active_season": None,
                 "default_name": name,
@@ -482,7 +479,7 @@ async def new_season_create(
             request=request,
             name="staff/season_new.html",
             context={
-                "user": user, "kingdom": 193,
+                "user": user,
                 "error": "Invalid start date (expected YYYY-MM-DD).",
                 "active_season": None,
                 "default_name": name,

@@ -1356,3 +1356,14 @@ def get_event_rsvps(db: Session, event_id: int) -> dict:
         row = {"character_id": cid, "name": name, "responded_at": responded_at}
         (yes if status_val == "yes" else no).append(row)
     return {"yes": yes, "no": no}
+
+
+def get_recent_pull_runs(session, limit: int = 10):
+    """Return the N most recent Farlight pull runs, newest first."""
+    from sqlalchemy import select as _select
+    from .models import FarlightPullRun
+    return session.execute(
+        _select(FarlightPullRun)
+        .order_by(FarlightPullRun.started_at.desc())
+        .limit(limit)
+    ).scalars().all()

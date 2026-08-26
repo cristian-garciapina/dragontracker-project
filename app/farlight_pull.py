@@ -53,7 +53,7 @@ from .farlight_client import (
     validate_jwt_shape,
 )
 from .ingest import find_conflicting_snapshot, ingest_rows
-from .models import Alliance, Season, Snapshot
+from .models import Alliance, FarlightPullRun, Season, Snapshot
 from .scoring import recompute_scores_for_active_season
 from .secrets_store import get_secret
 
@@ -302,9 +302,72 @@ def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -
     return summary
 
 
-def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict[str, Any]:
-    """Public entry point. Runs the pull, always logs one audit_log entry."""
+def _create_run_row(trigger: str) -> Optional[int]:
+    """Insert farlight_pull_runs row with status='running'. Own session so it
+    survives a rollback of the caller's session. Never breaks the pull."""
+    try:
+        with SessionLocal() as db:
+            row = FarlightPullRun(
+                started_at=datetime.utcnow(),
+                status="running",
+                trigger=trigger,
+            )
+            db.add(row); db.commit()
+            return row.id
+    except Exception:
+        logger.exception("farlight_pull: failed to create run row")
+        return None
+
+
+def _finalize_run_row(run_id: Optional[int], summary: dict) -> None:
+    """Update the run row with final status, duration and payload."""
+    if run_id is None:
+        return
+    try:
+        with SessionLocal() as db:
+            row = db.get(FarlightPullRun, run_id)
+            if row is None:
+                return
+            now = datetime.utcnow()
+            row.completed_at = now
+            row.duration_ms = int((now - row.started_at).total_seconds() * 1000)
+            row.status = str(summary.get("status", "unknown"))[:24]
+            err = summary.get("error")
+            row.error = str(err)[:4000] if err else None
+            snap_ids: list[int] = []
+            snap_count = 0
+            attached = summary.get("start_snapshot_auto_attached")
+            if isinstance(attached, int):
+                snap_ids.append(attached); snap_count += 1
+            for k in ("daily", "cumulative"):
+                sec = summary.get(k)
+                if isinstance(sec, dict):
+                    sid = sec.get("snapshot_id")
+                    if isinstance(sid, int) and sid not in snap_ids:
+                        snap_ids.append(sid)
+                    snap_count += 1
+            row.snapshots_created = snap_count if snap_count else None
+            if snap_ids:
+                row.snapshot_ids_json = json.dumps(snap_ids)
+            rows_total = 0
+            for k in ("start_snapshot_rows_fetched", "daily_rows_fetched", "cum_rows_fetched"):
+                v = summary.get(k)
+                if isinstance(v, int):
+                    rows_total += v
+            row.rows_ingested = rows_total if rows_total else None
+            try:
+                row.summary_json = json.dumps(summary, default=str)
+            except Exception:
+                row.summary_json = None
+            db.commit()
+    except Exception:
+        logger.exception("farlight_pull: failed to finalize run row")
+
+
+def run_pull(session, *, jwt: Optional[str] = None, force: bool = False, trigger: str = "nightly") -> dict[str, Any]:
+    """Public entry point. Runs the pull, logs one audit_log entry and one farlight_pull_runs row."""
     summary: dict[str, Any] = {}
+    run_id = _create_run_row(trigger)
     try:
         summary = _run_pull_impl(session, jwt=jwt, force=force)
         return summary
@@ -316,6 +379,7 @@ def run_pull(session, *, jwt: Optional[str] = None, force: bool = False) -> dict
         }
         raise
     finally:
+        _finalize_run_row(run_id, summary)
         try:
             _log_pull_to_audit(summary)
         except Exception:

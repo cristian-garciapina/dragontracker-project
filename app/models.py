@@ -680,3 +680,18 @@ class PendingUpload(Base):
         DateTime, default=datetime.utcnow, nullable=False
     )
 
+
+class FarlightPullRun(Base):
+    """One row per run_pull() invocation. See app/farlight_pull.py."""
+    __tablename__ = "farlight_pull_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    trigger: Mapped[str] = mapped_column(String(16), nullable=False)
+    duration_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    rows_ingested: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    snapshots_created: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    snapshot_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

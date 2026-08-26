@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from . import queries
+from .queries import get_recent_pull_runs
 from .auth import get_db, require_staff, require_owner
 from .models import AuditLog, Setting, User
 from .scoring import recompute_scores_for_active_season
@@ -79,6 +80,7 @@ def _render(request: Request, db: Session, user: User,
             "alliance_name": _get_alliance_name(db),
             "reset_done": reset_done,
             "farlight_pull_enabled": _get_farlight_pull_enabled(db),
+            "recent_pull_runs": get_recent_pull_runs(db),
         },
     )
 

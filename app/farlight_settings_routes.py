@@ -178,7 +178,7 @@ def farlight_force_pull(
     """Trigger a full Farlight pull immediately. Owner-only. Blocking."""
     from .farlight_pull import run_pull
     try:
-        summary = run_pull(session, force=True)
+        summary = run_pull(session, force=True, trigger="manual")
         status_code = 200 if summary.get("status") in ("ok", "skipped_manual") else 502
         return JSONResponse(summary, status_code=status_code)
     except Exception as e:

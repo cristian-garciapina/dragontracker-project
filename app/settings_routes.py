@@ -162,6 +162,14 @@ async def settings_update(
             error="Thresholds must satisfy S > A > B > C strictly.",
         )
 
+    # Infantry multiplier must be a number >= 1.0 (never a nerf)
+    inf_mult_val = proposed.get("scoring.infantry_multiplier")
+    if inf_mult_val is not None and not (isinstance(inf_mult_val, (int, float)) and inf_mult_val >= 1.0):
+        return _render(
+            request, db, user,
+            error="Infantry multiplier must be a number ≥ 1.0 (1.0 = no bonus).",
+        )
+
     # --- Persist + audit
     now = datetime.utcnow()
     for key, old, new in changes:

@@ -378,6 +378,7 @@
             <th class="text-right" data-col="harvest">{{ sort_link('harvest', 'Harvest') }}</th>
             <th class="text-right" data-col="donations">{{ sort_link('donations', 'Donations') }}</th>
             <th class="text-right" data-col="merits_infantry">{{ sort_link('merits_infantry', 'Inf merits') }}</th>
+            <th class="text-right" data-col="merits_infantry_bonus" title="Bonus merits added by the infantry multiplier">Inf bonus (×{{ '%g' % inf_multiplier }})</th>
             <th class="text-right" data-col="merits_cavalry">{{ sort_link('merits_cavalry', 'Cav merits') }}</th>
             <th class="text-right" data-col="merits_archers">{{ sort_link('merits_archers', 'Archers merits') }}</th>
             <th class="text-right" data-col="merits_magic">{{ sort_link('merits_magic', 'Mage merits') }}</th>
@@ -480,6 +481,7 @@
             <td class="text-right font-mono text-muted">{{ row.harvest_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.alliance_donations_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.merits_infantry_short }}</td>
+            <td class="text-right font-mono text-cyan-300">+{{ row.merits_infantry_bonus_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.merits_cavalry_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.merits_archers_short }}</td>
             <td class="text-right font-mono text-muted">{{ row.merits_magic_short }}</td>

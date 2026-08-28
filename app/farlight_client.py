@@ -194,19 +194,38 @@ def fetch_topn(
         "farlight.fetch_topn: GET topn start=%s end=%s server=%d",
         start_date, end_date, server_id,
     )
-    try:
-        with httpx.Client(timeout=timeout) as client:
-            resp = client.get(TOPN_ENDPOINT, headers=headers, params=params)
-    except httpx.RequestError as e:
-        raise FarlightAPIError(f"network error: {e}") from e
+    import time as _time
+    backoffs = [30, 120, 300]
+    attempt = 0
+    while True:
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                resp = client.get(TOPN_ENDPOINT, headers=headers, params=params)
+        except httpx.RequestError as e:
+            raise FarlightAPIError(f"network error: {e}") from e
+        if resp.status_code == 429 or resp.status_code >= 500:
+            if attempt < len(backoffs):
+                wait = backoffs[attempt]
+                logger.warning(
+                    "farlight.fetch_topn: HTTP %d, retrying in %ds (attempt %d/%d)",
+                    resp.status_code, wait, attempt + 1, len(backoffs),
+                )
+                _time.sleep(wait)
+                attempt += 1
+                continue
+        break
 
     if resp.status_code in (401, 403):
         raise FarlightAuthError(
             f"API rejected JWT: HTTP {resp.status_code}. Rotate the token."
         )
+    if resp.status_code == 429:
+        raise FarlightAPIError(
+            f"API rate-limited (HTTP 429) after {len(backoffs)} retries: body={resp.text[:200]!r}"
+        )
     if resp.status_code >= 500:
         raise FarlightAPIError(
-            f"API 5xx (HTTP {resp.status_code}): body={resp.text[:200]!r}"
+            f"API 5xx (HTTP {resp.status_code}) after {len(backoffs)} retries: body={resp.text[:200]!r}"
         )
     if resp.status_code != 200:
         raise FarlightAPIError(

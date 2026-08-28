@@ -244,6 +244,9 @@ def recompute_scores_for_active_season(session: Session) -> dict:
     deductions = _load_farming_deductions(session, season.id, start_snap_id)
     burn_deductions = _load_burn_deductions(session, season.id)
 
+    # 3c) Load infantry merits multiplier (compensates infantry's structural disadvantage)
+    inf_mult = float(_read_setting(session, "scoring.infantry_multiplier", 1.5))
+
     # 4) Load all start stats and cumulative stats, indexed by character_id
     start_stats = {
         s.character_id: s
@@ -278,6 +281,9 @@ def recompute_scores_for_active_season(session: Session) -> dict:
 
         is_farm = start_stat.power <= thr["farm_power"]
         merits = cum_stat.merits_total
+        merits_inf = cum_stat.merits_infantry or 0
+        inf_bonus = int(merits_inf * (inf_mult - 1.0))
+        merits_boosted = merits + inf_bonus
         sp = start_stat.power
         if is_farm:
             grade = None
@@ -287,7 +293,7 @@ def recompute_scores_for_active_season(session: Session) -> dict:
         else:
             deduction = deductions.get(cid, 0)
             burn_ded = burn_deductions.get(cid, 0)
-            merits_eff = max(0, merits - deduction - burn_ded)
+            merits_eff = max(0, merits_boosted - deduction - burn_ded)
             mp = (merits_eff / sp) * 100.0 if sp > 0 else 0.0
             grade = _grade_from_ratio(mp, thr)
             status = _status_from_grade(grade)
@@ -304,7 +310,7 @@ def recompute_scores_for_active_season(session: Session) -> dict:
                 merits_cumulative=merits,
                 merits_farmed_deduction=(deductions.get(cid, 0) if not is_farm else 0),
                 merits_burn_deduction=(burn_deductions.get(cid, 0) if not is_farm else 0),
-                merits_effective=(max(0, merits - deductions.get(cid, 0) - burn_deductions.get(cid, 0)) if not is_farm else merits),
+                merits_effective=(max(0, merits_boosted - deductions.get(cid, 0) - burn_deductions.get(cid, 0)) if not is_farm else merits),
                 deaths_t45=cum_stat.deaths_t45,
                 healing_t45=cum_stat.healing_t45,
                 mp_ratio=mp,

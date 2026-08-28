@@ -321,6 +321,7 @@ async def roster(
         },
         "sortable_columns": list(queries.ROSTER_SORTABLE_COLUMNS.keys()),
         "seasons_list": queries.list_seasons_for_picker(db),
+        "inf_multiplier": queries._get_infantry_multiplier(db),
     }
 
     selected = queries.resolve_season_or_active(db, season or None)

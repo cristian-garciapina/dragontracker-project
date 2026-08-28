@@ -318,7 +318,17 @@ def get_reference_season_and_ratios(
     return ref, {cid: mp for cid, mp in rows}
 
 
-def _row_to_dict(score: Score, member: Member, stat: Stat) -> dict:
+def _get_infantry_multiplier(db: Session) -> float:
+    """Read scoring.infantry_multiplier from settings, default 1.0 (no bonus)."""
+    from .models import Setting
+    row = db.get(Setting, "scoring.infantry_multiplier")
+    if row is None or not isinstance(row.value, dict):
+        return 1.0
+    v = row.value.get("v")
+    return float(v) if isinstance(v, (int, float)) else 1.0
+
+
+def _row_to_dict(score: Score, member: Member, stat: Stat, inf_mult: float = 1.0) -> dict:
     """Project every visible metric. `*_short` variants are the formatted
     "1.5M" strings; raw integers are also exposed for sorting or future use.
     """
@@ -360,6 +370,8 @@ def _row_to_dict(score: Score, member: Member, stat: Stat) -> dict:
         "merits_net_short": format_number_short(score.merits_effective or 0),
         "merits_infantry": stat.merits_infantry,
         "merits_infantry_short": format_number_short(stat.merits_infantry),
+        "merits_infantry_bonus": int((stat.merits_infantry or 0) * (inf_mult - 1.0)),
+        "merits_infantry_bonus_short": format_number_short(int((stat.merits_infantry or 0) * (inf_mult - 1.0))),
         "merits_cavalry": stat.merits_cavalry,
         "merits_cavalry_short": format_number_short(stat.merits_cavalry),
         "merits_archers": stat.merits_archers,
@@ -422,6 +434,7 @@ def get_roster_window(
     Additive columns SUM'd; power/peak_power taken from the latest daily in the window.
     No grade/status/M-P%: these belong to season-cumulative context only.
     """
+    _inf_mult = _get_infantry_multiplier(db)
     # Daily snapshot ids inside the window
     daily_ids = db.execute(
         select(Snapshot.id).where(
@@ -505,6 +518,8 @@ def get_roster_window(
             "merits_farmed_deduction_short": _short(0),
             "merits_infantry": r.merits_infantry or 0,
             "merits_infantry_short": _short(r.merits_infantry),
+            "merits_infantry_bonus": int((r.merits_infantry or 0) * (_inf_mult - 1.0)),
+            "merits_infantry_bonus_short": _short(int((r.merits_infantry or 0) * (_inf_mult - 1.0))),
             "merits_cavalry": r.merits_cavalry or 0,
             "merits_cavalry_short": _short(r.merits_cavalry),
             "merits_archers": r.merits_archers or 0,
@@ -707,7 +722,8 @@ def get_full_roster(
         stmt = stmt.order_by(sort_col.desc().nulls_last())
 
     rows = db.execute(stmt).all()
-    enriched = [_row_to_dict(score, member, stat) for score, member, stat in rows]
+    inf_mult = _get_infantry_multiplier(db)
+    enriched = [_row_to_dict(score, member, stat, inf_mult) for score, member, stat in rows]
 
     if ref_ratios is not None:
         for r in enriched:
@@ -873,6 +889,13 @@ EDITABLE_SETTINGS = [
         "kind": "int",
         "suffix": "",
         "description": "Accounts with start power ≤ this value are flagged as farms and excluded from scoring.",
+    },
+    {
+        "key": "scoring.infantry_multiplier",
+        "label": "Infantry merits multiplier",
+        "kind": "float",
+        "suffix": "×",
+        "description": "Multiplier applied to infantry-generated merits. 1.0 = no bonus, 1.5 = +50%. Compensates for infantry's structural disadvantage.",
     },
 ]
 

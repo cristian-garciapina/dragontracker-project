@@ -270,6 +270,9 @@ def ingest_rows(
             session.add(member)
         else:
             member.current_name = name
+            # Present in any ingested snapshot → member is in the kingdom.
+            # The cumulative sync below still flips absent members to False.
+            member.in_alliance = True
             # Throttle last_seen_at writes to at most once per snapshot day.
             if member.last_seen_at is None or member.last_seen_at.date() < date_end:
                 member.last_seen_at = now

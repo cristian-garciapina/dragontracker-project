@@ -51,8 +51,11 @@ from .farlight_client import (
     jwt_expiry,
     map_api_rows,
     validate_jwt_shape,
+    fetch_migration,
+    map_api_migration_rows,
 )
 from .ingest import find_conflicting_snapshot, ingest_rows
+from .ingest_migrations import ingest_api_migrations
 from .models import Alliance, FarlightPullRun, Season, Snapshot
 from .scoring import recompute_scores_for_active_season
 from .secrets_store import get_secret
@@ -286,6 +289,35 @@ def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -
         summary["error"] = f"{type(e).__name__}: {e}"
         logger.exception("farlight_pull: ingest/scoring failed")
         return summary
+
+    # ---- Fetch + ingest migrations (best-effort, never fails the run) ----
+    # Season-wide window: idempotence on uq_migration prevents duplicates.
+    try:
+        mig_data = fetch_migration(
+            jwt,
+            start_date=cum_start.isoformat(),
+            end_date=end.isoformat(),
+            server_id=server_id,
+        )
+        mig_in, mig_out = map_api_migration_rows(mig_data)
+        mig_report = ingest_api_migrations(
+            session, mig_in, mig_out,
+            source_filename=f"farlight_api_migration_{server_id}_{cum_start}_{end}.json",
+        )
+        summary["migrations"] = {
+            "fetched_in": len(mig_in),
+            "fetched_out": len(mig_out),
+            **mig_report,
+        }
+    except FarlightAuthError as e:
+        summary["migrations_error"] = f"auth: {e}"
+        logger.warning("farlight_pull: migration auth failed: %s", e)
+    except FarlightAPIError as e:
+        summary["migrations_error"] = f"api: {e}"
+        logger.warning("farlight_pull: migration api failed: %s", e)
+    except Exception as e:
+        summary["migrations_error"] = f"{type(e).__name__}: {e}"
+        logger.exception("farlight_pull: migration ingest failed")
 
     summary["daily"] = daily_report
     summary["daily_skipped_manual"] = daily_skip

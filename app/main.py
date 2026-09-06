@@ -94,6 +94,7 @@ if STATIC_DIR.exists():
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
+
 # Expose alliance identity to every template as {{ alliance.* }}.
 # Monkey-patch Jinja2Templates.TemplateResponse at the class level so EVERY
 # instance (main + all routers) auto-injects `alliance` from request.state

@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 API_BASE = "https://plat-cod-gametools-global-api.farlightgames.com"
 TOPN_ENDPOINT = f"{API_BASE}/api/topn"
+MIGRATION_ENDPOINT = f"{API_BASE}/api/migration"
 EXPECTED_ISS = "pup"
 EXPECTED_AUD = "user"
 EXPECTED_CLIENT_ID = "samo_game_tools_lglo"
@@ -253,5 +254,151 @@ def fetch_topn(
     logger.info(
         "farlight.fetch_topn: got %d rows for start=%s end=%s",
         len(data), start_date, end_date,
+    )
+    return data
+
+
+# ============================================================================
+# Migration endpoint
+# ============================================================================
+
+
+def map_api_migration_rows(payload: dict) -> tuple[list[dict], list[dict]]:
+    """Transform an /api/migration payload into (incoming, outgoing) row lists.
+
+    Each row is shaped for direct insert into the `migrations` table
+    (without direction/source_filename/ingested_at, added by the caller).
+
+    Silently drops entries missing role_id, role_name, or migrate_time.
+    Farlight sometimes omits `power` for departing players — we accept
+    None here (power_at_migration is nullable in the schema).
+    """
+    def _one(entry: dict) -> dict | None:
+        rid = entry.get("role_id")
+        name = entry.get("role_name")
+        mtime = entry.get("migrate_time")
+        kid = entry.get("kingdom_id")
+        # Missing name is not fatal (Farlight sometimes returns null role_name
+        # for departing players); we keep the row with a placeholder to stay
+        # consistent with the xlsx path, which sees "-" and keeps it too.
+        if rid is None or mtime is None or kid is None:
+            return None
+        if name is None or str(name).strip() == "":
+            name = "—"
+        try:
+            character_id = int(str(rid).strip())
+            other_kingdom = int(str(kid).strip())
+        except (TypeError, ValueError):
+            return None
+        power = entry.get("power")
+        if power in ("", "-", None):
+            power = None
+        else:
+            try:
+                power = int(power)
+            except (TypeError, ValueError):
+                power = None
+        return {
+            "character_id": character_id,
+            "other_kingdom": other_kingdom,
+            "migration_date": str(mtime).strip(),
+            "power_at_migration": power,
+            "name_at_migration": str(name)[:64],
+            "migration_score": entry.get("migration_score"),
+        }
+
+    incoming = [r for r in (_one(e) for e in payload.get("in_list", []) if isinstance(e, dict)) if r]
+    outgoing = [r for r in (_one(e) for e in payload.get("out_list", []) if isinstance(e, dict)) if r]
+    return incoming, outgoing
+
+
+def fetch_migration(
+    jwt: str,
+    *,
+    start_date: str,
+    end_date: str,
+    server_id: int,
+    timeout: float = 30.0,
+) -> dict:
+    """GET /api/migration and return the `data` block (overview + in/out lists).
+
+    Same error semantics as fetch_topn.
+    """
+    headers = {
+        "Authorization": f"Bearer {jwt}",
+        "Accept": "application/json",
+        "Origin": "https://cod-game-tools.farlightgames.com",
+        "Referer": "https://cod-game-tools.farlightgames.com/migration",
+    }
+    params = {
+        "start_date": start_date,
+        "end_date": end_date,
+        "server_id": str(server_id),
+    }
+
+    logger.info(
+        "farlight.fetch_migration: GET migration start=%s end=%s server=%d",
+        start_date, end_date, server_id,
+    )
+    import time as _time
+    backoffs = [30, 120, 300]
+    attempt = 0
+    while True:
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                resp = client.get(MIGRATION_ENDPOINT, headers=headers, params=params)
+        except httpx.RequestError as e:
+            raise FarlightAPIError(f"network error: {e}") from e
+        if resp.status_code == 429 or resp.status_code >= 500:
+            if attempt < len(backoffs):
+                wait = backoffs[attempt]
+                logger.warning(
+                    "farlight.fetch_migration: HTTP %d, retrying in %ds (attempt %d/%d)",
+                    resp.status_code, wait, attempt + 1, len(backoffs),
+                )
+                _time.sleep(wait)
+                attempt += 1
+                continue
+        break
+
+    if resp.status_code in (401, 403):
+        raise FarlightAuthError(
+            f"API rejected JWT: HTTP {resp.status_code}. Rotate the token."
+        )
+    if resp.status_code == 429:
+        raise FarlightAPIError(
+            f"API rate-limited (HTTP 429) after {len(backoffs)} retries: body={resp.text[:200]!r}"
+        )
+    if resp.status_code >= 500:
+        raise FarlightAPIError(
+            f"API 5xx (HTTP {resp.status_code}) after {len(backoffs)} retries: body={resp.text[:200]!r}"
+        )
+    if resp.status_code != 200:
+        raise FarlightAPIError(
+            f"unexpected HTTP {resp.status_code}: body={resp.text[:200]!r}"
+        )
+
+    try:
+        body = resp.json()
+    except ValueError as e:
+        raise FarlightAPIError(f"non-JSON response: {e}") from e
+
+    if not isinstance(body, dict):
+        raise FarlightAPIError(f"unexpected body shape: {type(body).__name__}")
+    code = body.get("code")
+    if code != 0:
+        raise FarlightAPIError(
+            f"API business error: code={code!r} message={body.get('message')!r}"
+        )
+    data = body.get("data")
+    if not isinstance(data, dict):
+        raise FarlightAPIError(
+            f"expected 'data' as dict, got {type(data).__name__}"
+        )
+
+    logger.info(
+        "farlight.fetch_migration: got in=%d out=%d for start=%s end=%s",
+        len(data.get("in_list", [])), len(data.get("out_list", [])),
+        start_date, end_date,
     )
     return data

@@ -1382,14 +1382,29 @@ def get_event_rsvps(db: Session, event_id: int) -> dict:
 
 
 def get_recent_pull_runs(session, limit: int = 10):
-    """Return the N most recent Farlight pull runs, newest first."""
+    """Return the N most recent Farlight pull runs, newest first.
+
+    Each row gets a `summary` attribute (parsed JSON dict, or None) so
+    templates can read structured fields without a Jinja filter.
+    """
+    import json as _json
     from sqlalchemy import select as _select
     from .models import FarlightPullRun
-    return session.execute(
+    rows = session.execute(
         _select(FarlightPullRun)
         .order_by(FarlightPullRun.started_at.desc())
         .limit(limit)
     ).scalars().all()
+    for r in rows:
+        parsed = None
+        if r.summary_json:
+            try:
+                parsed = _json.loads(r.summary_json)
+            except (ValueError, TypeError):
+                parsed = None
+        # Attribute added at runtime; templates read run.summary
+        r.summary = parsed
+    return rows
 
 
 def get_migrations(

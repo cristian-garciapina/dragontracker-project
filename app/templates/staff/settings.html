@@ -309,6 +309,7 @@
                 <th class="text-right px-3 py-2 font-normal">Duration</th>
                 <th class="text-right px-3 py-2 font-normal">Rows</th>
                 <th class="text-right px-3 py-2 font-normal">Snap</th>
+                <th class="text-right px-3 py-2 font-normal" title="Migrations inserted / duplicates">Mig</th>
                 <th class="text-left px-3 py-2 font-normal">Details</th>
               </tr>
             </thead>
@@ -342,6 +343,21 @@
                   </td>
                   <td class="px-3 py-2 text-right font-mono text-xs text-secondary">
                     {{ run.snapshots_created if run.snapshots_created is not none else '—' }}
+                  </td>
+                  <td class="px-3 py-2 text-right font-mono text-xs">
+                    {% set _s = run.summary %}
+                    {% if _s and _s.migrations %}
+                      {% set _m = _s.migrations %}
+                      {% set _ins = (_m.incoming_inserted or 0) + (_m.outgoing_inserted or 0) %}
+                      {% set _dup = (_m.incoming_duplicates or 0) + (_m.outgoing_duplicates or 0) %}
+                      <span class="text-secondary" title="{{ _ins }} new, {{ _dup }} already known">
+                        <span class="{% if _ins %}text-cyan-300{% else %}text-muted{% endif %}">+{{ _ins }}</span><span class="text-muted">/{{ _dup }}</span>
+                      </span>
+                    {% elif _s and _s.migrations_error %}
+                      <span class="text-red-300" title="{{ _s.migrations_error }}">err</span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
                   </td>
                   <td class="px-3 py-2">
                     {% if run.summary_json or run.error %}

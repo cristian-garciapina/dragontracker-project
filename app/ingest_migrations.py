@@ -215,3 +215,70 @@ def ingest_migrations(
     session.commit()
     logger.info("ingest_migrations(%s): %s", source_filename, counters)
     return counters
+
+
+def ingest_api_migrations(
+    session: Session,
+    incoming: list[dict],
+    outgoing: list[dict],
+    source_filename: str,
+) -> dict[str, int]:
+    """Insert already-mapped API migration rows into the `migrations` table.
+
+    `incoming` / `outgoing` must be produced by
+    farlight_client.map_api_migration_rows (dicts with character_id,
+    other_kingdom, migration_date [str or date], power_at_migration,
+    name_at_migration, migration_score). `direction`, `source_filename`
+    and `ingested_at` are added here.
+
+    Idempotence: same ON CONFLICT DO NOTHING on uq_migration.
+    """
+    now = datetime.utcnow()
+    counters = {
+        "incoming_inserted": 0,
+        "outgoing_inserted": 0,
+        "incoming_duplicates": 0,
+        "outgoing_duplicates": 0,
+    }
+
+    for direction_key, direction_flag, rows in (
+        ("incoming", "IN", incoming),
+        ("outgoing", "OUT", outgoing),
+    ):
+        for r in rows:
+            mdate = r.get("migration_date")
+            if isinstance(mdate, str):
+                try:
+                    mdate = datetime.strptime(mdate.strip(), "%Y-%m-%d").date()
+                except ValueError:
+                    continue
+            if mdate is None:
+                continue
+
+            payload = {
+                "character_id": r["character_id"],
+                "direction": direction_flag,
+                "other_kingdom": r["other_kingdom"],
+                "migration_date": mdate,
+                "migration_score": r.get("migration_score"),
+                "power_at_migration": r.get("power_at_migration"),
+                "name_at_migration": r["name_at_migration"],
+                "source_filename": source_filename,
+                "ingested_at": now,
+            }
+            stmt = (
+                sqlite_insert(Migration)
+                .values(**payload)
+                .on_conflict_do_nothing(index_elements=[
+                    "character_id", "direction", "migration_date", "other_kingdom"
+                ])
+            )
+            result = session.execute(stmt)
+            if result.rowcount == 1:
+                counters[f"{direction_key}_inserted"] += 1
+            else:
+                counters[f"{direction_key}_duplicates"] += 1
+
+    session.commit()
+    logger.info("ingest_api_migrations(%s): %s", source_filename, counters)
+    return counters

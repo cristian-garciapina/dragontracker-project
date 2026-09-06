@@ -11,10 +11,10 @@ import statistics
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from .models import Member, Score, Season, Snapshot, Stat, User
+from .models import Member, Migration, Score, Season, Snapshot, Stat, User
 
 
 # --- Season / snapshot resolution ----------------------------------------
@@ -1390,3 +1390,59 @@ def get_recent_pull_runs(session, limit: int = 10):
         .order_by(FarlightPullRun.started_at.desc())
         .limit(limit)
     ).scalars().all()
+
+
+def get_migrations(
+    db: Session,
+    search: Optional[str] = None,
+    direction: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+) -> tuple[list[dict], list[dict]]:
+    """Return (incoming, outgoing) migration dicts, ordered by date desc.
+
+    Filters:
+    - search: matches name_at_migration (icontains) or character_id (exact).
+    - direction: 'IN', 'OUT', or None for both.
+    - date_from / date_to: inclusive date range on migration_date.
+    """
+    stmt = select(Migration).order_by(
+        Migration.migration_date.desc(),
+        Migration.migration_score.desc().nullslast(),
+    )
+
+    if search:
+        s = search.strip()
+        conds = [Migration.name_at_migration.ilike(f"%{s}%")]
+        if s.isdigit():
+            conds.append(Migration.character_id == int(s))
+        stmt = stmt.where(or_(*conds))
+    if date_from:
+        stmt = stmt.where(Migration.migration_date >= date_from)
+    if date_to:
+        stmt = stmt.where(Migration.migration_date <= date_to)
+
+    stmt_in = stmt.where(Migration.direction == "IN")
+    stmt_out = stmt.where(Migration.direction == "OUT")
+
+    if direction == "IN":
+        rows_in = db.execute(stmt_in).scalars().all()
+        rows_out = []
+    elif direction == "OUT":
+        rows_in = []
+        rows_out = db.execute(stmt_out).scalars().all()
+    else:
+        rows_in = db.execute(stmt_in).scalars().all()
+        rows_out = db.execute(stmt_out).scalars().all()
+
+    def to_dict(m: Migration) -> dict:
+        return {
+            "character_id": m.character_id,
+            "name": m.name_at_migration,
+            "other_kingdom": m.other_kingdom,
+            "migration_date": m.migration_date,
+            "migration_score": m.migration_score,
+            "power": m.power_at_migration,
+        }
+    return [to_dict(m) for m in rows_in], [to_dict(m) for m in rows_out]
+

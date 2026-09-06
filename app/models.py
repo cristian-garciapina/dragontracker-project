@@ -695,3 +695,36 @@ class FarlightPullRun(Base):
     snapshot_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     summary_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+class Migration(Base):
+    """Inter-kingdom migration event. IN = arrival into K544, OUT = departure.
+
+    Not linked to `members` via FK: a migrant may be unknown to our DB (never
+    seen in a topN snapshot). See migrations-tracker-spec.md.
+    """
+    __tablename__ = "migrations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    character_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    direction: Mapped[str] = mapped_column(String(3), nullable=False)  # 'IN' | 'OUT'
+    other_kingdom: Mapped[int] = mapped_column(Integer, nullable=False)
+    migration_date: Mapped[date] = mapped_column(Date, nullable=False)
+    migration_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    power_at_migration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    name_at_migration: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    ingested_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "character_id", "direction", "migration_date", "other_kingdom",
+            name="uq_migration",
+        ),
+        CheckConstraint("direction IN ('IN', 'OUT')", name="ck_migration_direction"),
+        Index("ix_migration_character", "character_id"),
+        Index("ix_migration_date", "migration_date"),
+        Index("ix_migration_direction", "direction"),
+    )
+

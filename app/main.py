@@ -210,6 +210,58 @@ async def farms(
     )
 
 
+# --- Kingdom migrations (authenticated, all members) --------------------
+@app.get("/migrations", response_class=HTMLResponse)
+async def migrations_page(
+    request: Request,
+    q: str = "",
+    direction: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Read-only listing of inter-kingdom migrations (arrivals & departures)."""
+    from datetime import date as _date, datetime as _dt
+
+    def _parse(s: str):
+        if not s:
+            return None
+        try:
+            return _dt.strptime(s.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    dir_filter = direction.upper() if direction.upper() in ("IN", "OUT") else None
+    df = _parse(date_from)
+    dt = _parse(date_to)
+
+    incoming, outgoing = queries.get_migrations(
+        db, search=(q or None), direction=dir_filter, date_from=df, date_to=dt,
+    )
+
+    context = {
+        "user": user,
+        "incoming": incoming,
+        "outgoing": outgoing,
+        "filters": {
+            "q": q,
+            "direction": direction,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
+        "counts": {
+            "incoming": len(incoming),
+            "outgoing": len(outgoing),
+            "total": len(incoming) + len(outgoing),
+        },
+        "today": _date.today(),
+    }
+    return templates.TemplateResponse(
+        request=request, name="migrations/index.html", context=context
+    )
+
+
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}

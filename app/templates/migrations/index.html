@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Migrations · {{ alliance.name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* --- Filters & buttons (same language as Roster/Farms) --------- */
+  .field-input,
+  .field-select {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: 2px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .field-input::placeholder { color: var(--color-text-muted); }
+  .field-input:focus,
+  .field-select:focus {
+    outline: none;
+    border-color: var(--color-cyan);
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25);
+  }
+  .btn-primary,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 2px;
+    font-size: 0.8125rem;
+    letter-spacing: 0.04em;
+    transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+    border: 1px solid var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-primary);
+  }
+  .btn-primary { border-color: rgba(34, 211, 238, 0.45); color: var(--color-cyan); }
+  .btn-primary:hover { border-color: var(--color-cyan); background-color: rgba(34, 211, 238, 0.08); }
+  .btn-ghost { color: var(--color-text-secondary); }
+  .btn-ghost:hover { border-color: var(--color-ring); color: var(--color-text-primary); }
+
+  /* --- Ledger tables --------------------------------------------- */
+  .ledger-shell {
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-card);
+    border-radius: 2px;
+    overflow-x: auto;
+  }
+  .ledger {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    font-feature-settings: 'tnum' 1;
+  }
+  .ledger thead th {
+    position: sticky; top: 0;
+    background-color: var(--color-bg-elevated);
+    color: var(--color-text-muted);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .ledger tbody td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+  }
+  .ledger tbody tr:last-child td { border-bottom: 0; }
+  .ledger tbody tr { transition: background-color 120ms ease; }
+  .ledger tbody tr:hover td { background-color: rgba(24, 34, 57, 0.4); }
+  .ledger .player-name { color: var(--color-text-primary); }
+
+  /* --- KPI strip ------------------------------------------------- */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .kpi-tile {
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-card);
+    border-radius: 2px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+  .kpi-accent {
+    width: 3px;
+    align-self: stretch;
+    border-radius: 2px;
+    background: var(--color-cyan);
+  }
+  .kpi-accent.is-gold { background: var(--color-gold); }
+  .kpi-accent.is-plain { background: var(--color-text-muted); }
+  .kpi-label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.15rem;
+  }
+  .kpi-value {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 1.75rem;
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  /* --- Chips ----------------------------------------------------- */
+  .chip {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 2px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px solid var(--color-border);
+    vertical-align: middle;
+  }
+  .chip-in    { color: var(--color-cyan);   border-color: rgba(34, 211, 238, 0.45); }
+  .chip-out   { color: var(--color-gold);   border-color: rgba(234, 179, 8, 0.45); }
+  .chip-new   { color: #6ee7b7;             border-color: rgba(16, 185, 129, 0.45); margin-left: 0.4rem; }
+
+  /* --- Ledger header banner -------------------------------------- */
+  .ledger-title {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.85rem 1rem;
+    background-color: var(--color-bg-elevated);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .ledger-title h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.15rem;
+    color: var(--color-text-primary);
+  }
+  .ledger-title .count {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+  }
+
+  /* --- Two-column grid, stacks on smaller screens ---------------- */
+  .migrations-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  @media (min-width: 1280px) {
+    .migrations-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-6 py-12" data-page="migrations">
+
+  {# ============================================================ HERO #}
+  <section data-section="hero" class="mb-8">
+    <div class="flex items-center gap-2 mb-3 text-xs tracking-[0.12em] uppercase">
+      <span class="text-secondary">Kingdom {{ alliance.kingdom_id }}</span>
+      <span class="text-muted">·</span>
+      <span class="text-gold">Cross-realm movement</span>
+    </div>
+    <h1 class="font-display text-4xl tracking-wide leading-tight mb-2">
+      Kingdom <em class="text-gold">migrations</em>
+    </h1>
+    <p class="text-secondary text-sm max-w-2xl">
+      Track who joins and who leaves K{{ alliance.kingdom_id }}. Data provided by the
+      Farlight migration export — upload the latest sheet on the staff console to refresh.
+    </p>
+  </section>
+
+  {# ============================================================ KPIs #}
+  <section data-section="kpis" class="mb-8">
+    <div class="kpi-strip">
+      <div class="kpi-tile">
+        <div class="kpi-accent"></div>
+        <div>
+          <p class="kpi-label">Incoming</p>
+          <p class="kpi-value">{{ counts.incoming }}</p>
+        </div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-accent is-gold"></div>
+        <div>
+          <p class="kpi-label">Outgoing</p>
+          <p class="kpi-value">{{ counts.outgoing }}</p>
+        </div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-accent is-plain"></div>
+        <div>
+          <p class="kpi-label">Total movements</p>
+          <p class="kpi-value">{{ counts.total }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ========================================================= FILTERS #}
+  <section data-section="filters" class="mb-6">
+    <form method="get" action="/migrations" class="flex flex-wrap items-end gap-3">
+      <div class="flex-1 min-w-[220px]">
+        <label for="q" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Search</label>
+        <input id="q" name="q" type="text" value="{{ filters.q }}"
+               placeholder="Player name or ID" class="field-input w-full">
+      </div>
+      <div>
+        <label for="direction" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Direction</label>
+        <select id="direction" name="direction" class="field-select">
+          <option value=""    {% if not filters.direction %}selected{% endif %}>All</option>
+          <option value="IN"  {% if filters.direction == "IN"  %}selected{% endif %}>Incoming</option>
+          <option value="OUT" {% if filters.direction == "OUT" %}selected{% endif %}>Outgoing</option>
+        </select>
+      </div>
+      <div>
+        <label for="date_from" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">From</label>
+        <input id="date_from" name="date_from" type="date" value="{{ filters.date_from }}" class="field-input">
+      </div>
+      <div>
+        <label for="date_to" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">To</label>
+        <input id="date_to" name="date_to" type="date" value="{{ filters.date_to }}" class="field-input">
+      </div>
+      <div class="flex gap-2 ml-auto">
+        <button type="submit" class="btn-primary">Apply</button>
+        {% if filters.q or filters.direction or filters.date_from or filters.date_to %}
+          <a href="/migrations" class="btn-ghost">Reset</a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  {# ============================================================ GRID #}
+  <div class="migrations-grid">
+
+    {# ------------- INCOMING ------------- #}
+    <section data-section="incoming">
+      <div class="ledger-shell">
+        <div class="ledger-title">
+          <span class="chip chip-in">IN</span>
+          <h2>Incoming to K{{ alliance.kingdom_id }}</h2>
+          <span class="count">{{ counts.incoming }}</span>
+        </div>
+        {% if incoming %}
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th class="text-left">Player</th>
+              <th class="text-right">ID</th>
+              <th class="text-right">Power</th>
+              <th class="text-right">From</th>
+              <th class="text-right">Migrated on</th>
+              <th class="text-right">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in incoming %}
+            {% set is_recent = (today - m.migration_date).days <= 7 %}
+            <tr>
+              <td class="text-left">
+                <span class="player-name">{{ m.name }}</span>
+                {% if is_recent %}<span class="chip chip-new">new</span>{% endif %}
+              </td>
+              <td class="text-right font-mono text-muted">{{ m.character_id }}</td>
+              <td class="text-right font-mono">
+                {% if m.power is not none %}
+                  {{ "{:,}".format(m.power).replace(",", " ") }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-right font-mono">K{{ m.other_kingdom }}</td>
+              <td class="text-right font-mono text-muted">{{ m.migration_date }}</td>
+              <td class="text-right font-mono">{{ m.migration_score if m.migration_score is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="p-8 text-center">
+          <p class="font-display text-lg text-secondary mb-1">No incoming migrations</p>
+          <p class="text-muted text-sm">Nothing matches the current filters.</p>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    {# ------------- OUTGOING ------------- #}
+    <section data-section="outgoing">
+      <div class="ledger-shell">
+        <div class="ledger-title">
+          <span class="chip chip-out">OUT</span>
+          <h2>Departing from K{{ alliance.kingdom_id }}</h2>
+          <span class="count">{{ counts.outgoing }}</span>
+        </div>
+        {% if outgoing %}
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th class="text-left">Player</th>
+              <th class="text-right">ID</th>
+              <th class="text-right">Power</th>
+              <th class="text-right">To</th>
+              <th class="text-right">Migrated on</th>
+              <th class="text-right">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in outgoing %}
+            {% set is_recent = (today - m.migration_date).days <= 7 %}
+            <tr>
+              <td class="text-left">
+                <span class="player-name">{{ m.name }}</span>
+                {% if is_recent %}<span class="chip chip-new">new</span>{% endif %}
+              </td>
+              <td class="text-right font-mono text-muted">{{ m.character_id }}</td>
+              <td class="text-right font-mono">
+                {% if m.power is not none %}
+                  {{ "{:,}".format(m.power).replace(",", " ") }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-right font-mono">K{{ m.other_kingdom }}</td>
+              <td class="text-right font-mono text-muted">{{ m.migration_date }}</td>
+              <td class="text-right font-mono">{{ m.migration_score if m.migration_score is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="p-8 text-center">
+          <p class="font-display text-lg text-secondary mb-1">No outgoing migrations</p>
+          <p class="text-muted text-sm">Nothing matches the current filters.</p>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .auth import get_db, require_staff
+from .ingest_migrations import is_migrations_file, ingest_migrations
 from .ingest import (
     _ingest_upload,
     _extract_dates_from_filename,
@@ -132,6 +133,31 @@ async def seasons_upload(
     # Read + parse first so we can peek at (date_start, date_end) BEFORE
     # deciding whether to ingest directly or stash for confirm-replace.
     raw = await file.read()
+
+    # --- Migrations file detection (Arrivées + Départs sheets) ---
+    # If this is a migrations export, route to ingest_migrations and bail out
+    # BEFORE touching the topN pipeline (which would fail on the sheet names).
+    if is_migrations_file(raw):
+        try:
+            mres = ingest_migrations(raw, db, file.filename or "migrations.xlsx")
+        except Exception as exc:
+            return _render(request, db, user, error=f"Migrations upload failed: {exc}")
+        _audit(
+            db, user, "ingest", "migrations",
+            str(mres["incoming_inserted"] + mres["outgoing_inserted"]),
+            None,
+            {"file": file.filename, **mres},
+        )
+        db.commit()
+        return _render(
+            request, db, user,
+            success=(
+                f"Migrations file: inserted {mres['incoming_inserted']} incoming "
+                f"and {mres['outgoing_inserted']} outgoing "
+                f"({mres['incoming_duplicates'] + mres['outgoing_duplicates']} duplicates skipped)."
+            ),
+        )
+
     try:
         rows, date_start, date_end = parse_xlsx_bytes(raw, file.filename or "")
     except Exception as exc:

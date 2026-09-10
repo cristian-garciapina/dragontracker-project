@@ -268,6 +268,27 @@
         </select>
       </div>
       <div>
+        <label for="kingdom" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Kingdom</label>
+        <select id="kingdom" name="kingdom" class="field-select">
+          <option value="" {% if not filters.kingdom %}selected{% endif %}>All</option>
+          {% for k in kingdoms_available %}
+            <option value="{{ k }}" {% if filters.kingdom == k|string %}selected{% endif %}>K{{ k }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="power_min" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Power min (M)</label>
+        <input id="power_min" name="power_min" type="number" min="0" step="1"
+               value="{{ filters.power_min }}" placeholder="0"
+               class="field-input w-24">
+      </div>
+      <div>
+        <label for="power_max" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Power max (M)</label>
+        <input id="power_max" name="power_max" type="number" min="0" step="1"
+               value="{{ filters.power_max }}" placeholder="∞"
+               class="field-input w-24">
+      </div>
+      <div>
         <label for="date_from" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">From</label>
         <input id="date_from" name="date_from" type="date" value="{{ filters.date_from }}" class="field-input">
       </div>
@@ -277,7 +298,7 @@
       </div>
       <div class="flex gap-2 ml-auto">
         <button type="submit" class="btn-primary">Apply</button>
-        {% if filters.q or filters.direction or filters.date_from or filters.date_to %}
+        {% if filters.q or filters.direction or filters.date_from or filters.date_to or filters.kingdom or filters.power_min or filters.power_max %}
           <a href="/migrations" class="btn-ghost">Reset</a>
         {% endif %}
       </div>
@@ -289,7 +310,10 @@
   {% set dir_qs      = ('direction=' ~ filters.direction) if filters.direction else '' %}
   {% set dfrom_qs    = ('date_from=' ~ filters.date_from) if filters.date_from else '' %}
   {% set dto_qs      = ('date_to=' ~ filters.date_to) if filters.date_to else '' %}
-  {% set base_qs     = ([q_qs, dir_qs, dfrom_qs, dto_qs] | select | join('&')) %}
+  {% set king_qs     = ('kingdom=' ~ filters.kingdom) if filters.kingdom else '' %}
+  {% set pmin_qs     = ('power_min=' ~ filters.power_min) if filters.power_min else '' %}
+  {% set pmax_qs     = ('power_max=' ~ filters.power_max) if filters.power_max else '' %}
+  {% set base_qs     = ([q_qs, dir_qs, dfrom_qs, dto_qs, king_qs, pmin_qs, pmax_qs] | select | join('&')) %}
 
   {% macro sort_link(col, label) -%}
     {%- set new_order = 'asc' if (filters.sort == col and filters.order == 'desc') else 'desc' -%}

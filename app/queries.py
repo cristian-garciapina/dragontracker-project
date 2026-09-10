@@ -1407,6 +1407,14 @@ def get_recent_pull_runs(session, limit: int = 10):
     return rows
 
 
+def list_migration_kingdoms(db: Session) -> list[int]:
+    """Return distinct other_kingdom values across all migrations, ordered asc."""
+    rows = db.execute(
+        select(Migration.other_kingdom).distinct().order_by(Migration.other_kingdom.asc())
+    ).all()
+    return [r[0] for r in rows if r[0] is not None]
+
+
 def get_migrations(
     db: Session,
     search: Optional[str] = None,
@@ -1415,6 +1423,9 @@ def get_migrations(
     date_to: Optional[date] = None,
     sort: Optional[str] = None,
     order: Optional[str] = None,
+    kingdom: Optional[int] = None,
+    power_min: Optional[int] = None,
+    power_max: Optional[int] = None,
 ) -> tuple[list[dict], list[dict]]:
     """Return (incoming, outgoing) migration dicts.
 
@@ -1459,6 +1470,12 @@ def get_migrations(
         stmt = stmt.where(Migration.migration_date >= date_from)
     if date_to:
         stmt = stmt.where(Migration.migration_date <= date_to)
+    if kingdom is not None:
+        stmt = stmt.where(Migration.other_kingdom == kingdom)
+    if power_min is not None:
+        stmt = stmt.where(Migration.power_at_migration >= power_min)
+    if power_max is not None:
+        stmt = stmt.where(Migration.power_at_migration <= power_max)
 
     stmt_in = stmt.where(Migration.direction == "IN")
     stmt_out = stmt.where(Migration.direction == "OUT")

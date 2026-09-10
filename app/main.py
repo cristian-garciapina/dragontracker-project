@@ -221,6 +221,9 @@ async def migrations_page(
     date_to: str = "",
     sort: str = "",
     order: str = "",
+    kingdom: str = "",
+    power_min: str = "",
+    power_max: str = "",
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
@@ -243,10 +246,28 @@ async def migrations_page(
     sort_key = sort if sort in ALLOWED_SORT else ""
     order_key = order.lower() if order.lower() in ("asc", "desc") else ""
 
+    def _int_or_none(s: str):
+        s = (s or "").strip()
+        if not s:
+            return None
+        try:
+            return int(s)
+        except ValueError:
+            return None
+
+    kingdom_i = _int_or_none(kingdom)
+    # Power thresholds are entered in millions on the UI for readability
+    pmin_raw = _int_or_none(power_min)
+    pmax_raw = _int_or_none(power_max)
+    power_min_i = pmin_raw * 1_000_000 if pmin_raw is not None else None
+    power_max_i = pmax_raw * 1_000_000 if pmax_raw is not None else None
+
     incoming, outgoing = queries.get_migrations(
         db, search=(q or None), direction=dir_filter, date_from=df, date_to=dt,
         sort=(sort_key or None), order=(order_key or None),
+        kingdom=kingdom_i, power_min=power_min_i, power_max=power_max_i,
     )
+    kingdoms_available = queries.list_migration_kingdoms(db)
 
     context = {
         "user": user,
@@ -259,7 +280,11 @@ async def migrations_page(
             "date_to": date_to,
             "sort": sort_key,
             "order": order_key or "desc",
+            "kingdom": kingdom,
+            "power_min": power_min,
+            "power_max": power_max,
         },
+        "kingdoms_available": kingdoms_available,
         "counts": {
             "incoming": len(incoming),
             "outgoing": len(outgoing),

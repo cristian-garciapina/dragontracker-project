@@ -40,12 +40,13 @@
   .btn-ghost { color: var(--color-text-secondary); }
   .btn-ghost:hover { border-color: var(--color-ring); color: var(--color-text-primary); }
 
-  /* --- Ledger tables --------------------------------------------- */
+  /* --- Ledger shell: internal scroll, never leaks to page -------- */
   .ledger-shell {
     border: 1px solid var(--color-border);
     background-color: var(--color-bg-card);
     border-radius: 2px;
     overflow-x: auto;
+    max-width: 100%;
   }
   .ledger {
     width: 100%;
@@ -56,7 +57,7 @@
     font-feature-settings: 'tnum' 1;
   }
   .ledger thead th {
-    position: sticky; top: 0;
+    position: sticky; top: 0; z-index: 2;
     background-color: var(--color-bg-elevated);
     color: var(--color-text-muted);
     font-weight: 500;
@@ -70,17 +71,48 @@
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--color-border);
     color: var(--color-text-secondary);
+    background-color: var(--color-bg-card);
   }
   .ledger tbody tr:last-child td { border-bottom: 0; }
-  .ledger tbody tr { transition: background-color 120ms ease; }
-  .ledger tbody tr:hover td { background-color: rgba(24, 34, 57, 0.4); }
+
+  /* Sticky first column (Player) -- must stay opaque */
+  .ledger th:first-child,
+  .ledger td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: var(--color-bg-card);
+    box-shadow: 1px 0 0 var(--color-border);
+  }
+  .ledger thead th:first-child {
+    z-index: 3;
+    background-color: var(--color-bg-elevated);
+  }
+
+  /* Row interactions */
+  .ledger tbody tr { cursor: pointer; transition: background-color 120ms ease; }
+  .ledger tbody tr:hover td { background-color: rgba(34, 45, 68, 0.85); }
+  .ledger tbody tr:hover td:first-child { background-color: var(--color-bg-elevated); }
+  .ledger tbody tr.is-selected td {
+    background-color: rgba(34, 211, 238, 0.10);
+    box-shadow: inset 2px 0 0 var(--color-cyan);
+  }
+  .ledger tbody tr.is-selected td:first-child {
+    background-color: var(--color-bg-elevated);
+  }
   .ledger .player-name { color: var(--color-text-primary); }
 
-  /* --- KPI strip ------------------------------------------------- */
+  /* --- KPI strip: stacked on mobile, 3-up from >= sm ------------- */
   .kpi-strip {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  @media (min-width: 640px) {
+    .kpi-strip {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
   }
   .kpi-tile {
     border: 1px solid var(--color-border);
@@ -105,6 +137,7 @@
     text-transform: uppercase;
     color: var(--color-text-muted);
     margin-bottom: 0.15rem;
+    white-space: nowrap;
   }
   .kpi-value {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -155,6 +188,7 @@
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
+  .migrations-grid > section { min-width: 0; }
   @media (min-width: 1280px) {
     .migrations-grid { grid-template-columns: 1fr 1fr; }
   }
@@ -162,7 +196,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-6 py-12" data-page="migrations">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-12 overflow-x-hidden" data-page="migrations">
 
   {# ============================================================ HERO #}
   <section data-section="hero" class="mb-8">
@@ -265,11 +299,9 @@
           </thead>
           <tbody>
             {% for m in incoming %}
-            {% set is_recent = (today - m.migration_date).days <= 7 %}
             <tr>
               <td class="text-left">
                 <span class="player-name">{{ m.name }}</span>
-                {% if is_recent %}<span class="chip chip-new">new</span>{% endif %}
               </td>
               <td class="text-right font-mono text-muted">{{ m.character_id }}</td>
               <td class="text-right font-mono">
@@ -317,11 +349,9 @@
           </thead>
           <tbody>
             {% for m in outgoing %}
-            {% set is_recent = (today - m.migration_date).days <= 7 %}
             <tr>
               <td class="text-left">
                 <span class="player-name">{{ m.name }}</span>
-                {% if is_recent %}<span class="chip chip-new">new</span>{% endif %}
               </td>
               <td class="text-right font-mono text-muted">{{ m.character_id }}</td>
               <td class="text-right font-mono">
@@ -349,4 +379,12 @@
 
   </div>
 </div>
+
+<script nonce="{{ csp_nonce|default('', true) }}">
+  document.querySelectorAll('.ledger tbody tr').forEach(function(row) {
+    row.addEventListener('click', function() {
+      row.classList.toggle('is-selected');
+    });
+  });
+</script>
 {% endblock %}

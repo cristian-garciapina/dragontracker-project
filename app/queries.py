@@ -665,6 +665,10 @@ def get_full_roster(
     sort: str = "mp",
     order: str = "desc",
     ref_ratios: Optional[dict[int, float]] = None,
+    grades: Optional[list[str]] = None,
+    power_min: Optional[int] = None,
+    power_max: Optional[int] = None,
+    no_site_account: bool = False,
 ) -> list[dict]:
     """Full roster query with search/filter/sort. Returns every member with
     a score for the given snapshot.
@@ -708,6 +712,21 @@ def get_full_roster(
 
     if grade and grade.upper() in ("S", "A", "B", "C", "D"):
         stmt = stmt.where(Score.grade == grade.upper())
+
+    if grades:
+        cleaned = [g.upper() for g in grades if g and g.upper() in ("S", "A", "B", "C", "D")]
+        if cleaned:
+            stmt = stmt.where(Score.grade.in_(cleaned))
+
+    if power_min is not None:
+        stmt = stmt.where(Stat.power >= power_min)
+    if power_max is not None:
+        stmt = stmt.where(Stat.power <= power_max)
+
+    if no_site_account:
+        from .models import User as _User
+        linked = select(_User.character_id).where(_User.character_id.is_not(None))
+        stmt = stmt.where(Member.character_id.not_in(linked))
 
     if role and role.lower() in ("infantry", "cavalry", "archers", "magic", "other"):
         stmt = stmt.where(Score.primary_role == role.lower())

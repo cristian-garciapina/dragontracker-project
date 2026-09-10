@@ -378,12 +378,33 @@ async def roster(
     season: int = Query(0, description="Season id (0 = active)"),
     from_: str = Query("", alias="from", description="Window start YYYY-MM-DD"),
     to: str = Query("", description="Window end YYYY-MM-DD"),
+    grades: list[str] = Query([], description="Multi-grade filter"),
+    power_min: str = Query("", description="Min current power in millions"),
+    power_max: str = Query("", description="Max current power in millions"),
+    nositeaccount: str = Query("0", description="Only members without a site user account"),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     include_farms = farms in ("1", "true", "yes")
     include_ex_members = exmembers in ("1", "true", "yes")
     discord_only = discord in ("1", "true", "yes")
+    no_site_account = nositeaccount in ("1", "true", "yes")
+
+    def _int_or_none(s: str):
+        s = (s or "").strip()
+        if not s:
+            return None
+        try:
+            return int(s)
+        except ValueError:
+            return None
+
+    pmin_raw = _int_or_none(power_min)
+    pmax_raw = _int_or_none(power_max)
+    power_min_val = pmin_raw * 1_000_000 if pmin_raw is not None else None
+    power_max_val = pmax_raw * 1_000_000 if pmax_raw is not None else None
+
+    cleaned_grades = [g.upper() for g in (grades or []) if g and g.upper() in ("S", "A", "B", "C", "D")]
 
     context: dict = {
         "user": user,
@@ -405,6 +426,10 @@ async def roster(
             "include_ex_members": include_ex_members,
             "discord_only": discord_only,
             "season": season or 0,
+            "grades": cleaned_grades,
+            "power_min": power_min,
+            "power_max": power_max,
+            "no_site_account": no_site_account,
         },
         "sortable_columns": list(queries.ROSTER_SORTABLE_COLUMNS.keys()),
         "seasons_list": queries.list_seasons_for_picker(db),
@@ -468,6 +493,10 @@ async def roster(
         db,
         season.id,
         snapshot.id,
+        grades=cleaned_grades or None,
+        power_min=power_min_val,
+        power_max=power_max_val,
+        no_site_account=no_site_account,
         search=q or None,
         grade=grade or None,
         role=role or None,

@@ -78,7 +78,58 @@
     transition: border-color 150ms ease, color 150ms ease;
   }
   .check-pill:hover { border-color: var(--color-ring); color: var(--color-text-primary); }
-  .check-pill input { accent-color: var(--color-cyan); }
+  .check-pill input { position: absolute; opacity: 0; pointer-events: none; }
+  .check-pill:has(input:checked) {
+    border-color: var(--color-cyan);
+    color: var(--color-cyan);
+    background-color: rgba(34, 211, 238, 0.08);
+  }
+
+  /* --- Filter form 3-row layout ---------------------------------- */
+  .filters-form { display: flex; flex-direction: column; gap: 0.9rem; }
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+  }
+  .filter-row.toggles { align-items: center; }
+  .filter-row .grow-search { flex: 1 1 260px; min-width: 260px; max-width: 420px; }
+  .filter-row .filter-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+
+  /* --- Grade pills (checkbox visually replaced by the letter) ----- */
+  .grade-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg-card);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+  }
+  .grade-pill input { position: absolute; opacity: 0; pointer-events: none; }
+  .grade-pill:hover { border-color: var(--color-ring); color: var(--color-text-primary); }
+  .grade-pill:has(input:checked) {
+    border-color: var(--color-cyan);
+    color: var(--color-cyan);
+    background-color: rgba(34, 211, 238, 0.08);
+  }
+
+  /* --- Row 1 sizing (season/from/to compact, search takes rest) --- */
+  .filter-row .season-picker,
+  .filter-row .date-picker { flex: 0 0 auto; }
+  .filter-row .season-picker .field-select,
+  .filter-row .date-picker .field-select { min-width: 10rem; }
 
   /* ------------------------------------------------------------------
      Roster grid — sticky thead, sticky player column, click highlight.
@@ -223,9 +274,10 @@
 
   {# ========================================================= FILTERS #}
   <section data-section="filters" class="mb-6">
-    <form method="get" action="/roster" class="flex flex-wrap items-end gap-3">
+    <form method="get" action="/roster" class="filters-form">
+      <div class="filter-row">
       {% if seasons_list and seasons_list|length > 1 %}
-      <div>
+      <div class="season-picker">
         <label for="season" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Season</label>
         <select id="season" name="season" class="field-select">
           {% for s in seasons_list %}
@@ -237,7 +289,7 @@
       </div>
       {% endif %}
       {% if daily_snapshots %}
-      <div>
+      <div class="date-picker">
         <label for="from" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">From</label>
         <select id="from" name="from" class="field-select">
           <option value="">—</option>
@@ -248,7 +300,7 @@
           {% endfor %}
         </select>
       </div>
-      <div>
+      <div class="date-picker">
         <label for="to" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">To</label>
         <select id="to" name="to" class="field-select">
           <option value="">—</option>
@@ -260,22 +312,39 @@
         </select>
       </div>
       {% endif %}
-      <div class="flex-1 min-w-[220px]">
+      <div class="grow-search">
         <label for="q" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Search</label>
         <input id="q" name="q" type="text" value="{{ filters.q }}" placeholder="Operator name or ID"
                class="field-input w-full">
       </div>
 
+      </div>
+      <div class="filter-row">
       <div>
-        <label for="grade" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Grade</label>
-        <select id="grade" name="grade" class="field-select">
-          <option value="" {% if filters.grade == "" %}selected{% endif %}>All</option>
+        <label class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Grades</label>
+        <div class="flex flex-wrap gap-1.5">
           {% for g in ['S', 'A', 'B', 'C', 'D'] %}
-            <option value="{{ g }}" {% if filters.grade == g %}selected{% endif %}>{{ g }}</option>
+          <label class="grade-pill">
+            <input type="checkbox" name="grades" value="{{ g }}"
+                   {% if g in filters.grades %}checked{% endif %}>
+            {{ g }}
+          </label>
           {% endfor %}
-        </select>
+        </div>
       </div>
 
+      <div>
+        <label for="power_min" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Power min (M)</label>
+        <input id="power_min" name="power_min" type="number" min="0" step="1"
+               value="{{ filters.power_min }}" placeholder="0"
+               class="field-input w-24">
+      </div>
+      <div>
+        <label for="power_max" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Power max (M)</label>
+        <input id="power_max" name="power_max" type="number" min="0" step="1"
+               value="{{ filters.power_max }}" placeholder="∞"
+               class="field-input w-24">
+      </div>
       <div>
         <label for="role" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Role</label>
         <select id="role" name="role" class="field-select">
@@ -312,14 +381,20 @@
                {% if filters.discord_only %}checked{% endif %}>
         Show Discord
       </label>
+      <label class="check-pill" data-staff-only="nositeaccount-toggle">
+        <input type="checkbox" name="nositeaccount" value="1"
+               {% if filters.no_site_account %}checked{% endif %}>
+        No site account
+      </label>
       {% endif %}
 
       <input type="hidden" name="sort" value="{{ filters.sort }}">
       <input type="hidden" name="order" value="{{ filters.order }}">
 
-      <div class="flex gap-2 ml-auto">
+      <div class="filter-actions">
         <button type="submit" class="btn-primary">Apply</button>
         <a href="/roster" class="btn-ghost">Reset</a>
+      </div>
       </div>
     </form>
   </section>
@@ -332,7 +407,11 @@
   {% set exmembers_qs = 'exmembers=1' if filters.include_ex_members else '' %}
   {% set discord_qs = 'discord=1' if filters.discord_only else '' %}
   {% set season_qs = ('season=' ~ filters.season) if filters.season else '' %}
-  {% set base_qs = ([q_qs, grade_qs, role_qs, status_qs, farms_qs, exmembers_qs, discord_qs, season_qs] | select | join('&')) %}
+  {% set grades_qs = (filters.grades | map('string') | map('urlencode') | map('regex_replace', '^(.*)$', 'grades=\\1') | join('&')) if filters.grades else '' %}
+  {% set pmin_qs = ('power_min=' ~ filters.power_min) if filters.power_min else '' %}
+  {% set pmax_qs = ('power_max=' ~ filters.power_max) if filters.power_max else '' %}
+  {% set nsa_qs = 'nositeaccount=1' if filters.no_site_account else '' %}
+  {% set base_qs = ([q_qs, grade_qs, role_qs, status_qs, farms_qs, exmembers_qs, discord_qs, season_qs, grades_qs, pmin_qs, pmax_qs, nsa_qs] | select | join('&')) %}
 
   {% macro sort_link(col, label) -%}
     {%- set new_order = 'asc' if (filters.sort == col and filters.order == 'desc') else 'desc' -%}

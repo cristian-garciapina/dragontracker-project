@@ -1413,18 +1413,41 @@ def get_migrations(
     direction: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    sort: Optional[str] = None,
+    order: Optional[str] = None,
 ) -> tuple[list[dict], list[dict]]:
-    """Return (incoming, outgoing) migration dicts, ordered by date desc.
+    """Return (incoming, outgoing) migration dicts.
 
     Filters:
     - search: matches name_at_migration (icontains) or character_id (exact).
     - direction: 'IN', 'OUT', or None for both.
     - date_from / date_to: inclusive date range on migration_date.
+    - sort: column key ('name', 'power', 'other_kingdom', 'date', 'score').
+    - order: 'asc' or 'desc' (default 'desc').
     """
-    stmt = select(Migration).order_by(
-        Migration.migration_date.desc(),
-        Migration.migration_score.desc().nullslast(),
-    )
+    SORT_MAP = {
+        "name": Migration.name_at_migration,
+        "power": Migration.power_at_migration,
+        "other_kingdom": Migration.other_kingdom,
+        "date": Migration.migration_date,
+        "score": Migration.migration_score,
+    }
+    col = SORT_MAP.get(sort or "")
+    asc_order = (order or "desc").lower() == "asc"
+    if col is not None:
+        if asc_order:
+            primary = col.asc().nullslast()
+        else:
+            primary = col.desc().nullslast()
+        stmt = select(Migration).order_by(
+            primary,
+            Migration.migration_date.desc(),
+        )
+    else:
+        stmt = select(Migration).order_by(
+            Migration.migration_date.desc(),
+            Migration.migration_score.desc().nullslast(),
+        )
 
     if search:
         s = search.strip()

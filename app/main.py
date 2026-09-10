@@ -219,6 +219,8 @@ async def migrations_page(
     direction: str = "",
     date_from: str = "",
     date_to: str = "",
+    sort: str = "",
+    order: str = "",
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
@@ -237,8 +239,13 @@ async def migrations_page(
     df = _parse(date_from)
     dt = _parse(date_to)
 
+    ALLOWED_SORT = {"name", "power", "other_kingdom", "date", "score"}
+    sort_key = sort if sort in ALLOWED_SORT else ""
+    order_key = order.lower() if order.lower() in ("asc", "desc") else ""
+
     incoming, outgoing = queries.get_migrations(
         db, search=(q or None), direction=dir_filter, date_from=df, date_to=dt,
+        sort=(sort_key or None), order=(order_key or None),
     )
 
     context = {
@@ -250,6 +257,8 @@ async def migrations_page(
             "direction": direction,
             "date_from": date_from,
             "date_to": date_to,
+            "sort": sort_key,
+            "order": order_key or "desc",
         },
         "counts": {
             "incoming": len(incoming),

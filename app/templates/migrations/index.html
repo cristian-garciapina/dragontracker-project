@@ -40,6 +40,14 @@
   .btn-ghost { color: var(--color-text-secondary); }
   .btn-ghost:hover { border-color: var(--color-ring); color: var(--color-text-primary); }
 
+  /* --- Sortable header links ------------------------------------- */
+  .sort-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .sort-link:hover { color: var(--color-text-primary); }
+
   /* --- Ledger shell: internal scroll, never leaks to page -------- */
   .ledger-shell {
     border: 1px solid var(--color-border);
@@ -244,6 +252,8 @@
   {# ========================================================= FILTERS #}
   <section data-section="filters" class="mb-6">
     <form method="get" action="/migrations" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="sort" value="{{ filters.sort }}">
+      <input type="hidden" name="order" value="{{ filters.order }}">
       <div class="flex-1 min-w-[220px]">
         <label for="q" class="block text-[11px] text-muted uppercase tracking-[0.14em] mb-1.5">Search</label>
         <input id="q" name="q" type="text" value="{{ filters.q }}"
@@ -274,6 +284,22 @@
     </form>
   </section>
 
+  {# --- Sort link builder --- #}
+  {% set q_qs        = ('q=' ~ filters.q) if filters.q else '' %}
+  {% set dir_qs      = ('direction=' ~ filters.direction) if filters.direction else '' %}
+  {% set dfrom_qs    = ('date_from=' ~ filters.date_from) if filters.date_from else '' %}
+  {% set dto_qs      = ('date_to=' ~ filters.date_to) if filters.date_to else '' %}
+  {% set base_qs     = ([q_qs, dir_qs, dfrom_qs, dto_qs] | select | join('&')) %}
+
+  {% macro sort_link(col, label) -%}
+    {%- set new_order = 'asc' if (filters.sort == col and filters.order == 'desc') else 'desc' -%}
+    {%- set sort_qs = 'sort=' ~ col ~ '&order=' ~ new_order -%}
+    {%- set full_qs = ([base_qs, sort_qs] | select | join('&')) -%}
+    <a href="/migrations?{{ full_qs }}" class="sort-link">
+      {{ label }}{% if filters.sort == col %}<span class="ml-1 text-cyan">{{ '↓' if filters.order == 'desc' else '↑' }}</span>{% endif %}
+    </a>
+  {%- endmacro %}
+
   {# ============================================================ GRID #}
   <div class="migrations-grid">
 
@@ -289,12 +315,12 @@
         <table class="ledger">
           <thead>
             <tr>
-              <th class="text-left">Player</th>
+              <th class="text-left">{{ sort_link('name', 'Player') }}</th>
               <th class="text-right">ID</th>
-              <th class="text-right">Power</th>
-              <th class="text-right">From</th>
-              <th class="text-right">Migrated on</th>
-              <th class="text-right">Score</th>
+              <th class="text-right">{{ sort_link('power', 'Power') }}</th>
+              <th class="text-right">{{ sort_link('other_kingdom', 'From') }}</th>
+              <th class="text-right">{{ sort_link('date', 'Migrated on') }}</th>
+              <th class="text-right">{{ sort_link('score', 'Score') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -339,12 +365,12 @@
         <table class="ledger">
           <thead>
             <tr>
-              <th class="text-left">Player</th>
+              <th class="text-left">{{ sort_link('name', 'Player') }}</th>
               <th class="text-right">ID</th>
-              <th class="text-right">Power</th>
-              <th class="text-right">To</th>
-              <th class="text-right">Migrated on</th>
-              <th class="text-right">Score</th>
+              <th class="text-right">{{ sort_link('power', 'Power') }}</th>
+              <th class="text-right">{{ sort_link('other_kingdom', 'To') }}</th>
+              <th class="text-right">{{ sort_link('date', 'Migrated on') }}</th>
+              <th class="text-right">{{ sort_link('score', 'Score') }}</th>
             </tr>
           </thead>
           <tbody>

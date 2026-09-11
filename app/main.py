@@ -268,6 +268,7 @@ async def migrations_page(
         kingdom=kingdom_i, power_min=power_min_i, power_max=power_max_i,
     )
     kingdoms_available = queries.list_migration_kingdoms(db)
+    waves = queries.get_migration_waves(db, min_count=3, days_back=30)
 
     context = {
         "user": user,
@@ -285,6 +286,7 @@ async def migrations_page(
             "power_max": power_max,
         },
         "kingdoms_available": kingdoms_available,
+        "waves": waves,
         "counts": {
             "incoming": len(incoming),
             "outgoing": len(outgoing),

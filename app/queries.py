@@ -1541,3 +1541,64 @@ def get_migrations(
         }
     return [to_dict(m) for m in rows_in], [to_dict(m) for m in rows_out]
 
+
+
+def get_migration_waves(
+    db: Session,
+    min_count: int = 3,
+    days_back: int = 30,
+) -> list[dict]:
+    """Detect coordinated migration bursts: (date, direction, kingdom)
+    tuples with at least `min_count` migrations in the last `days_back` days.
+
+    Returns dicts ordered by date desc, count desc:
+      {date, direction, kingdom, count, total_power, sample_names}
+    """
+    from datetime import date as _date, timedelta
+
+    cutoff = _date.today() - timedelta(days=days_back)
+
+    grouped = db.execute(
+        select(
+            Migration.migration_date,
+            Migration.direction,
+            Migration.other_kingdom,
+            func.count(Migration.id).label("n"),
+            func.coalesce(func.sum(Migration.power_at_migration), 0).label("total_power"),
+        )
+        .where(Migration.migration_date >= cutoff)
+        .group_by(
+            Migration.migration_date,
+            Migration.direction,
+            Migration.other_kingdom,
+        )
+        .having(func.count(Migration.id) >= min_count)
+        .order_by(
+            Migration.migration_date.desc(),
+            func.count(Migration.id).desc(),
+        )
+    ).all()
+
+    waves: list[dict] = []
+    for row in grouped:
+        # Fetch 3 sample names for this wave
+        samples = db.execute(
+            select(Migration.name_at_migration)
+            .where(
+                Migration.migration_date == row.migration_date,
+                Migration.direction == row.direction,
+                Migration.other_kingdom == row.other_kingdom,
+            )
+            .order_by(Migration.power_at_migration.desc().nullslast())
+            .limit(3)
+        ).scalars().all()
+
+        waves.append({
+            "date": row.migration_date,
+            "direction": row.direction,
+            "kingdom": row.other_kingdom,
+            "count": row.n,
+            "total_power": row.total_power or 0,
+            "sample_names": list(samples),
+        })
+    return waves

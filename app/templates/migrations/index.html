@@ -3,6 +3,49 @@
 
 {% block head_extra %}
 <style>
+
+  /* --- Waves detection banner ------------------------------------ */
+  .wave-card {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-cyan);
+    border-radius: 2px;
+    padding: 0.75rem 1rem;
+    transition: border-color 150ms ease, background-color 150ms ease;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .wave-card:hover {
+    border-color: var(--color-cyan);
+    background-color: rgba(34, 211, 238, 0.04);
+  }
+  .wave-card.is-out { border-left-color: var(--color-gold); }
+  .wave-card.is-out:hover {
+    border-color: var(--color-gold);
+    background-color: rgba(255, 215, 0, 0.04);
+  }
+  .wave-arrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+  .wave-arrow.is-in { color: var(--color-cyan); }
+  .wave-arrow.is-out { color: var(--color-gold); }
+  .wave-count {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--color-text-primary);
+  }
+  .wave-samples {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
   /* --- Filters & buttons (same language as Roster/Farms) --------- */
   .field-input,
   .field-select {
@@ -221,6 +264,39 @@
       Farlight migration export — upload the latest sheet on the staff console to refresh.
     </p>
   </section>
+
+
+  {# ============================================================ WAVES #}
+  {% if waves %}
+  <section data-section="waves" class="mb-8">
+    <div class="flex items-baseline justify-between mb-3">
+      <h2 class="font-display text-xl tracking-wide">
+        Coordinated <em class="text-cyan-300">waves</em> detected
+      </h2>
+      <span class="text-xs text-muted tracking-[0.12em] uppercase">Last 30 days · ≥ 3 players</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {% for w in waves[:9] %}
+      {% set qs = 'direction=' ~ w.direction ~ '&kingdom=' ~ w.kingdom ~ '&date_from=' ~ w.date ~ '&date_to=' ~ w.date %}
+      <a href="?{{ qs }}" class="wave-card {% if w.direction == 'OUT' %}is-out{% endif %}">
+        <div class="flex items-center justify-between mb-2">
+          <span class="wave-arrow {% if w.direction == 'IN' %}is-in{% else %}is-out{% endif %}">
+            {% if w.direction == 'IN' %}← K{{ w.kingdom }}{% else %}→ K{{ w.kingdom }}{% endif %}
+          </span>
+          <span class="text-xs text-muted">{{ w.date }}</span>
+        </div>
+        <div class="flex items-baseline gap-2 mb-2">
+          <span class="wave-count">{{ w.count }}</span>
+          <span class="text-xs text-secondary">players · {{ (w.total_power / 1000000)|round|int }}M power</span>
+        </div>
+        <div class="wave-samples truncate">
+          {{ w.sample_names|join(', ') }}{% if w.count > 3 %}, +{{ w.count - 3 }} more{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   {# ============================================================ KPIs #}
   <section data-section="kpis" class="mb-8">

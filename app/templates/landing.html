@@ -2,7 +2,7 @@
 {% block title %}{{ alliance.name }}{% endblock %}
 
 {% block head_extra %}
-<style nonce="{{ csp_nonce }}">
+<style nonce="{{ request.state.csp_nonce }}">
   .hero-eyebrow {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.75rem;

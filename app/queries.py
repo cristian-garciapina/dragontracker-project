@@ -341,6 +341,19 @@ def _row_to_dict(score: Score, member: Member, stat: Stat, inf_mult: float = 1.0
         "end_power_short": format_number_short(score.end_power),
         "character_id": member.character_id,
 
+        # Season power evolution
+        "power_delta": (score.end_power or 0) - (score.start_power or 0),
+        "power_delta_short": format_number_short((score.end_power or 0) - (score.start_power or 0)),
+        "power_delta_pct": (
+            (((score.end_power or 0) - (score.start_power or 0)) / score.start_power * 100.0)
+            if score.start_power else None
+        ),
+        "trend": (
+            "grow" if score.start_power and (((score.end_power or 0) - score.start_power) / score.start_power) > 0.05
+            else ("burn" if score.start_power and (((score.end_power or 0) - score.start_power) / score.start_power) < -0.05
+                  else "stagnant")
+        ),
+
         # Scoring outputs
         "grade": score.grade or "—",
         "status": score.status or "—",
@@ -669,6 +682,7 @@ def get_full_roster(
     power_min: Optional[int] = None,
     power_max: Optional[int] = None,
     no_site_account: bool = False,
+    trend: Optional[str] = None,
 ) -> list[dict]:
     """Full roster query with search/filter/sort. Returns every member with
     a score for the given snapshot.
@@ -743,6 +757,13 @@ def get_full_roster(
     rows = db.execute(stmt).all()
     inf_mult = _get_infantry_multiplier(db)
     enriched = [_row_to_dict(score, member, stat, inf_mult) for score, member, stat in rows]
+
+    if trend in ("grow", "stagnant", "burn"):
+        enriched = [r for r in enriched if r.get("trend") == trend]
+
+    if sort == "power_delta":
+        reverse = order.lower() != "asc"
+        enriched.sort(key=lambda r: r.get("power_delta") or 0, reverse=reverse)
 
     if ref_ratios is not None:
         for r in enriched:

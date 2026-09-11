@@ -382,6 +382,7 @@ async def roster(
     power_min: str = Query("", description="Min current power in millions"),
     power_max: str = Query("", description="Max current power in millions"),
     nositeaccount: str = Query("0", description="Only members without a site user account"),
+    trend: str = Query("", description="Filter by power trend: grow/stagnant/burn"),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
@@ -430,6 +431,7 @@ async def roster(
             "power_min": power_min,
             "power_max": power_max,
             "no_site_account": no_site_account,
+            "trend": trend.lower() if trend else "",
         },
         "sortable_columns": list(queries.ROSTER_SORTABLE_COLUMNS.keys()),
         "seasons_list": queries.list_seasons_for_picker(db),
@@ -489,6 +491,7 @@ async def roster(
     context["total_count"] = queries.count_total_roster(db, season.id, snapshot.id)
     ref_season, ref_ratios = queries.get_reference_season_and_ratios(db, season.id)
     context["ref_season"] = ref_season
+    trend_val = trend.lower() if trend.lower() in ("grow", "stagnant", "burn") else ""
     context["rows"] = queries.get_full_roster(
         db,
         season.id,
@@ -497,6 +500,7 @@ async def roster(
         power_min=power_min_val,
         power_max=power_max_val,
         no_site_account=no_site_account,
+        trend=(trend_val or None),
         search=q or None,
         grade=grade or None,
         role=role or None,

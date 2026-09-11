@@ -430,7 +430,7 @@
   </div>
 </div>
 
-<script nonce="{{ csp_nonce|default('', true) }}">
+<script nonce="{{ request.state.csp_nonce }}">
   document.querySelectorAll('.ledger tbody tr').forEach(function(row) {
     row.addEventListener('click', function() {
       row.classList.toggle('is-selected');

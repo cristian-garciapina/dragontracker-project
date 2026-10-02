@@ -23,16 +23,21 @@ def get_active_season(db: Session) -> Optional[Season]:
 
 
 def list_seasons_for_picker(db: Session) -> list[Season]:
-    """Seasons that have at least one score row, for the UI picker.
-    Sorted: active first, then most recent start_date first."""
-    scored_ids = db.execute(
-        select(Score.season_id).distinct()
-    ).scalars().all()
-    if not scored_ids:
+    """Seasons shown in the UI picker: any season with at least one score
+    row, PLUS the active season even if it has no scores yet (so the picker
+    stays available right after a new season opens and you can still switch
+    back to an archived one). Sorted: active first, then most recent start."""
+    picker_ids = set(
+        db.execute(select(Score.season_id).distinct()).scalars().all()
+    )
+    active = get_active_season(db)
+    if active is not None:
+        picker_ids.add(active.id)
+    if not picker_ids:
         return []
     return db.execute(
         select(Season)
-        .where(Season.id.in_(scored_ids))
+        .where(Season.id.in_(picker_ids))
         .order_by(Season.is_active.desc(), Season.start_date.desc())
     ).scalars().all()
 

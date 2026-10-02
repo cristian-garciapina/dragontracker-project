@@ -65,6 +65,7 @@ logger = logging.getLogger(__name__)
 SECRET_KEY_JWT = "farlight_jwt"
 WARN_EXPIRY_DAYS = 7
 INGESTED_BY = "farlight-cron"
+OFFSEASON_MIGRATION_LOOKBACK_DAYS = 30
 
 
 def _yesterday_utc() -> date:
@@ -175,8 +176,31 @@ def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -
     try:
         season = _get_active_season(session)
     except RuntimeError as e:
-        summary["status"] = "no_active_season"
-        summary["error"] = str(e)
+        # No active season: roster + scoring stay frozen on the last closed
+        # season, so off-season farming (merits/power) never leaks into
+        # grades. Migrations are season-independent, so we still ingest them.
+        try:
+            server_id = _get_server_id(session)
+        except RuntimeError as e2:
+            summary["status"] = "no_active_season"
+            summary["error"] = f"{e} (also: {e2})"
+            return summary
+        end = _yesterday_utc()
+        mig_start = end - timedelta(days=OFFSEASON_MIGRATION_LOOKBACK_DAYS)
+        summary.update({
+            "server_id": server_id,
+            "migrations_only": True,
+            "no_active_season": True,
+            "mig_start": mig_start.isoformat(),
+            "mig_end": end.isoformat(),
+        })
+        _ingest_migrations_window(session, jwt, server_id, mig_start, end, summary)
+        if "migrations" in summary:
+            summary["status"] = "ok_migrations_only"
+        else:
+            summary["status"] = "migrations_failed"
+            summary["error"] = summary.get("migrations_error", str(e))
+        summary["completed_at"] = datetime.utcnow().isoformat()
         return summary
     server_id = _get_server_id(session)
     end = _yesterday_utc()
@@ -292,17 +316,42 @@ def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -
 
     # ---- Fetch + ingest migrations (best-effort, never fails the run) ----
     # Season-wide window: idempotence on uq_migration prevents duplicates.
+    _ingest_migrations_window(session, jwt, server_id, cum_start, end, summary)
+
+    summary["daily"] = daily_report
+    summary["daily_skipped_manual"] = daily_skip
+    summary["cumulative"] = cum_report
+    summary["cum_skipped_manual"] = cum_skip
+    summary["scoring"] = score_report
+    summary["force"] = force
+
+    if daily_skip and cum_skip:
+        summary["status"] = "skipped_manual"
+    else:
+        summary["status"] = "ok"
+    summary["completed_at"] = datetime.utcnow().isoformat()
+    return summary
+
+
+def _ingest_migrations_window(
+    session, jwt: str, server_id: int, date_start: date, date_end: date,
+    summary: dict[str, Any],
+) -> None:
+    """Fetch + ingest migrations for [date_start, date_end]. Best-effort:
+    stores the result or the error in `summary` but never raises, so a
+    migration hiccup can't fail the pull. Idempotent on uq_migration, so
+    overlapping windows across nights create no duplicates."""
     try:
         mig_data = fetch_migration(
             jwt,
-            start_date=cum_start.isoformat(),
-            end_date=end.isoformat(),
+            start_date=date_start.isoformat(),
+            end_date=date_end.isoformat(),
             server_id=server_id,
         )
         mig_in, mig_out = map_api_migration_rows(mig_data)
         mig_report = ingest_api_migrations(
             session, mig_in, mig_out,
-            source_filename=f"farlight_api_migration_{server_id}_{cum_start}_{end}.json",
+            source_filename=f"farlight_api_migration_{server_id}_{date_start}_{date_end}.json",
         )
         summary["migrations"] = {
             "fetched_in": len(mig_in),
@@ -318,20 +367,6 @@ def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -
     except Exception as e:
         summary["migrations_error"] = f"{type(e).__name__}: {e}"
         logger.exception("farlight_pull: migration ingest failed")
-
-    summary["daily"] = daily_report
-    summary["daily_skipped_manual"] = daily_skip
-    summary["cumulative"] = cum_report
-    summary["cum_skipped_manual"] = cum_skip
-    summary["scoring"] = score_report
-    summary["force"] = force
-
-    if daily_skip and cum_skip:
-        summary["status"] = "skipped_manual"
-    else:
-        summary["status"] = "ok"
-    summary["completed_at"] = datetime.utcnow().isoformat()
-    return summary
 
 
 def _create_run_row(trigger: str) -> Optional[int]:
@@ -541,6 +576,8 @@ def main() -> int:
         "api_auth_rejected": 2,
         "api_error": 3,
         "ingest_error": 4,
+        "ok_migrations_only": 0,
+        "migrations_failed": 3,
         "no_active_season": 5,
         "season_not_started": 5,
     }.get(status, 4)

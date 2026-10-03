@@ -326,7 +326,11 @@ def _run_pull_impl(session, *, jwt: Optional[str] = None, force: bool = False) -
     summary["force"] = force
 
     if daily_skip and cum_skip:
-        summary["status"] = "skipped_manual"
+        _both_anchor = (
+            "anchor_snapshot_id" in daily_skip
+            and "anchor_snapshot_id" in cum_skip
+        )
+        summary["status"] = "skipped_start_day" if _both_anchor else "skipped_manual"
     else:
         summary["status"] = "ok"
     summary["completed_at"] = datetime.utcnow().isoformat()
@@ -489,6 +493,28 @@ def _handle_window(
     two is non-None.
     """
     conflict = find_conflicting_snapshot(session, date_start, date_end)
+    if conflict is not None:
+        # Day 1 of a season: daily and cumulative windows both collapse
+        # onto (start_date, start_date) = the anchor snapshot. Replacing
+        # it would wipe the frozen baseline and ingest_rows() raises.
+        # Skip gracefully instead.
+        from .models import Season as _Season
+        _anchoring = session.scalar(
+            select(_Season.id).where(_Season.start_snapshot_id == conflict.id)
+        )
+        if _anchoring is not None:
+            skip_info = {
+                "anchor_snapshot_id": conflict.id,
+                "anchor_season_id": _anchoring,
+                "date_start": date_start.isoformat(),
+                "date_end": date_end.isoformat(),
+                "reason": "Window equals the season start anchor; skipped to preserve the baseline.",
+            }
+            logger.info(
+                "farlight_pull: skipping window %s..%s (start anchor snapshot #%d of season %d)",
+                date_start, date_end, conflict.id, _anchoring,
+            )
+            return None, skip_info
     if conflict is not None and conflict.ingested_by != INGESTED_BY and not force:
         skip_info = {
             "conflict_snapshot_id": conflict.id,
